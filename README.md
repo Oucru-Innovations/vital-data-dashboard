@@ -3,7 +3,7 @@
 
 This is a React-based Vital Data Dashboard application designed to visualize and manage data from clinical studies, including data from wearables, ultrasounds, and images.
 
-![Vital Data Dashboard](public/gif/animation.gif)
+![Vital Data Dashboard](./assets/animation.gif)
 <!-- ![Last Commit](https://img.shields.io/github/last-commit/Oucru-Innovations/vital-data-dashboard)
 ![Dependencies](https://img.shields.io/david/Oucru-Innovations/vital-data-dashboard)
 ![Issues](https://img.shields.io/github/issues/Oucru-Innovations/vital-data-dashboard)
