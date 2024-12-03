@@ -1,7 +1,7 @@
 
-# Clinical Dashboard React Application
+# Vital Data Dashboard React Application
 
-This is a React-based Clinical Dashboard application designed to visualize and manage data from clinical studies, including data from wearables, ultrasounds, and images.
+This is a React-based Vital Data Dashboard application designed to visualize and manage data from clinical studies, including data from wearables, ultrasounds, and images.
 
 ## Key Features
 

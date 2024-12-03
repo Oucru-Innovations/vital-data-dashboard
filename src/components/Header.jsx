@@ -49,7 +49,7 @@ const Header = ({ onLogout }) => (
             fontSize: '1.1rem', // Slightly smaller font size
           }}
         >
-          Clinical Study Dashboard
+          Vital Study Dashboard
         </Typography>
       </Box>
 

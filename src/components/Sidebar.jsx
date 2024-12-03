@@ -70,7 +70,7 @@ const Sidebar = () => {
               fontSize: '18px',
             }}
           >
-            Clinical Dashboard
+            Vital-Data Dashboard
           </Typography>
         )}
         <IconButton
@@ -143,7 +143,7 @@ const Sidebar = () => {
             color: '#9e9e9e',
           }}
         >
-          © 2024 Clinical Dashboard
+          © 2024 Vital Data Dashboard
         </Box>
       )}
     </Drawer>

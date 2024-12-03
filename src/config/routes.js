@@ -26,6 +26,16 @@ const routes = (isAuthenticated, onLogin) => [
     ),
   },
   {
+    path: '/',
+    element: (
+      <ProtectedRoute isAuthenticated={isAuthenticated}>
+        <Suspense fallback={<Loading />}>
+          <Dashboard />
+        </Suspense>
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: '/dashboard',
     element: (
       <ProtectedRoute isAuthenticated={isAuthenticated}>
@@ -36,7 +46,7 @@ const routes = (isAuthenticated, onLogin) => [
     ),
   },
   {
-    path: '/',
+    path: '/overview',
     element: (
       <ProtectedRoute isAuthenticated={isAuthenticated}>
         <Suspense fallback={<Loading />}>
