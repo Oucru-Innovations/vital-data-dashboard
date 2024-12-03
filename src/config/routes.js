@@ -3,6 +3,7 @@ import ProtectedRoute from '../config/ProtectedRoute';
 
 // Lazy-load pages
 const Dashboard = lazy(() => import('../pages/Dashboard'));
+const Overview = lazy(() => import('../pages/Overview'));
 const Wearables = lazy(() => import('../pages/Wearables'));
 const Ultrasound = lazy(() => import('../pages/Ultrasound'));
 const Images = lazy(() => import('../pages/Images'));
@@ -25,11 +26,21 @@ const routes = (isAuthenticated, onLogin) => [
     ),
   },
   {
-    path: '/',
+    path: '/dashboard',
     element: (
       <ProtectedRoute isAuthenticated={isAuthenticated}>
         <Suspense fallback={<Loading />}>
           <Dashboard />
+        </Suspense>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/',
+    element: (
+      <ProtectedRoute isAuthenticated={isAuthenticated}>
+        <Suspense fallback={<Loading />}>
+          <Overview />
         </Suspense>
       </ProtectedRoute>
     ),
