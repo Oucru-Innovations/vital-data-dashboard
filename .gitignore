@@ -73,7 +73,7 @@ temp/
 
 # Optional Gatsby files
 .cache/
-# /public/
+/public/
 
 # Optional Storybook build output
 .out/
