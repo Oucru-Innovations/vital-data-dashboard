@@ -195,7 +195,7 @@ const Login = ({ onLogin }) => {
           fontSize: '14px',
         }}
       >
-        © 2024 Your Organization Name. All rights reserved.
+        © 2024 Oxford University Clinical Research Unit. All rights reserved.
       </Box>
     </Container>
   );
