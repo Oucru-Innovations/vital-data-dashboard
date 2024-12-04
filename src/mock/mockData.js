@@ -1,4 +1,5 @@
 // src/mock/mockData.js
+import generatedFileData from '../mock/generated_detail_data.json';
 
 export const sunburstMockData = {
     labels: ['All Studies', '24EI', '24EIa', '24EIb', 'PPG', 'ECG', 'Gyro'],
@@ -7,8 +8,8 @@ export const sunburstMockData = {
 };
   
 export const heatmapMockData = {
-    x: ['PPG', 'ECG', 'Gyro', 'Ultrasound'],
-    y: ['24EI', '24EIa', '24EIb', '05EI', '06EI'],
+    fileTypes: ['PPG', 'ECG', 'Gyro', 'Ultrasound'],
+    studies: ['24EI', '24EIa', '24EIb', '05EI', '06EI'],
     z: [
       [5, 8, 10, 4],
       [6, 12, 14, 6],
@@ -17,7 +18,7 @@ export const heatmapMockData = {
       [6, 6, 8, 9],
     ],
 };
-  
+
 export const summaryMockData = {
     totalFiles: 1000,
     totalDays: 365,
@@ -146,3 +147,231 @@ export const fileSizeInsightsMockData = {
       '24EIb',
     ],
 };
+
+export const detailMockDataAPI = {
+  "study": [
+      "24EI",
+      "24EI",
+      "24EI",
+      "24EI",
+      "24EIa",
+      "24EIa",
+      "24EIa",
+      "24EIa",
+      "24EIb",
+      "24EIb",
+      "24EIb",
+      "24EIb",
+      "05EI",
+      "05EI",
+      "05EI",
+      "05EI"
+  ],
+  "fileType": [
+      "PPG",
+      "ECG",
+      "Gyro",
+      "Ultrasound",
+      "PPG",
+      "ECG",
+      "Gyro",
+      "Ultrasound",
+      "PPG",
+      "ECG",
+      "Gyro",
+      "Ultrasound",
+      "PPG",
+      "ECG",
+      "Gyro",
+      "Ultrasound"
+  ],
+  "fileName": [
+      "file1.ppg",
+      "file2.ecg",
+      "file3.gyro",
+      "file4.us",
+      "file5.ppg",
+      "file6.ecg",
+      "file7.gyro",
+      "file8.us",
+      "file9.ppg",
+      "file10.ecg",
+      "file11.gyro",
+      "file12.us",
+      "file13.ppg",
+      "file14.ecg",
+      "file15.gyro",
+      "file16.us"
+  ],
+  "fileSize": [
+      10,
+      15,
+      20,
+      25,
+      12,
+      18,
+      22,
+      28,
+      14,
+      19,
+      0,
+      30,
+      16,
+      21,
+      23,
+      0
+  ],
+  "duration": [
+      5,
+      8,
+      10,
+      12,
+      6,
+      7,
+      11,
+      13,
+      6,
+      9,
+      0,
+      14,
+      7,
+      10,
+      12,
+      0
+  ],
+  "date": [
+      "2023-01-01",
+      "2023-01-02",
+      "2023-01-03",
+      "2023-01-04",
+      "2023-01-01",
+      "2023-01-02",
+      "2023-01-03",
+      "2023-01-04",
+      "2023-01-05",
+      "2023-01-06",
+      "2023-01-07",
+      "2023-01-08",
+      "2023-01-09",
+      "2023-01-10",
+      "2023-01-11",
+      "2023-01-12"
+  ]
+};
+
+export const detailMockGeneratedDataAPI = (() => {
+  const data = generatedFileData; // Assuming it's an array of objects
+  return data;
+  // Initialize the arrays
+  const study = [];
+  const fileType = [];
+  const fileName = [];
+  const fileSize = [];
+  const duration = [];
+  const date = [];
+
+  // Map through the generated data and populate the arrays
+  data.forEach((item) => {
+    study.push(item.study);
+    fileType.push(item.fileType);
+    fileName.push(item.fileName);
+    fileSize.push(item.fileSize);
+    duration.push(item.duration);
+    date.push(item.date);
+  });
+
+  return { study, fileType, fileName, fileSize, duration, date };
+})();
+
+export const summaryMockDataAPI = {
+  "study": [
+      "24EI",
+      "24EI",
+      "24EI",
+      "24EI",
+      "24EIa",
+      "24EIa",
+      "24EIa",
+      "24EIa",
+      "24EIb",
+      "24EIb",
+      "24EIb",
+      "24EIb",
+      "05EI",
+      "05EI",
+      "05EI",
+      "05EI"
+  ],
+  "fileType": [
+      "PPG",
+      "ECG",
+      "Gyro",
+      "Ultrasound",
+      "PPG",
+      "ECG",
+      "Gyro",
+      "Ultrasound",
+      "PPG",
+      "ECG",
+      "Gyro",
+      "Ultrasound",
+      "PPG",
+      "ECG",
+      "Gyro",
+      "Ultrasound"
+  ],
+  "fileCount": [
+      50,
+      40,
+      30,
+      20,
+      60,
+      50,
+      40,
+      30,
+      0,
+      70,
+      20,
+      10,
+      40,
+      35,
+      25,
+      15
+  ],
+  "totalSize": [
+      500,
+      400,
+      300,
+      200,
+      600,
+      500,
+      400,
+      300,
+      0,
+      700,
+      200,
+      100,
+      400,
+      350,
+      250,
+      150
+  ],
+  "totalDuration": [
+      100,
+      80,
+      60,
+      40,
+      120,
+      100,
+      80,
+      60,
+      0,
+      140,
+      40,
+      20,
+      80,
+      70,
+      50,
+      30
+  ]
+}

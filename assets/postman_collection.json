@@ -1,0 +1,113 @@
+{
+    "info": {
+      "name": "API for Vital Data Dashboard",
+      "_postman_id": "vital-data-dashboard-12345",
+      "description": "Mock API endpoints for the Vital Data Dashboard with samples, error cases, and HTTP response codes.",
+      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+      {
+        "name": "Get Detail Data",
+        "request": {
+          "method": "GET",
+          "url": {
+            "raw": "http://localhost:3001/detail",
+            "protocol": "http",
+            "host": ["localhost"],
+            "port": "3001",
+            "path": ["detail"]
+          }
+        },
+        "response": [
+          {
+            "name": "Successful Detail Data",
+            "status": "OK",
+            "code": 200,
+            "body": "[{\"study\": \"24EI\", \"fileType\": \"PPG\", \"fileName\": \"file1.ppg\", \"fileSize\": 10, \"duration\": 5}]"
+          },
+          {
+            "name": "Bad Request",
+            "status": "Bad Request",
+            "code": 400,
+            "body": "{\"error\": \"Invalid query parameters\", \"status\": 400}"
+          },
+          {
+            "name": "Unauthorized",
+            "status": "Unauthorized",
+            "code": 401,
+            "body": "{\"error\": \"Authentication required\", \"status\": 401}"
+          },
+          {
+            "name": "Not Found",
+            "status": "Not Found",
+            "code": 404,
+            "body": "{\"error\": \"Detail data not found\", \"status\": 404}"
+          },
+          {
+            "name": "Internal Server Error",
+            "status": "Internal Server Error",
+            "code": 500,
+            "body": "{\"error\": \"Unable to fetch detailed data\", \"status\": 500}"
+          },
+          {
+            "name": "Service Unavailable",
+            "status": "Service Unavailable",
+            "code": 503,
+            "body": "{\"error\": \"Service temporarily unavailable\", \"status\": 503}"
+          }
+        ]
+      },
+      {
+        "name": "Get Summary Data",
+        "request": {
+          "method": "GET",
+          "url": {
+            "raw": "http://localhost:3001/summary",
+            "protocol": "http",
+            "host": ["localhost"],
+            "port": "3001",
+            "path": ["summary"]
+          }
+        },
+        "response": [
+          {
+            "name": "Successful Summary Data",
+            "status": "OK",
+            "code": 200,
+            "body": "[{\"study\": \"24EI\", \"fileType\": \"PPG\", \"fileCount\": 50, \"totalSize\": 500, \"totalDuration\": 100}]"
+          },
+          {
+            "name": "Bad Request",
+            "status": "Bad Request",
+            "code": 400,
+            "body": "{\"error\": \"Invalid request format\", \"status\": 400}"
+          },
+          {
+            "name": "Unauthorized",
+            "status": "Unauthorized",
+            "code": 401,
+            "body": "{\"error\": \"Access denied\", \"status\": 401}"
+          },
+          {
+            "name": "Not Found",
+            "status": "Not Found",
+            "code": 404,
+            "body": "{\"error\": \"Summary data not found\", \"status\": 404}"
+          },
+          {
+            "name": "Internal Server Error",
+            "status": "Internal Server Error",
+            "code": 500,
+            "body": "{\"error\": \"Error processing summary data\", \"status\": 500}"
+          },
+          {
+            "name": "Service Unavailable",
+            "status": "Service Unavailable",
+            "code": 503,
+            "body": "{\"error\": \"API service is currently unavailable\", \"status\": 503}"
+          }
+        ]
+      }
+    ]
+  }
+  

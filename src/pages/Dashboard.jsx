@@ -2,7 +2,10 @@ import React, { Suspense } from 'react';
 import { Box, Typography, Grid, Divider } from '@mui/material';
 import Footer from '../components/Footer';
 import config from '../config';
-import { summaryMockData, sunburstMockData, heatmapMockData } from '../mock/mockData';
+import { summaryMockData, sunburstMockData, heatmapMockData, 
+  detailMockDataAPI, summaryMockDataAPI
+ } from '../mock/mockData';
+import { getSummaryData, getDetailData } from '../services/api';
 
 // Lazy load large components for performance
 const SummaryCard = React.lazy(() => import('../components/SummaryCards'));
@@ -12,8 +15,24 @@ const FileAnalysis = React.lazy(() => import('../components/FileAnalysis'));
 const StudyTrends = React.lazy(() => import('../components/StudyTrends'));
 const FileSizeInsights = React.lazy(() => import('../components/FileSizeInsights'));
 
+
 // Utility to fetch data (mock or API)
-const getData = (mockData, apiData) => (config.useMock ? mockData : apiData || {});
+// const getData = (mockData, apiData) => (config.useMock ? mockData : apiData || {});
+// Utility to fetch data (mock or API)
+const getData = async (useMock, mockData, apiData) => {
+  if (useMock) {
+    return mockData;
+  } else {
+    try {
+      const data = await apiData();
+      return data;
+    } catch (error) {
+      console.error("Error fetching data from API", error);
+      return mockData;  // fallback to mock data if API call fails
+    }
+  }
+};
+
 
 const DashboardSection = ({ title, children }) => (
   <Box sx={{ mb: 4 }}>
@@ -58,12 +77,13 @@ const Dashboard = () => {
           <Grid container spacing={4}>
             <Grid item xs={12} md={6}>
               <Suspense fallback={<Typography>Loading...</Typography>}>
-                <SunburstChart data={sunburstData} />
+                {/* <SunburstChart data={sunburstData} /> */}
+                <SunburstChart data={summaryMockDataAPI} />
               </Suspense>
             </Grid>
             <Grid item xs={12} md={6}>
               <Suspense fallback={<Typography>Loading...</Typography>}>
-                <HeatmapChart data={heatmapData} />
+                <HeatmapChart data={summaryMockDataAPI} />
               </Suspense>
             </Grid>
           </Grid>

@@ -2,7 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Box, Typography, Grid, Divider } from '@mui/material';
 import { GroupedBarChart, LineChartWithMarkers, ViolinPlot, TreemapChart } from './charts';
 import config from '../config';
-import { groupedBarMockData, lineChartMockData, violinMockData, treemapMockData } from '../mock/mockData';
+import { groupedBarMockData, lineChartMockData, 
+  violinMockData, treemapMockData,
+  detailMockDataAPI, summaryMockDataAPI , detailMockGeneratedDataAPI
+} from '../mock/mockData';
 
 const StudyTrends = () => {
   const [groupedBarData, setGroupedBarData] = useState(null);
@@ -12,9 +15,9 @@ const StudyTrends = () => {
 
   useEffect(() => {
     if (config.useMock) {
-      setGroupedBarData(groupedBarMockData);
+      setGroupedBarData(detailMockGeneratedDataAPI);
       setLineChartData(lineChartMockData);
-      setViolinData(violinMockData);
+      setViolinData(detailMockGeneratedDataAPI);
       setTreemapData(treemapMockData);
     } else {
       const fetchGroupedBarData = async () => {

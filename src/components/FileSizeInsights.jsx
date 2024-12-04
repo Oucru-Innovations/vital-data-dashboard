@@ -2,14 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { Box, Typography, Grid, Divider } from '@mui/material';
 import { HistogramChart, ScatterPlotChart } from '../components/charts';
 import config from '../config';
-import { fileSizeInsightsMockData } from '../mock/mockData';
+import { fileSizeInsightsMockData, detailMockDataAPI, detailMockGeneratedDataAPI } from '../mock/mockData';
 
 const FileSizeInsights = () => {
   const [fileSizeData, setFileSizeData] = useState(null);
 
   useEffect(() => {
     if (config.useMock) {
-      setFileSizeData(fileSizeInsightsMockData);
+      setFileSizeData(detailMockGeneratedDataAPI);
     } else {
       const fetchFileSizeData = async () => {
         const response = await fetch('/api/fileSizeInsights');

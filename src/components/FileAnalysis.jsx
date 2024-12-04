@@ -3,7 +3,7 @@ import { Box, Typography, Grid, Divider } from '@mui/material';
 import { BubbleChart } from '../components/charts';
 import FileTable from '../components/DataTable';
 import config from '../config';
-import { bubbleMockData, tableMockData } from '../mock/mockData';
+import { bubbleMockData, tableMockData, summaryMockDataAPI, detailMockDataAPI, detailMockGeneratedDataAPI } from '../mock/mockData';
 
 const FileAnalysis = () => {
   const [bubbleData, setBubbleData] = useState(null);
@@ -11,8 +11,8 @@ const FileAnalysis = () => {
 
   useEffect(() => {
     if (config.useMock) {
-      setBubbleData(bubbleMockData);
-      setTableData(tableMockData);
+      setBubbleData(summaryMockDataAPI);
+      setTableData(detailMockGeneratedDataAPI);
     } else {
       const fetchTableData = async () => {
         const response = await fetch('/api/tableData');
