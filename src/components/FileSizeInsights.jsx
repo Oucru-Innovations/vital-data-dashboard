@@ -4,26 +4,8 @@ import { HistogramChart, ScatterPlotChart } from '../components/charts';
 import config from '../config';
 import { fileSizeInsightsMockData, detailMockDataAPI, detailMockGeneratedDataAPI } from '../mock/mockData';
 
-const FileSizeInsights = () => {
-  const [fileSizeData, setFileSizeData] = useState(null);
-
-  useEffect(() => {
-    if (config.useMock) {
-      setFileSizeData(detailMockGeneratedDataAPI);
-    } else {
-      const fetchFileSizeData = async () => {
-        const response = await fetch('/api/fileSizeInsights');
-        const data = await response.json();
-        setFileSizeData(data);
-      };
-
-      fetchFileSizeData();
-    }
-  }, []);
-
-  if (!fileSizeData) {
-    return <Typography>Loading...</Typography>;
-  }
+const FileSizeInsights = ({ detailData }) => {
+  const fileSizeData = detailData
 
   return (
     <Box sx={{ padding: 4 }}>

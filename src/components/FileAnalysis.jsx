@@ -1,52 +1,46 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Box, Typography, Grid, Divider } from '@mui/material';
-import { BubbleChart } from '../components/charts';
+import { BubbleChart, TreemapChart } from '../components/charts';
 import FileTable from '../components/DataTable';
-import config from '../config';
-import { bubbleMockData, tableMockData, summaryMockDataAPI, detailMockDataAPI, detailMockGeneratedDataAPI } from '../mock/mockData';
 
-const FileAnalysis = () => {
-  const [bubbleData, setBubbleData] = useState(null);
-  const [tableData, setTableData] = useState(null);
-
-  useEffect(() => {
-    if (config.useMock) {
-      setBubbleData(summaryMockDataAPI);
-      setTableData(detailMockGeneratedDataAPI);
-    } else {
-      const fetchTableData = async () => {
-        const response = await fetch('/api/tableData');
-        const data = await response.json();
-        setTableData(data);
-      };
-
-      const fetchBubbleData = async () => {
-        const response = await fetch('/api/bubbleData');
-        const data = await response.json();
-        setBubbleData(data);
-      };
-
-      fetchTableData();
-      fetchBubbleData();
-    }
-  }, []);
-
-  if (!bubbleData || !tableData) {
-    return <Typography>Loading...</Typography>;
-  }
+const FileAnalysis = ({ summaryData, detailData }) => {
+  // Process data for bubble chart
+  const bubbleData = summaryData.fileType.map((type, index) => ({
+    fileType: type,
+    fileCount: summaryData.fileCount[index],
+    fileSize: summaryData.totalSize[index],
+    study: summaryData.study[index],
+  }));
 
   return (
     <Box sx={{ padding: 4 }}>
-      {/* <Typography variant="h5" sx={{ mb: 2 }}>
-        File Count and Type Analysis
-      </Typography> */}
       <Grid container spacing={4}>
+        {/* Bubble Chart */}
         <Grid item xs={12} md={6}>
-          <BubbleChart data={bubbleData} />
+          <BubbleChart
+            data={{
+              studies: bubbleData.map((d) => d.study),
+              fileSizes: bubbleData.map((d) => d.fileSize),
+              fileCounts: bubbleData.map((d) => d.fileCount),
+              fileTypes: bubbleData.map((d) => d.fileType),
+            }}
+          />
         </Grid>
+
+        
+
         <Grid item xs={12} md={6}>
-          <FileTable data={tableData} />
+          {/* <Typography variant="h6" sx={{ mb: 1 }}>
+            Duration Distribution by Study and File Type
+          </Typography> */}
+          <TreemapChart data={summaryData} />
         </Grid>
+
+        {/* File Table */}
+        <Grid item xs={12} md={12}>
+          <FileTable data={detailData} />
+        </Grid>
+
       </Grid>
       <Divider sx={{ my: 4 }} />
     </Box>

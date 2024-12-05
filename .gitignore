@@ -94,3 +94,6 @@ debug/
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# backup files
+src/draft/

@@ -96,9 +96,11 @@ const Sidebar = () => {
             arrow
           >
             <ListItem
-              button
               onClick={() => handleNavigation(item.path)}
               sx={{
+                display: 'flex',
+                alignItems: 'center',
+                cursor: 'pointer',
                 '&:hover': {
                   backgroundColor: '#f5f5f5',
                   borderRadius: '8px',
