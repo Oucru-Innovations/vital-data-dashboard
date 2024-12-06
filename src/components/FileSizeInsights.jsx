@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Typography, Grid, Divider } from '@mui/material';
-import { HistogramChart, ScatterPlotChart } from '../components/charts';
-import config from '../config';
-import { fileSizeInsightsMockData, detailMockDataAPI, detailMockGeneratedDataAPI } from '../mock/mockData';
+import { HistogramChart } from './charts/HistogramChart';
+import { ScatterPlotChart } from './charts/ScatterChart';
+import { RoseChart } from './charts/RoseChart';
+import { GradientStackedAreaChart } from './charts/GradientStackedAreaChart';
+
 
 const FileSizeInsights = ({ detailData }) => {
-  const fileSizeData = detailData
+  // const fileSizeData = detailData
 
   return (
     <Box sx={{ padding: 4 }}>
@@ -18,7 +20,7 @@ const FileSizeInsights = ({ detailData }) => {
           {/* <Typography variant="h6" sx={{ mb: 1 }}>
             File Size Distribution by Study
           </Typography> */}
-          <HistogramChart data={fileSizeData} />
+          <HistogramChart data={detailData} />
         </Grid>
 
         {/* Scatter Plot */}
@@ -26,7 +28,23 @@ const FileSizeInsights = ({ detailData }) => {
           {/* <Typography variant="h6" sx={{ mb: 1 }}>
             File Sizes Over Time by Study
           </Typography> */}
-          <ScatterPlotChart data={fileSizeData} />
+          <ScatterPlotChart data={detailData} />
+        </Grid>
+
+        {/* Scatter Plot */}
+        <Grid item xs={12} md={6}>
+          {/* <Typography variant="h6" sx={{ mb: 1 }}>
+            File Sizes Over Time by Study
+          </Typography> */}
+          <RoseChart data={detailData} />
+        </Grid>
+
+        {/* Radar Plot */}
+        <Grid it  em xs={12} md={6}>
+          {/* <Typography variant="h6" sx={{ mb: 1 }}>
+            File Sizes Over Time by Study
+          </Typography> */}
+          <GradientStackedAreaChart data={detailData} />
         </Grid>
       </Grid>
       <Divider sx={{ my: 4 }} />

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Typography, Grid } from '@mui/material';
-import { SunburstChart, HeatmapChart } from '../components/charts';
+import { SunburstChart, HeatmapChart } from '../components/charts/charts';
 
 const Overview = () => {
   // Sample data for Sunburst and Heatmap (replace with real data)

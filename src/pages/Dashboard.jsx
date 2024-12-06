@@ -1,6 +1,6 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import { Box, Typography, Grid, Divider } from '@mui/material';
-import Footer from '../components/Footer';
+import Footer from '../components/toolbars/Footer';
 import config from '../config';
 import { summaryMockData, sunburstMockData, heatmapMockData, 
   detailMockDataAPI, summaryMockDataAPI
@@ -8,24 +8,24 @@ import { summaryMockData, sunburstMockData, heatmapMockData,
 import { getSummaryData, getDetailData } from '../services/apiService';
 
 // Lazy load large components for performance
-const SummaryCard = React.lazy(() => import('../components/SummaryCards'));
-const SunburstChart = React.lazy(() => import('../components/charts').then((module) => ({ default: module.SunburstChart })));
-const HeatmapChart = React.lazy(() => import('../components/charts').then((module) => ({ default: module.HeatmapChart })));
+const SummaryCard = React.lazy(() => import('../components/cards/SummaryCards'));
+const SunburstChart = React.lazy(() => import('../components/charts/SunBurstChart').then((module) => ({ default: module.SunburstChart })));
+const HeatmapChart = React.lazy(() => import('../components/charts/HeatmapChart').then((module) => ({ default: module.HeatmapChart })));
 const FileAnalysis = React.lazy(() => import('../components/FileAnalysis'));
 const StudyTrends = React.lazy(() => import('../components/StudyTrends'));
 const FileSizeInsights = React.lazy(() => import('../components/FileSizeInsights'));
 
-const getData = async (useMock, mockData, fetchFunction) => {
-  if (useMock) {
-    // console.log('Using mock data:', mockData);
+const getData = async (dataMode, mockData, fetchFunction) => {
+  if (dataMode === 'mock') {
+    // Using mock data
     return mockData;
   } else {
     try {
+      // Fetching from the API
       const data = await fetchFunction();
-      // console.log('Fetched API data:', data);
       return data;
     } catch (error) {
-      // console.error('Error fetching API data:', error);
+      console.error('Error fetching API data:', error);
       return null;
     }
   }
@@ -64,8 +64,8 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchDataFromSource = async () => {
       try {
-        const summary = await getData(config.useMock, summaryMockData, getSummaryData);
-        const detail = await getData(config.useMock, detailMockDataAPI, getDetailData);
+        const summary = await getData(config.dataMode, summaryMockData, getSummaryData);
+        const detail = await getData(config.dataMode, detailMockDataAPI, getDetailData);
 
         setSummaryData(summary);
         setDetailData(detail);
@@ -175,7 +175,7 @@ const Dashboard = () => {
         {/* Section 3: Study Trends */}
         <DashboardSection title="Trends by Study and File Type">
           <Suspense fallback={<Typography>Loading Study Trends...</Typography>}>
-            <StudyTrends groupedBarData={detailData} lineChartData={detailData} violinData={detailData}/>
+            <StudyTrends summaryData={summaryData} detailData={detailData}/>
           </Suspense>
         </DashboardSection>
 

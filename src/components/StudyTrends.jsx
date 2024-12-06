@@ -1,13 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Box, Typography, Grid, Divider } from '@mui/material';
-import { GroupedBarChart, LineChartWithMarkers, ViolinPlot, TreemapChart } from './charts';
-import config from '../config';
-import { groupedBarMockData, lineChartMockData, 
-  violinMockData, treemapMockData,
-  detailMockDataAPI, summaryMockDataAPI , detailMockGeneratedDataAPI
-} from '../mock/mockData';
+import { GroupedBarChart } from './charts/GroupedBarChart';
+import { ViolinChart } from './charts/ViolinChart';
+import { LineChartWithMarkers } from './charts/LineChart';
+import { SankeyChart } from './charts/SankeyChart';
 
-const StudyTrends = ({groupedBarData,lineChartData,violinData}) => {
+
+const StudyTrends = ({summaryData,detailData}) => {
   // const [groupedBarData, setGroupedBarData] = useState(null);
   // const [lineChartData, setLineChartData] = useState(null);
   // const [violinData, setViolinData] = useState(null);
@@ -66,7 +65,7 @@ const StudyTrends = ({groupedBarData,lineChartData,violinData}) => {
           {/* <Typography variant="h6" sx={{ mb: 1 }}>
             Daily File Counts by File Type
           </Typography> */}
-          <GroupedBarChart data={groupedBarData} />
+          <GroupedBarChart data={detailData} />
         </Grid>
 
         
@@ -74,7 +73,7 @@ const StudyTrends = ({groupedBarData,lineChartData,violinData}) => {
           <Typography variant="h6" sx={{ mb: 1 }}>
             Cumulative File Counts Over Time
           </Typography>
-          <LineChartWithMarkers data={lineChartData} />
+          <LineChartWithMarkers data={detailData} />
         </Grid>
         {/*
         <Grid item xs={12} md={6}>
@@ -90,7 +89,15 @@ const StudyTrends = ({groupedBarData,lineChartData,violinData}) => {
           {/* <Typography variant="h6" sx={{ mb: 1 }}>
             Duration Distribution by Study and File Type
           </Typography> */}
-          <ViolinPlot data={violinData} />
+          <ViolinChart data={detailData} />
+        </Grid>
+
+        {/* Sankey Chart */}
+        <Grid item xs={12} md={6}>
+          {/* <Typography variant="h6" sx={{ mb: 1 }}>
+            Duration Distribution by Study and File Type
+          </Typography> */}
+          <SankeyChart data={detailData} />
         </Grid>
       </Grid>
       <Divider sx={{ my: 4 }} />

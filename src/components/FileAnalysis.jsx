@@ -1,7 +1,8 @@
 import React from 'react';
 import { Box, Typography, Grid, Divider } from '@mui/material';
-import { BubbleChart, TreemapChart } from '../components/charts';
-import FileTable from '../components/DataTable';
+import { TreemapChart } from './charts/TreemapChart';
+import { BubbleChart } from './charts/BubbleChart';
+import FileTable from '../components/tables/DataTable';
 
 const FileAnalysis = ({ summaryData, detailData }) => {
   // Process data for bubble chart
