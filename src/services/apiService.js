@@ -54,9 +54,9 @@ export const getSummaryDataByStudy = async () => {
 };
 
 // Fetch summary data by device
-export const getSummaryDataByDevice = async () => {
+export const getSummaryDataByDevice = async (params) => {
   try {
-    const response = await apiClient.get('/summary/device');
+    const response = await apiClient.get('/summary/device', { params });
     return response.data;
   } catch (error) {
     console.error("Error fetching summary data by device", error);
@@ -65,9 +65,9 @@ export const getSummaryDataByDevice = async () => {
 };
 
 //Fetch summary data by condition
-export const getSummaryDataByCondition = async () => {
+export const getSummaryDataByCondition = async (params) => {
   try {
-    const response = await apiClient.get('/summary/condition');
+    const response = await apiClient.get('/summary/condition', { params });
     return response.data;
   } catch (error) {
     console.error("Error fetching summary data by condition", error);
