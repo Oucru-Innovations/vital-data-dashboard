@@ -8,6 +8,7 @@ const Wearables = lazy(() => import('../pages/Wearables'));
 const Ultrasound = lazy(() => import('../pages/Ultrasound'));
 const Images = lazy(() => import('../pages/Images'));
 const Login = lazy(() => import('../pages/Login'));
+const SummaryDataTypePage = lazy(() => import('../pages/SummaryDataType'));
 
 // Fallback Component
 const Loading = () => (
@@ -81,6 +82,16 @@ const routes = (isAuthenticated, onLogin) => [
       <ProtectedRoute isAuthenticated={isAuthenticated}>
         <Suspense fallback={<Loading />}>
           <Images />
+        </Suspense>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/summary/datatype',
+    element: (
+      <ProtectedRoute isAuthenticated={isAuthenticated}>
+        <Suspense fallback={<Loading />}>
+          <SummaryDataTypePage />
         </Suspense>
       </ProtectedRoute>
     ),

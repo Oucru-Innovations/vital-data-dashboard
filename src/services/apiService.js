@@ -30,3 +30,47 @@ export const getDetailData = async () => {
     return {};
   }
 };
+
+// Fetch summary data by data type
+export const getSummaryDataByDataType = async (params) => {
+  try {
+    const response = await apiClient.get('/summary/datatype', { params });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching summary data by data type", error);
+    return {};
+  }
+};
+
+// Fetch summary data by study
+export const getSummaryDataByStudy = async () => {
+  try {
+    const response = await apiClient.get('/summary/study');
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching summary data by study", error);
+    return {};
+  }
+};
+
+// Fetch summary data by device
+export const getSummaryDataByDevice = async () => {
+  try {
+    const response = await apiClient.get('/summary/device');
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching summary data by device", error);
+    return {};
+  }
+};
+
+//Fetch summary data by condition
+export const getSummaryDataByCondition = async () => {
+  try {
+    const response = await apiClient.get('/summary/condition');
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching summary data by condition", error);
+    return {};
+  }
+};

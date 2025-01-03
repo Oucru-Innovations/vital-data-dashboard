@@ -17,6 +17,7 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import WatchIcon from '@mui/icons-material/Watch';
 import MedicalServicesIcon from '@mui/icons-material/MedicalServices';
 import ImageIcon from '@mui/icons-material/Image';
+import DataUsageIcon from '@mui/icons-material/DataUsage';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 
 const Sidebar = () => {
@@ -25,9 +26,10 @@ const Sidebar = () => {
 
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-    { text: 'Wearables', icon: <WatchIcon />, path: '/wearables' },
-    { text: 'Ultrasound', icon: <MedicalServicesIcon />, path: '/ultrasound' },
-    { text: 'Images', icon: <ImageIcon />, path: '/images' },
+    // { text: 'Wearables', icon: <WatchIcon />, path: '/wearables' },
+    // { text: 'Ultrasound', icon: <MedicalServicesIcon />, path: '/ultrasound' },
+    // { text: 'Images', icon: <ImageIcon />, path: '/images' },
+    { text: 'Summary by DataType', icon: <DataUsageIcon />, path: '/summary/datatype' },
   ];
 
   const handleNavigation = (path) => {

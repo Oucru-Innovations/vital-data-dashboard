@@ -1,9 +1,9 @@
 import React from 'react';
 import { Box, Typography, Grid, Divider } from '@mui/material';
-import { GroupedBarChart } from './charts/GroupedBarChart';
-import { ViolinChart } from './charts/ViolinChart';
-import { LineChartWithMarkers } from './charts/LineChart';
-import { SankeyChart } from './charts/SankeyChart';
+import { GroupedBarChart } from './charts/DashboardPage/GroupedBarChart';
+import { ViolinChart } from './charts/DashboardPage/ViolinChart';
+import { LineChartWithMarkers } from './charts/DashboardPage/LineChart';
+import { SankeyChart } from './charts/DashboardPage/SankeyChart';
 
 
 const StudyTrends = ({summaryData,detailData}) => {

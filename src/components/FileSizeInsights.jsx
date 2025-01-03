@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Typography, Grid, Divider } from '@mui/material';
-import { HistogramChart } from './charts/HistogramChart';
-import { ScatterPlotChart } from './charts/ScatterChart';
-import { RoseChart } from './charts/RoseChart';
-import { GradientStackedAreaChart } from './charts/GradientStackedAreaChart';
+import { HistogramChart } from './charts/DashboardPage/HistogramChart';
+import { ScatterPlotChart } from './charts/DashboardPage/ScatterChart';
+import { RoseChart } from './charts/DashboardPage/RoseChart';
+import { GradientStackedAreaChart } from './charts/DashboardPage/GradientStackedAreaChart';
 
 
 const FileSizeInsights = ({ detailData }) => {

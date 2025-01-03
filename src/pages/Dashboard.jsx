@@ -9,8 +9,8 @@ import { getSummaryData, getDetailData } from '../services/apiService';
 
 // Lazy load large components for performance
 const SummaryCard = React.lazy(() => import('../components/cards/SummaryCards'));
-const SunburstChart = React.lazy(() => import('../components/charts/SunBurstChart').then((module) => ({ default: module.SunburstChart })));
-const HeatmapChart = React.lazy(() => import('../components/charts/HeatmapChart').then((module) => ({ default: module.HeatmapChart })));
+const SunburstChart = React.lazy(() => import('../components/charts/DashboardPage/SunBurstChart').then((module) => ({ default: module.SunburstChart })));
+const HeatmapChart = React.lazy(() => import('../components/charts/DashboardPage/HeatmapChart').then((module) => ({ default: module.HeatmapChart })));
 const FileAnalysis = React.lazy(() => import('../components/FileAnalysis'));
 const StudyTrends = React.lazy(() => import('../components/StudyTrends'));
 const FileSizeInsights = React.lazy(() => import('../components/FileSizeInsights'));
