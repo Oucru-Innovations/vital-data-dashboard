@@ -3,30 +3,53 @@ import { Box, Grid, Paper, Typography, CircularProgress, CardContent } from '@mu
 
 
 export const renderSummaryCards = (summaryData) => {
+    const formatDuration = (minutes) => {
+      if (minutes >= 4320) { // Greater than or equal to 3 days (1440 * 3)
+        return `${(minutes / 1440).toFixed(2)} days`;
+      } else if (minutes >= 180) { // Greater than or equal to 3 hours (60 * 3)
+        return `${(minutes / 60).toFixed(2)} hours`;
+      } else {
+        return `${minutes.toFixed(2)} mins`;
+      }
+    };
+    
     const totalPatients = summaryData.patient.reduce((sum, p) => sum + parseInt(p, 10), 0);
     const totalDuration = summaryData.duration.reduce((sum, d) => sum + parseFloat(d), 0);
     const totalSessions = summaryData.session.reduce((sum, s) => sum + parseInt(s, 10), 0);
+    
     const ppgDurations = summaryData.datatype
       .map((type, index) => (type === 'PPG' ? parseFloat(summaryData.duration[index]) : 0))
       .filter((d) => d > 0);
+    
     const ecgDurations = summaryData.datatype
       .map((type, index) => (type === 'ECG' ? parseFloat(summaryData.duration[index]) : 0))
       .filter((d) => d > 0);
+    
     const gyroDurations = summaryData.datatype
       .map((type, index) => (type === 'Gyro' ? parseFloat(summaryData.duration[index]) : 0))
       .filter((d) => d > 0);
-    const avgPPGDuration = ppgDurations.length > 0 ? (ppgDurations.reduce((a, b) => a + b, 0) / ppgDurations.length).toFixed(2) : 0;
-    const avgECGDuration = ecgDurations.length > 0 ? (ecgDurations.reduce((a, b) => a + b, 0) / ecgDurations.length).toFixed(2) : 0;
-    const avgGyroDuration = gyroDurations.length > 0 ? (gyroDurations.reduce((a, b) => a + b, 0) / gyroDurations.length).toFixed(2) : 0;
-
+    
+    const avgPPGDuration = ppgDurations.length > 0
+      ? formatDuration(ppgDurations.reduce((a, b) => a + b, 0) / ppgDurations.length)
+      : '0 mins';
+    
+    const avgECGDuration = ecgDurations.length > 0
+      ? formatDuration(ecgDurations.reduce((a, b) => a + b, 0) / ecgDurations.length)
+      : '0 mins';
+    
+    const avgGyroDuration = gyroDurations.length > 0
+      ? formatDuration(gyroDurations.reduce((a, b) => a + b, 0) / gyroDurations.length)
+      : '0 mins';
+    
     const cards = [
       { title: 'Total Patients', value: totalPatients, color: { 50: '#e8f5e9', 700: '#388e3c', 800: '#1b5e20' } },
-      { title: 'Total Duration', value: `${totalDuration.toFixed(2)} mins`, color: { 50: '#e3f2fd', 700: '#1976d2', 800: '#0d47a1' } },
+      { title: 'Total Duration', value: formatDuration(totalDuration), color: { 50: '#e3f2fd', 700: '#1976d2', 800: '#0d47a1' } },
       { title: 'Total Sessions', value: totalSessions, color: { 50: '#ffebee', 700: '#d32f2f', 800: '#b71c1c' } },
-      { title: 'Average PPG Duration', value: `${avgPPGDuration} mins`, color: { 50: '#ede7f6', 700: '#673ab7', 800: '#311b92' } },
-      { title: 'Average ECG Duration', value: `${avgECGDuration} mins`, color: { 50: '#fff8e1', 700: '#f57c00', 800: '#e65100' } },
-      { title: 'Average Gyro Duration', value: `${avgGyroDuration} mins`, color: { 50: '#e1f5fe', 700: '#0288d1', 800: '#01579b' } },
+      { title: 'Average PPG Duration', value: avgPPGDuration, color: { 50: '#ede7f6', 700: '#673ab7', 800: '#311b92' } },
+      { title: 'Average ECG Duration', value: avgECGDuration, color: { 50: '#fff8e1', 700: '#f57c00', 800: '#e65100' } },
+      { title: 'Average Gyro Duration', value: avgGyroDuration, color: { 50: '#e1f5fe', 700: '#0288d1', 800: '#01579b' } },
     ];
+  
 
     return (
       <Grid container spacing={2}>

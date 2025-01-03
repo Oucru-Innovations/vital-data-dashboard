@@ -1,13 +1,13 @@
 import React from 'react';
 import ReactECharts from 'echarts-for-react';
 
-export const renderRadarChart = (summaryData) => {
+export const renderRadarChart = (summaryData, summaryDataValues, titleText) => {
   const uniqueStudies = Array.from(new Set(summaryData.study));
   const uniqueDatatypes = Array.from(new Set(summaryData.datatype));
 
   const indicator = uniqueStudies.map((study) => ({
     name: study,
-    max: Math.max(...summaryData.session.map((s) => parseInt(s, 10))) + 10, // Adjust max for better scaling
+    max: Math.max(...summaryDataValues.map((s) => parseInt(s, 10))) + 10, // Adjust max for better scaling
   }));
 
   const seriesData = uniqueDatatypes.map((datatype) => ({
@@ -16,7 +16,7 @@ export const renderRadarChart = (summaryData) => {
       let total = 0;
       summaryData.study.forEach((s, index) => {
         if (s === study && summaryData.datatype[index] === datatype) {
-          total += parseInt(summaryData.session[index], 10);
+          total += parseInt(summaryDataValues[index], 10);
         }
       });
       return total;
@@ -25,7 +25,7 @@ export const renderRadarChart = (summaryData) => {
 
   const option = {
     title: {
-      text: 'Session Distribution (Radar)',
+      text: titleText,
       left: 'center',
       textStyle: {
         fontSize: 18,

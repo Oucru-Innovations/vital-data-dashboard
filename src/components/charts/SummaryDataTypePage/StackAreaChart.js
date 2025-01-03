@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactECharts from 'echarts-for-react';
 
-export const renderStackedAreaChart = (summaryData) => {
+export const renderStackedAreaChart = (summaryData,summaryDataValues,titleText) => {
   const uniqueDatatypes = Array.from(new Set(summaryData.datatype));
 
   const series = uniqueDatatypes.map((datatype) => ({
@@ -14,14 +14,14 @@ export const renderStackedAreaChart = (summaryData) => {
     },
     data: summaryData.study.map((study, index) =>
       summaryData.datatype[index] === datatype
-        ? parseInt(summaryData.session[index], 10)
+        ? parseInt(summaryDataValues[index], 10)
         : 0
     ),
   }));
 
   const option = {
     title: {
-      text: 'Session Distribution (Stacked Area)',
+      text: titleText,
       left: 'center',
       textStyle: {
         fontSize: 18,

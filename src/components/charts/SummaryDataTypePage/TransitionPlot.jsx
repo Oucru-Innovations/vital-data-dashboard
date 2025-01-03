@@ -1,25 +1,37 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import ReactECharts from 'echarts-for-react';
 
-export const TransitionPlot = ({ summaryData }) => {
-  const [chartType, setChartType] = useState('treemap'); // Initial chart type
+const TransitionPlot = ({ summaryData, summaryDataValues,titleText }) => {
+  const chartRef = useRef(null); // Reference to the ECharts instance
 
-  // Prepare data for treemap and sunburst
-  const data = summaryData.datatype.map((datatype, index) => ({
+  const uniqueDatatypes = Array.from(new Set(summaryData?.datatype || []));
+  const uniqueStudies = Array.from(new Set(summaryData?.study || []));
+
+  const datatypeColors = ['#4caf50', '#2196f3', '#9c27b0', '#ff9800', '#f44336'];
+  const datatypeColorMap = uniqueDatatypes.reduce((acc, datatype, index) => {
+    acc[datatype] = datatypeColors[index % datatypeColors.length];
+    return acc;
+  }, {});
+
+  const data = uniqueDatatypes.map((datatype) => ({
     name: datatype,
-    value: parseInt(summaryData.session[index], 10),
-    children: [
-      {
-        name: summaryData.study[index],
-        value: parseInt(summaryData.session[index], 10),
-      },
-    ],
+    value: summaryDataValues
+      ?.map((_, index) => (summaryData?.datatype[index] === datatype ? parseInt(summaryDataValues[index], 10) : 0))
+      .reduce((a, b) => a + b, 0) || 0,
+    children: uniqueStudies.map((study, index) => ({
+      name: study,
+      value:
+        summaryData?.datatype[index] === datatype ? parseInt(summaryDataValues[index], 10) : 0,
+      itemStyle: { color: datatypeColorMap[datatype] },
+    })),
+    itemStyle: { color: datatypeColorMap[datatype] },
   }));
 
-  // Base option
-  const option = {
+  const safeData = data.length > 0 ? data : [{ name: 'No Data', value: 0 }];
+
+  const treemapOption = {
     title: {
-      text: chartType === 'treemap' ? 'Treemap View' : 'Sunburst View',
+      text: titleText,
       left: 'center',
       textStyle: {
         fontSize: 18,
@@ -33,44 +45,118 @@ export const TransitionPlot = ({ summaryData }) => {
     },
     series: [
       {
-        type: chartType,
-        data: data,
-        radius: chartType === 'sunburst' ? [0, '90%'] : undefined, // Sunburst-specific option
-        leafDepth: chartType === 'treemap' ? 1 : undefined, // Treemap-specific option
+        type: 'treemap',
+        id: 'transition-plot',
+        animationDurationUpdate: 1000,
+        roam: true,
+        nodeClick: undefined,
+        data: safeData,
+        universalTransition: true,
         label: {
-          rotate: chartType === 'sunburst' ? 'radial' : undefined,
+          show: true,
+          fontSize: 12,
           formatter: '{b}',
+        },
+        breadcrumb: {
+          show: true,
+          itemStyle: {
+            color: '#f5f5f5',
+          },
+          textStyle: {
+            color: '#333',
+          },
         },
         itemStyle: {
           borderColor: '#fff',
           borderWidth: 2,
+          gapWidth: 1,
         },
         emphasis: {
-          focus: 'ancestor',
+          focus: 'descendant',
+          itemStyle: {
+            shadowBlur: 10,
+            shadowColor: 'rgba(0, 0, 0, 0.3)',
+            borderWidth: 3,
+            borderColor: '#ff5722',
+          },
         },
       },
     ],
   };
 
+  const sunburstOption = {
+    title: {
+      text: titleText,
+      left: 'center',
+      textStyle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#333',
+      },
+    },
+    tooltip: {
+      trigger: 'item',
+      formatter: '{b}: {c}',
+    },
+    series: [
+      {
+        type: 'sunburst',
+        id: 'transition-plot',
+        radius: ['15%', '85%'],
+        animationDurationUpdate: 1000,
+        nodeClick: undefined,
+        data: safeData,
+        universalTransition: true,
+        itemStyle: {
+          borderWidth: 1,
+          borderColor: 'rgba(255,255,255,0.5)',
+        },
+        label: {
+          show: true,
+          rotate: 'radial',
+          fontSize: 10,
+          formatter: '{b}',
+        },
+        emphasis: {
+          focus: 'ancestor',
+          itemStyle: {
+            shadowBlur: 10,
+            shadowColor: 'rgba(0, 0, 0, 0.3)',
+            borderWidth: 3,
+            borderColor: '#388e3c',
+          },
+        },
+      },
+    ],
+  };
+
+  useEffect(() => {
+    let currentOption = treemapOption;
+
+    const intervalId = setInterval(() => {
+      if (chartRef.current && chartRef.current.getEchartsInstance) {
+        const chartInstance = chartRef.current.getEchartsInstance();
+        currentOption = currentOption === treemapOption ? sunburstOption : treemapOption;
+        chartInstance.setOption(currentOption);
+      }
+    }, 5000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [safeData]);
+
+  // Render fallback message if data is invalid
+  if (!summaryData || !summaryDataValues || safeData.length === 1) {
+    return <div>No data available for the transition plot.</div>;
+  }
+
   return (
-    <div>
-      <button
-        onClick={() => setChartType((prev) => (prev === 'treemap' ? 'sunburst' : 'treemap'))}
-        style={{
-          marginBottom: '16px',
-          padding: '8px 16px',
-          fontSize: '14px',
-          borderRadius: '4px',
-          border: 'none',
-          cursor: 'pointer',
-          backgroundColor: '#1976d2',
-          color: '#fff',
-        }}
-      >
-        Toggle to {chartType === 'treemap' ? 'Sunburst' : 'Treemap'}
-      </button>
-      <ReactECharts option={option} style={{ height: '400px' }} />
-    </div>
+    <ReactECharts
+      ref={chartRef}
+      style={{ height: '450px', marginTop: '16px' }}
+      option={treemapOption} // Set initial option
+    />
   );
 };
 

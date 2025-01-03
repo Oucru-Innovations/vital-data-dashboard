@@ -31,7 +31,7 @@ const routes = (isAuthenticated, onLogin) => [
     element: (
       <ProtectedRoute isAuthenticated={isAuthenticated}>
         <Suspense fallback={<Loading />}>
-          <Dashboard />
+          <SummaryDataTypePage />
         </Suspense>
       </ProtectedRoute>
     ),
