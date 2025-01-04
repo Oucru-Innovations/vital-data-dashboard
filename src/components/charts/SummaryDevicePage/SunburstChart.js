@@ -2,7 +2,7 @@ import React from 'react';
 import ReactECharts from 'echarts-for-react';
 
 export const renderSunburstChart = (summaryData, summaryDataValues, titleText) => {
-  const uniqueConditions = [...new Set(summaryData.condition)].filter(Boolean); // Remove null/undefined
+  const uniqueDevices = [...new Set(summaryData.device)].filter(Boolean); // Remove null/undefined
 
   // Modern color palette
   const modernColors = [
@@ -18,19 +18,19 @@ export const renderSunburstChart = (summaryData, summaryDataValues, titleText) =
     '#D65076', // Amethyst
   ];
 
-  const conditionColorMap = uniqueConditions.reduce((acc, condition, index) => {
-    acc[condition] = modernColors[index % modernColors.length];
+  const deviceColorMap = uniqueDevices.reduce((acc, device, index) => {
+    acc[device] = modernColors[index % modernColors.length];
     return acc;
   }, {});
 
-  const data = uniqueConditions.map((condition, index) => ({
-    name: condition,
-    value: summaryData.condition.reduce(
-      (sum, cond, idx) => (cond === condition ? sum + parseInt(summaryDataValues[idx], 10) : sum),
+  const data = uniqueDevices.map((device, index) => ({
+    name: device,
+    value: summaryData.device.reduce(
+      (sum, cond, idx) => (cond === device ? sum + parseInt(summaryDataValues[idx], 10) : sum),
       0
     ),
     itemStyle: {
-      color: conditionColorMap[condition],
+      color: deviceColorMap[device],
     },
   }));
 

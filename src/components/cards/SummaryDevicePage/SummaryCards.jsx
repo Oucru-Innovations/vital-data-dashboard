@@ -17,15 +17,15 @@ export const renderSummaryCards = (summaryData) => {
     const totalDuration = summaryData.duration.reduce((sum, d) => sum + parseFloat(d), 0);
     const totalSessions = summaryData.session.reduce((sum, s) => sum + parseInt(s, 10), 0);
     
-    // const ppgDurations = summaryData.condition
+    // const ppgDurations = summaryData.device
     //   .map((type, index) => (type === 'Dengue' ? parseFloat(summaryData.duration[index]) : 0))
     //   .filter((d) => d > 0);
     
-    // const ecgDurations = summaryData.condition
+    // const ecgDurations = summaryData.device
     //   .map((type, index) => (type === 'Covid-19' ? parseFloat(summaryData.duration[index]) : 0))
     //   .filter((d) => d > 0);
     
-    // const gyroDurations = summaryData.condition
+    // const gyroDurations = summaryData.device
     //   .map((type, index) => (type === 'Mpox' ? parseFloat(summaryData.duration[index]) : 0))
     //   .filter((d) => d > 0);
     

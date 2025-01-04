@@ -4,25 +4,25 @@ import ReactECharts from 'echarts-for-react';
 const TransitionPlot = ({ summaryData, summaryDataValues, titleText }) => {
   const chartRef = useRef(null); // Reference to the ECharts instance
 
-  const uniqueConditions = Array.from(new Set(summaryData?.condition || [])).filter(Boolean);
+  const uniqueDevices = Array.from(new Set(summaryData?.device || [])).filter(Boolean);
 
   const modernColors = [
     '#FF6F61', '#6B5B95', '#88B04B', '#F7CAC9', '#92A8D1',
     '#955251', '#B565A7', '#009B77', '#DD4124', '#D65076',
   ];
 
-  const conditionColorMap = uniqueConditions.reduce((acc, condition, index) => {
-    acc[condition] = modernColors[index % modernColors.length];
+  const deviceColorMap = uniqueDevices.reduce((acc, device, index) => {
+    acc[device] = modernColors[index % modernColors.length];
     return acc;
   }, {});
 
-  const data = uniqueConditions.map((condition) => ({
-    name: condition,
-    value: summaryData.condition.reduce(
-      (sum, cond, idx) => (cond === condition ? sum + parseInt(summaryDataValues[idx], 10) : sum),
+  const data = uniqueDevices.map((device) => ({
+    name: device,
+    value: summaryData.device.reduce(
+      (sum, cond, idx) => (cond === device ? sum + parseInt(summaryDataValues[idx], 10) : sum),
       0
     ),
-    itemStyle: { color: conditionColorMap[condition] },
+    itemStyle: { color: deviceColorMap[device] },
   }));
 
   const treemapOption = {

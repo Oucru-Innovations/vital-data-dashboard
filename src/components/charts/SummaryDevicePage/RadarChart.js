@@ -2,21 +2,21 @@ import React from 'react';
 import ReactECharts from 'echarts-for-react';
 
 export const renderRadarChart = (summaryData, titleText) => {
-  const uniqueConditions = [...new Set(summaryData.condition)].filter(Boolean); // Remove null/undefined
+  const uniqueDevices = [...new Set(summaryData.device)].filter(Boolean); // Remove null/undefined
   const metrics = ['Patients', 'Duration (mins)', 'Sessions'];
 
   // Define radar indicators based on the metrics
   const indicator = metrics.map((metric) => ({
     name: metric,
     max: Math.max(
-      ...uniqueConditions.map((condition) => {
+      ...uniqueDevices.map((device) => {
         switch (metric) {
           case 'Patients':
-            return parseInt(summaryData.patient[summaryData.condition.indexOf(condition)], 10) || 0;
+            return parseInt(summaryData.patient[summaryData.device.indexOf(device)], 10) || 0;
           case 'Duration (mins)':
-            return parseFloat(summaryData.duration[summaryData.condition.indexOf(condition)], 10) || 0;
+            return parseFloat(summaryData.duration[summaryData.device.indexOf(device)], 10) || 0;
           case 'Sessions':
-            return parseInt(summaryData.session[summaryData.condition.indexOf(condition)], 10) || 0;
+            return parseInt(summaryData.session[summaryData.device.indexOf(device)], 10) || 0;
           default:
             return 0;
         }
@@ -25,12 +25,12 @@ export const renderRadarChart = (summaryData, titleText) => {
   }));
 
   // Prepare data for radar series
-  const seriesData = uniqueConditions.map((condition) => ({
-    name: condition,
+  const seriesData = uniqueDevices.map((device) => ({
+    name: device,
     value: [
-      parseInt(summaryData.patient[summaryData.condition.indexOf(condition)], 10) || 0,
-      parseFloat(summaryData.duration[summaryData.condition.indexOf(condition)], 10) || 0,
-      parseInt(summaryData.session[summaryData.condition.indexOf(condition)], 10) || 0,
+      parseInt(summaryData.patient[summaryData.device.indexOf(device)], 10) || 0,
+      parseFloat(summaryData.duration[summaryData.device.indexOf(device)], 10) || 0,
+      parseInt(summaryData.session[summaryData.device.indexOf(device)], 10) || 0,
     ],
   }));
 
@@ -49,7 +49,7 @@ export const renderRadarChart = (summaryData, titleText) => {
     },
     legend: {
       bottom: 0,
-      data: uniqueConditions,
+      data: uniqueDevices,
       textStyle: {
         fontSize: 12,
         color: '#666',

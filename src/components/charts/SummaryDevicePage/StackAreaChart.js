@@ -2,7 +2,7 @@ import React from 'react';
 import ReactECharts from 'echarts-for-react';
 
 export const renderStackedAreaChart = (summaryData, titleText) => {
-  const uniqueConditions = [...new Set(summaryData.condition)].filter(Boolean); // Remove null/undefined
+  const uniqueDevices = [...new Set(summaryData.device)].filter(Boolean); // Remove null/undefined
 
   // Modern color palette
   const modernColors = [
@@ -13,13 +13,13 @@ export const renderStackedAreaChart = (summaryData, titleText) => {
     '#9c27b0', // Purple
   ];
 
-  const conditionColorMap = uniqueConditions.reduce((acc, condition, index) => {
-    acc[condition] = modernColors[index % modernColors.length];
+  const deviceColorMap = uniqueDevices.reduce((acc, device, index) => {
+    acc[device] = modernColors[index % modernColors.length];
     return acc;
   }, {});
 
-  const series = uniqueConditions.map((condition) => ({
-    name: condition,
+  const series = uniqueDevices.map((device) => ({
+    name: device,
     type: 'line',
     stack: 'total',
     areaStyle: {
@@ -29,10 +29,10 @@ export const renderStackedAreaChart = (summaryData, titleText) => {
       focus: 'series',
     },
     itemStyle: {
-      color: conditionColorMap[condition],
+      color: deviceColorMap[device],
     },
-    data: summaryData.condition.map((cond, index) =>
-      cond === condition ? parseInt(summaryData.session[index], 10) : 0
+    data: summaryData.device.map((cond, index) =>
+      cond === device ? parseInt(summaryData.session[index], 10) : 0
     ),
   }));
 
@@ -56,7 +56,7 @@ export const renderStackedAreaChart = (summaryData, titleText) => {
     },
     legend: {
       bottom: 0,
-      data: uniqueConditions,
+      data: uniqueDevices,
       textStyle: {
         fontSize: 12,
         color: '#666',
@@ -70,8 +70,8 @@ export const renderStackedAreaChart = (summaryData, titleText) => {
     },
     xAxis: {
       type: 'category',
-      data: uniqueConditions, // Use conditions directly as categories
-      name: 'Condition',
+      data: uniqueDevices, // Use devices directly as categories
+      name: 'Device',
       axisLabel: {
         rotate: 30,
         fontSize: 12,

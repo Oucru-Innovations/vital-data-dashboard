@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Header from './components/toolbars/Header';
+import PageTitle from './components/PageTitle';
 import Sidebar from './components/toolbars/Sidebar';
 import routes from './config/routes';
+
 
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -13,6 +15,7 @@ const App = () => {
     setIsAuthenticated(token !== null);
   }, []);
 
+  
   const handleLogout = () => {
     localStorage.removeItem('authToken');
     setIsAuthenticated(false);
@@ -20,6 +23,7 @@ const App = () => {
 
   return (
     <Router>
+      <PageTitle isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated} />
       <div
         style={{
           display: 'flex',

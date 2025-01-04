@@ -2,18 +2,18 @@ import React from 'react';
 import ReactECharts from 'echarts-for-react';
 
 export const renderChordDiagram = (summaryData, titleText) => {
-  const uniqueConditions = [...new Set(summaryData.condition)].filter(Boolean); // Exclude null/undefined conditions
+  const uniqueDevices = [...new Set(summaryData.device)].filter(Boolean); // Exclude null/undefined devices
 
-  // Generate matrix data for relationships between conditions and metrics
-  const matrix = uniqueConditions.map((condition) =>
+  // Generate matrix data for relationships between devices and metrics
+  const matrix = uniqueDevices.map((device) =>
     ['Patients', 'Duration (mins)', 'Sessions'].map((metric, index) => {
       switch (metric) {
         case 'Patients':
-          return parseInt(summaryData.patient[summaryData.condition.indexOf(condition)] || 0, 10);
+          return parseInt(summaryData.patient[summaryData.device.indexOf(device)] || 0, 10);
         case 'Duration (mins)':
-          return parseFloat(summaryData.duration[summaryData.condition.indexOf(condition)] || 0);
+          return parseFloat(summaryData.duration[summaryData.device.indexOf(device)] || 0);
         case 'Sessions':
-          return parseInt(summaryData.session[summaryData.condition.indexOf(condition)] || 0, 10);
+          return parseInt(summaryData.session[summaryData.device.indexOf(device)] || 0, 10);
         default:
           return 0;
       }
@@ -38,7 +38,7 @@ export const renderChordDiagram = (summaryData, titleText) => {
       {
         type: 'chord',
         data: [
-          ...uniqueConditions.map((condition) => ({ name: condition })),
+          ...uniqueDevices.map((device) => ({ name: device })),
           { name: 'Patients' },
           { name: 'Duration (mins)' },
           { name: 'Sessions' },

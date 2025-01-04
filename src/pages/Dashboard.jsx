@@ -1,5 +1,5 @@
 import React, { useEffect, useState, Suspense } from 'react';
-import { Box, Typography, Grid, Divider } from '@mui/material';
+import { Box, Typography, CircularProgress, Grid, Divider } from '@mui/material';
 import Footer from '../components/toolbars/Footer';
 import config from '../config';
 import { summaryMockData, sunburstMockData, heatmapMockData, 
@@ -87,6 +87,7 @@ const Dashboard = () => {
         <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 3 }}>
           Loading Dashboard...
         </Typography>
+        <CircularProgress />
       </Box>
     );
   }

@@ -10,6 +10,7 @@ const Images = lazy(() => import('../pages/Images'));
 const Login = lazy(() => import('../pages/Login'));
 const SummaryDataTypePage = lazy(() => import('../pages/SummaryDataType'));
 const SummaryConditionPage = lazy(() => import('../pages/SummaryCondition'));
+const SummaryDevicePage = lazy(() => import('../pages/SummaryDevice'));
 
 // Fallback Component
 const Loading = () => (
@@ -26,6 +27,7 @@ const routes = (isAuthenticated, onLogin) => [
         <Login onLogin={onLogin} />
       </Suspense>
     ),
+    title: 'Vital Login',
   },
   {
     path: '/',
@@ -36,6 +38,7 @@ const routes = (isAuthenticated, onLogin) => [
         </Suspense>
       </ProtectedRoute>
     ),
+    title: 'Vital Home',
   },
   {
     path: '/dashboard',
@@ -46,6 +49,7 @@ const routes = (isAuthenticated, onLogin) => [
         </Suspense>
       </ProtectedRoute>
     ),
+    title: 'Vital Dashboard',
   },
   {
     path: '/overview',
@@ -56,6 +60,7 @@ const routes = (isAuthenticated, onLogin) => [
         </Suspense>
       </ProtectedRoute>
     ),
+    title: 'Vital Overview',
   },
   {
     path: '/wearables',
@@ -66,6 +71,7 @@ const routes = (isAuthenticated, onLogin) => [
         </Suspense>
       </ProtectedRoute>
     ),
+    title: 'Vital Wearables',
   },
   {
     path: '/ultrasound',
@@ -76,6 +82,7 @@ const routes = (isAuthenticated, onLogin) => [
         </Suspense>
       </ProtectedRoute>
     ),
+    title: 'Vital Ultrasound',
   },
   {
     path: '/images',
@@ -86,6 +93,7 @@ const routes = (isAuthenticated, onLogin) => [
         </Suspense>
       </ProtectedRoute>
     ),
+    title: 'Vital Images',
   },
   {
     path: '/summary/datatype',
@@ -96,6 +104,7 @@ const routes = (isAuthenticated, onLogin) => [
         </Suspense>
       </ProtectedRoute>
     ),
+    title: 'Vital Data Types',
   },
   {
     path: '/summary/condition',
@@ -106,6 +115,18 @@ const routes = (isAuthenticated, onLogin) => [
         </Suspense>
       </ProtectedRoute>
     ),
+    title: 'Vital Condition',
+  },
+  {
+    path: '/summary/device',
+    element: (
+      <ProtectedRoute isAuthenticated={isAuthenticated}>
+        <Suspense fallback={<Loading />}>
+          <SummaryDevicePage />
+        </Suspense>
+      </ProtectedRoute>
+    ),
+    title: 'Vital Device',
   },
 ];
 
