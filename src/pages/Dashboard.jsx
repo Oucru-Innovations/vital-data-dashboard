@@ -45,6 +45,26 @@ const Dashboard = () => {
   const [detailData, setDetailData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const formatDuration = (minutes) => {
+    if (minutes >= 4320) { // Greater than or equal to 3 days (1440 * 3)
+      return `${(minutes / 1440).toFixed(2)} days`;
+    } else if (minutes >= 180) { // Greater than or equal to 3 hours (60 * 3)
+      return `${(minutes / 60).toFixed(2)} hours`;
+    } else {
+      return `${minutes.toFixed(2)} mins`;
+    }
+  };
+
+  const formatVolume = (megabytes) => {
+    if (megabytes >= 1024*1024*3) { // Greater than or equal to 3 days (1440 * 3)
+      return `${(megabytes / (1024*1024)).toFixed(2)} TB`;
+    } else if (megabytes >= 1024*3) { // Greater than or equal to 3 hours (60 * 3)
+      return `${(megabytes / (1024)).toFixed(2)} GB`;
+    } else {
+      return `${megabytes.toFixed(2)} MB`;
+    }
+  };
+  
   // useEffect(() => {
   //   const fetchDataFromAPI = async () => {
   //     try {
@@ -114,10 +134,14 @@ const Dashboard = () => {
           {/* Summary Cards */}
           <Grid container spacing={4} sx={{ mb: 4 }}>
             {[
-              { title: 'Total Files Collected', value: summaryData.fileCount.reduce((a, b) => a + b, 0), color: { 50: '#e3f2fd', 700: '#1976d2', 800: '#0d47a1' } },
-              { title: 'Total Days Collected', value: summaryData.study.length, color: { 50: '#e8f5e9', 700: '#388e3c', 800: '#1b5e20' } },
-              { title: 'Total Duration', value: `${summaryData.totalDuration.reduce((a, b) => a + b, 0)} mins`, color: { 50: '#fff3e0', 700: '#f57c00', 800: '#e65100' } },
-              { title: 'Total File Size', value: `${(summaryData.totalSize.reduce((a, b) => a + b, 0) / 1024).toFixed(2)} GB`, color: { 50: '#ffebee', 700: '#d32f2f', 800: '#b71c1c' } },
+              { title: 'Total Files Collected', value: summaryData.fileCount.reduce((a, b) => a + b, 0), 
+                color: { 50: '#e3f2fd', 700: '#1976d2', 800: '#0d47a1' } },
+              { title: 'Total Days Collected', value: summaryData.study.length, 
+                color: { 50: '#e8f5e9', 700: '#388e3c', 800: '#1b5e20' } },
+              { title: 'Total Duration', value: formatDuration(summaryData.totalDuration.reduce((a, b) => a + b, 0)),
+                color: { 50: '#fff3e0', 700: '#f57c00', 800: '#e65100' } },
+              { title: 'Total File Size', value: formatVolume(summaryData.totalSize.reduce((a, b) => a + b, 0)), 
+              color: { 50: '#ffebee', 700: '#d32f2f', 800: '#b71c1c' } },
 
               // New Summary Cards
               {
@@ -142,7 +166,7 @@ const Dashboard = () => {
               },
             ].map((card, idx) => (
               <Grid item xs={12} sm={6} md={3} key={idx}>
-                <Suspense fallback={<Typography>Loading...</Typography>}>
+                <Suspense fallback={<Typography><CircularProgress/>Loading...<CircularProgress/></Typography>}>
                   <SummaryCard {...card} />
                 </Suspense>
               </Grid>
@@ -154,12 +178,12 @@ const Dashboard = () => {
           {/* Charts */}
           <Grid container spacing={4}>
             <Grid item xs={12} md={6}>
-              <Suspense fallback={<Typography>Loading Sunburst Chart...</Typography>}>
+              <Suspense fallback={<Typography><CircularProgress/>Loading Sunburst Chart...</Typography>}>
                 <SunburstChart data={summaryData} />
               </Suspense>
             </Grid>
             <Grid item xs={12} md={6}>
-              <Suspense fallback={<Typography>Loading Heatmap Chart...</Typography>}>
+              <Suspense fallback={<Typography><CircularProgress/>Loading Heatmap Chart...</Typography>}>
                 <HeatmapChart data={summaryData} />
               </Suspense>
             </Grid>
@@ -168,21 +192,21 @@ const Dashboard = () => {
 
         {/* Section 2: File Analysis */}
         <DashboardSection title="File Count and Type Analysis">
-          <Suspense fallback={<Typography>Loading File Analysis...</Typography>}>
+          <Suspense fallback={<Typography><CircularProgress/>Loading File Analysis...</Typography>}>
             <FileAnalysis summaryData={summaryData} detailData={detailData} />
           </Suspense>
         </DashboardSection>
 
         {/* Section 3: Study Trends */}
         <DashboardSection title="Trends by Study and File Type">
-          <Suspense fallback={<Typography>Loading Study Trends...</Typography>}>
+          <Suspense fallback={<Typography><CircularProgress/>Loading Study Trends...</Typography>}>
             <StudyTrends summaryData={summaryData} detailData={detailData}/>
           </Suspense>
         </DashboardSection>
 
         {/* Section 4: File Size Insights */}
         <DashboardSection title="Size Distribution and Outliers">
-          <Suspense fallback={<Typography>Loading File Size Insights...</Typography>}>
+          <Suspense fallback={<Typography><CircularProgress/>Loading File Size Insights...</Typography>}>
             <FileSizeInsights detailData={detailData}/>
           </Suspense>
         </DashboardSection>

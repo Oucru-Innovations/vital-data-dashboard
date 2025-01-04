@@ -4,9 +4,14 @@ import { Box, Grid, Paper, Typography, CircularProgress, CardContent } from '@mu
 
 export const renderSummaryCards = (summaryData) => {
     const formatDuration = (minutes) => {
-      if (minutes >= 4320) { // Greater than or equal to 3 days (1440 * 3)
-        return `${(minutes / 1440).toFixed(2)} days`;
-      } else if (minutes >= 180) { // Greater than or equal to 3 hours (60 * 3)
+      // if (minutes >= 4320) { // Greater than or equal to 3 days (1440 * 3)
+      //   return `${(minutes / 1440).toFixed(2)} days`;
+      // } else if (minutes >= 180) { // Greater than or equal to 3 hours (60 * 3)
+      //   return `${(minutes / 60).toFixed(2)} hours`;
+      // } else {
+      //   return `${minutes.toFixed(2)} mins`;
+      // }
+      if (minutes >= 180) { // Greater than or equal to 3 hours (60 * 3)
         return `${(minutes / 60).toFixed(2)} hours`;
       } else {
         return `${minutes.toFixed(2)} mins`;

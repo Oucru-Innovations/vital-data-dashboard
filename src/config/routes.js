@@ -1,4 +1,5 @@
 import React, { lazy, Suspense } from 'react';
+import { Box, Typography, CircularProgress, Grid, Divider } from '@mui/material';
 import ProtectedRoute from '../config/ProtectedRoute';
 
 // Lazy-load pages
@@ -16,6 +17,7 @@ const SummaryDevicePage = lazy(() => import('../pages/SummaryDevice'));
 const Loading = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
     <h3>Loading...</h3>
+    <CircularProgress />
   </div>
 );
 

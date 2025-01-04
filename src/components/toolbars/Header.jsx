@@ -18,7 +18,7 @@ const Header = ({ onLogout }) => (
   <AppBar
     position="static"
     sx={{
-      backgroundColor: '#1565c0', // Less bright blue
+      backgroundColor: '#020c2c', // Less bright blue
       boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)',
       height: 56, // Slightly smaller height
     }}
@@ -33,13 +33,20 @@ const Header = ({ onLogout }) => (
       {/* Logo and Title */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
         <Avatar
-          src="/logo1.png"
-          alt="App Logo"
+          src="/logos/oucru_logo.png"
+          alt="Oucru"
           sx={{
-            height: 36,
-            width: 36, // Slightly smaller avatar
+            height: 40,
+            width: 40, // Slightly smaller avatar
           }}
         />
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <img
+            src="/logos/oxford_logo.png"
+            alt="Oxford"
+            style={{ height: '40px', maxWidth: '40px' }}
+          />
+        </Box>
         <Typography
           variant="h6"
           noWrap
@@ -55,6 +62,11 @@ const Header = ({ onLogout }) => (
 
       {/* Right Actions */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <img
+            src="/logos/wellcome_logo.jpg"
+            alt="Wellcome"
+            style={{ height: '40px', maxWidth: '40px' }}
+        />
         {/* Notifications */}
         <Tooltip title="Notifications">
           <IconButton sx={{ color: 'white' }}>

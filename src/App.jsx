@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Header from './components/toolbars/Header';
+import Footer from './components/toolbars/Footer';
 import PageTitle from './components/PageTitle';
 import Sidebar from './components/toolbars/Sidebar';
 import routes from './config/routes';
@@ -55,6 +56,7 @@ const App = () => {
               ))}
             </Routes>
           </div>
+          {/* {isAuthenticated && <Footer />} */}
         </div>
       </div>
     </Router>
