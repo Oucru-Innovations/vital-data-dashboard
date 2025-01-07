@@ -9,6 +9,7 @@ export const renderSummaryTable = (summaryData) => {
       { field: 'patient', headerName: 'Patient', flex: 1 },
       { field: 'duration', headerName: 'Duration', flex: 1 },
       { field: 'session', headerName: 'Session', flex: 1 },
+      { field: 'averageDuration', headerName: 'Average Duration', flex: 1 },
     ];
 
     const rows = summaryData.datatype.map((datatype, index) => ({
@@ -18,6 +19,7 @@ export const renderSummaryTable = (summaryData) => {
       patient: summaryData.patient[index],
       duration: summaryData.duration[index],
       session: summaryData.session[index],
+      averageDuration: summaryData.averageDuration[index],
     }));
 
     return (

@@ -27,7 +27,7 @@ const Sidebar = () => {
   const navigate = useNavigate();
 
   const menuItems = [
-    { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+    // { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
     // { text: 'Wearables', icon: <WatchIcon />, path: '/wearables' },
     // { text: 'Ultrasound', icon: <MedicalServicesIcon />, path: '/ultrasound' },
     // { text: 'Images', icon: <ImageIcon />, path: '/images' },

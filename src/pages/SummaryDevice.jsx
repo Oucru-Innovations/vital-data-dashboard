@@ -3,6 +3,7 @@ import { getSummaryDataByDevice } from '../services/apiService';
 import { renderSummaryCards } from '../components/cards/SummaryDevicePage/SummaryCards';
 import { renderSummaryTable } from '../components/tables/SummaryDevicePage/SummaryTable';
 import { renderGroupedBarChart } from '../components/charts/SummaryDevicePage/GroupedBarChart';
+import { renderBarChart } from '../components/charts/SummaryDevicePage/BarChart';
 import { renderSunburstChart } from '../components/charts/SummaryDevicePage/SunburstChart';
 import { renderTreeMapChart } from '../components/charts/SummaryDevicePage/TreeMapChart';
 import { renderStackedAreaChart } from '../components/charts/SummaryDevicePage/StackAreaChart';
@@ -52,10 +53,16 @@ const SummaryDevicePage = () => {
         duration: data.duration.filter((d) => d && d.trim()),
         session: data.session.filter((s) => s && s.trim()),
       };
-      setSummaryData(data || { device: [], patient: [], duration: [], session: [] });
+      // Add the new column averageDuration
+      data.durationPerSession = data.duration.map((dur, index) => {
+        const sessionCount = parseFloat(data.session[index]) || 1;
+        const durationValue = parseFloat(dur) || 0;
+        return sessionCount > 0 ? (durationValue / sessionCount).toFixed(2) : 'N/A'; // Handle division by zero
+      });
+      setSummaryData(data || { device: [], patient: [], duration: [], session: [], durationPerSession: [] });
     } catch (error) {
       console.error('Error fetching summary data:', error);
-      setSummaryData({ device: [], patient: [], duration: [], session: [] });
+      setSummaryData({ device: [], patient: [], duration: [], session: [], durationPerSession: [] });
     } finally {
       setLoading(false);
     }
@@ -76,24 +83,28 @@ const SummaryDevicePage = () => {
         <CircularProgress />
       ) : (
         <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12}>
             {renderSummaryTable(summaryData)}
           </Grid>
-          <Grid item xs={12} md={6}>
+          <Grid item xs={6} md={12}>
             {renderSummaryCards(summaryData)}
           </Grid>
           <Grid item xs={12} md={6}>
             {renderSunburstChart(summaryData, summaryData.patient, 'Patient Distribution by Devices')}
           </Grid>
           <Grid item xs={12} md={6}>
-            {renderGroupedBarChart(summaryData, 'Duration Distribution by Devices')}
-          </Grid>
-          <Grid item xs={12} md={6}>
-            {renderStackedAreaChart(summaryData, 'Session Distribution by Devices')}
-          </Grid>
-          <Grid item xs={12} md={6}>
             <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.session} titleText="Session Distribution" />
           </Grid>
+          <Grid item xs={12} md={6}>
+            {renderBarChart(summaryData, summaryData.duration, 'Duration Distribution by Devices')}
+          </Grid>
+          <Grid item xs={12} md={6}>
+            {renderBarChart(summaryData, summaryData.durationPerSession, 'Duration Per Session Distribution by Devices')}
+          </Grid>
+          {/* <Grid item xs={12} md={6}>
+            {renderStackedAreaChart(summaryData, 'Session Distribution by Devices')}
+          </Grid> */}
+          
         </Grid>
       )}
       <Footer />

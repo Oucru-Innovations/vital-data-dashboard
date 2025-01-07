@@ -76,10 +76,10 @@ const SummaryConditionPage = () => {
         <CircularProgress />
       ) : (
         <Grid container spacing={3}>
-          <Grid item xs={12} md={8}>
+          <Grid item xs={12} md={6}>
             {renderSummaryTable(summaryData)}
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={6}>
             {renderSummaryCards(summaryData)}
           </Grid>
           <Grid item xs={12} md={6}>

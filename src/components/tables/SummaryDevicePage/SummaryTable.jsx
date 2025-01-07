@@ -9,6 +9,7 @@ export const renderSummaryTable = (summaryData) => {
       { field: 'patient', headerName: 'Patient', flex: 1 },
       { field: 'duration', headerName: 'Duration', flex: 1 },
       { field: 'session', headerName: 'Session', flex: 1 },
+      { field: 'durationPerSession', headerName: 'Duration Per Session', flex: 1 },
     ];
 
     const rows = summaryData.device.map((device, index) => ({
@@ -17,6 +18,7 @@ export const renderSummaryTable = (summaryData) => {
       patient: summaryData.patient[index],
       duration: summaryData.duration[index],
       session: summaryData.session[index],
+      durationPerSession: summaryData.durationPerSession[index],
     }));
 
     return (

@@ -7,7 +7,7 @@ export const renderSummaryTable = (summaryData) => {
       // { field: 'datatype', headerName: 'Datatype', flex: 1 },
       { field: 'condition', headerName: 'Condition', flex: 1 },
       { field: 'patient', headerName: 'Patient', flex: 1 },
-      { field: 'duration', headerName: 'Duration', flex: 1 },
+      // { field: 'duration', headerName: 'Duration', flex: 1 },
       { field: 'session', headerName: 'Session', flex: 1 },
     ];
 
@@ -15,7 +15,7 @@ export const renderSummaryTable = (summaryData) => {
       id: index,
       condition,
       patient: summaryData.patient[index],
-      duration: summaryData.duration[index],
+      // duration: summaryData.duration[index],
       session: summaryData.session[index],
     }));
 
