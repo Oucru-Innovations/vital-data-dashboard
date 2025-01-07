@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getSummaryDataByDataType } from '../services/apiService';
 import { renderSummaryCards } from '../components/cards/SummaryDataTypePage/SummaryCards';
-import { renderSummaryTable } from '../components/tables/SummaryDataTypePage/SummaryTable';
+import SummaryTable from '../components/tables/SummaryDataTypePage/SummaryTable';
 import { renderGroupedBarChart } from '../components/charts/SummaryDataTypePage/GroupedBarChart';
 import { renderSunburstChart } from '../components/charts/SummaryDataTypePage/SunburstChart';
 import { renderTreeMapChart } from '../components/charts/SummaryDataTypePage/TreeMapChart';
@@ -91,7 +91,8 @@ const SummaryDataTypePage = () => {
       ) : (
         <Grid container spacing={3}>
           <Grid item xs={12}>
-            {renderSummaryTable(summaryData)}
+            {/* {renderSummaryTable(summaryData)} */}
+            <SummaryTable summaryData={summaryData} />
           </Grid>
           <Grid item xs={12}>
             {renderSummaryCards(summaryData)}

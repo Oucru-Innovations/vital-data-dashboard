@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getSummaryDataByCondition } from '../services/apiService';
 import { renderSummaryCards } from '../components/cards/SummaryConditionPage/SummaryCards';
-import { renderSummaryTable } from '../components/tables/SummaryConditionPage/SummaryTable';
+import SummaryTable from '../components/tables/SummaryConditionPage/SummaryTable';
 import { renderGroupedBarChart } from '../components/charts/SummaryConditionPage/GroupedBarChart';
 import { renderSunburstChart } from '../components/charts/SummaryConditionPage/SunburstChart';
 import { renderTreeMapChart } from '../components/charts/SummaryConditionPage/TreeMapChart';
@@ -77,13 +77,15 @@ const SummaryConditionPage = () => {
       ) : (
         <Grid container spacing={3}>
           <Grid item xs={12} md={8}>
-            {renderSummaryTable(summaryData)}
+            {/* {renderSummaryTable(summaryData)} */}
+            <SummaryTable summaryData={summaryData} />
           </Grid>
           <Grid item xs={12} md={4}>
             {renderSummaryCards(summaryData)}
           </Grid>
           <Grid item xs={12} md={6}>
-            {renderSunburstChart(summaryData, summaryData.patient, 'Patient Distribution by Conditions')}
+            {/* {renderSunburstChart(summaryData, summaryData.patient, 'Patient Distribution by Conditions')} */}
+            <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.patient} titleText="Patient Distribution" />
           </Grid>
           {/* <Grid item xs={12} md={6}>
             {renderGroupedBarChart(summaryData, 'Duration Distribution by Conditions')}

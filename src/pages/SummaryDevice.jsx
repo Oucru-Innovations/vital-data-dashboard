@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getSummaryDataByDevice } from '../services/apiService';
 import { renderSummaryCards } from '../components/cards/SummaryDevicePage/SummaryCards';
-import { renderSummaryTable } from '../components/tables/SummaryDevicePage/SummaryTable';
+import SummaryTable from '../components/tables/SummaryDevicePage/SummaryTable';
 import { renderGroupedBarChart } from '../components/charts/SummaryDevicePage/GroupedBarChart';
 import { renderBarChart } from '../components/charts/SummaryDevicePage/BarChart';
 import { renderSunburstChart } from '../components/charts/SummaryDevicePage/SunburstChart';
@@ -84,7 +84,8 @@ const SummaryDevicePage = () => {
       ) : (
         <Grid container spacing={3}>
           <Grid item xs={12}>
-            {renderSummaryTable(summaryData)}
+            {/* {renderSummaryTable(summaryData)} */}
+            <SummaryTable summaryData={summaryData} />
           </Grid>
           <Grid item xs={6} md={12}>
             {renderSummaryCards(summaryData)}

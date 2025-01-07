@@ -1,43 +1,53 @@
-import React, { useEffect, useState } from 'react';
-import { Box, Grid, Paper, Typography, CircularProgress, CardContent } from '@mui/material';
-import { DataGrid } from '@mui/x-data-grid';
+import React from 'react';
+import { DataGrid, useGridApiRef } from '@mui/x-data-grid';
+import { Box, Typography, Paper } from '@mui/material';
 
-export const renderSummaryTable = (summaryData) => {
-    const columns = [
-      // { field: 'datatype', headerName: 'Datatype', flex: 1 },
-      { field: 'condition', headerName: 'Condition', flex: 1 },
-      { field: 'patient', headerName: 'Patient', flex: 1 },
-      // { field: 'duration', headerName: 'Duration', flex: 1 },
-      { field: 'session', headerName: 'Session', flex: 1 },
-    ];
+const SummaryTable = ({ summaryData }) => {
+  const apiRef = useGridApiRef();
 
-    const rows = summaryData.condition.map((condition, index) => ({
-      id: index,
-      condition,
-      patient: summaryData.patient[index],
-      // duration: summaryData.duration[index],
-      session: summaryData.session[index],
-    }));
+  const columns = [
+    { field: 'condition', headerName: 'Condition', flex: 1 },
+    { field: 'patient', headerName: 'Patient', flex: 1 },
+    { field: 'session', headerName: 'Session', flex: 1 },
+  ];
 
-    return (
-      <Paper elevation={3}>
-        <Typography variant="h5" gutterBottom style={{ padding: '8px',
-            borderRadius: '4px 4px 0 0',
-         }}>
-          Summary Table
-        </Typography>
+  const rows = summaryData.condition.map((condition, index) => ({
+    id: index,
+    condition,
+    patient: summaryData.patient[index],
+    session: summaryData.session[index],
+  }));
+
+  return (
+    <Paper elevation={3}>
+      <Typography
+        variant="h5"
+        gutterBottom
+        style={{
+          padding: '8px',
+          borderRadius: '4px 4px 0 0',
+        }}
+      >
+        Summary Table
+      </Typography>
+      <Box style={{ height: 400, width: '100%' }}>
         <DataGrid
           rows={rows}
           columns={columns}
-          pageSize={1}
-          rowsPerPageOptions={[1, 5, 10, 20, 50, 100]}
+          apiRef={apiRef}
+          initialState={{
+            pagination: {
+              paginationModel: { pageSize: 5 },
+            },
+          }}
+          pageSizeOptions={[5, 10, 25, { value: -1, label: 'All' }]}
           disableSelectionOnClick
           sx={{
             '& .MuiDataGrid-root': {
               border: 'none',
             },
             '& .MuiDataGrid-cell': {
-              borderBottom: '1px solidrgba(201, 205, 216, 0.9)',
+              borderBottom: '1px solid rgba(201, 205, 216, 0.9)',
               backgroundColor: '#f9f9f9',
               '&:hover': {
                 backgroundColor: '#e3f2fd',
@@ -61,6 +71,9 @@ export const renderSummaryTable = (summaryData) => {
             },
           }}
         />
-      </Paper>
-    );
-  };
+      </Box>
+    </Paper>
+  );
+};
+
+export default SummaryTable;
