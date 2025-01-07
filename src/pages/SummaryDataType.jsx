@@ -49,12 +49,13 @@ const SummaryDataTypePage = () => {
   
       // Clean the data and calculate averageDuration
       data = {
-        datatype: data.datatype.filter((d) => d && d.trim()),
-        study: data.study.filter((s) => s && s.trim()),
-        patient: data.patient.filter((p) => p && p.trim()),
-        duration: data.duration.filter((d) => d && d.trim()),
-        session: data.session.filter((s) => s && s.trim()),
+        datatype: data.datatype.map((d) => (d && d.trim() ? d.trim() : "")), // Replace null or invalid strings with an empty string
+        study: data.study.map((s) => (s && s.trim() ? s.trim() : "")), // Replace null or invalid strings with an empty string
+        patient: data.patient.map((p) => (p && p.trim() ? p.trim() : "0")), // Replace null with "0"
+        duration: data.duration.map((d) => (d && d.trim() ? d.trim() : "0")), // Replace null with "0"
+        session: data.session.map((s) => (s && s.trim() ? s.trim() : "0")), // Replace null with "0"
       };
+      
   
       // Add the new column averageDuration
       data.averageDuration = data.duration.map((dur, index) => {

@@ -55,16 +55,16 @@ const SummaryStudyPage = () => {
   
       // Sanitize and validate the data
       data = {
-        study: data.study.filter((d) => d && d.trim()),
-        patient: data.patient.filter((p) => p && p.trim()),
-        title: data.title.filter((t) => t && t.trim()),
-        description: data.description.filter((d) => d && d.trim()),
+        study: data.study.filter((d) => (d && d.trim() ? d.trim() : "")),
+        patient: data.patient.filter((p) => (p && p.trim() ? p.trim() : "0")),
+        title: data.title.filter((t) => (t && t.trim()) ? t.trim() : ""),
+        description: data.description.filter((d) => (d && d.trim()) ? d.trim() : ""),
         site: data.site.map((siteArray) =>
           siteArray
-            .filter((s) => s && s.trim()) // Filter valid site entries
+            .filter((s) => ((s && s.trim() ?  s.trim() : "")))
             .join(', ') // Combine site entries into a single string (e.g., "HTD, NHTD")
         ),
-        session: data.session.filter((s) => s && s.trim()),
+        session: data.session.filter((s) => (s && s.trim() ? s.trim() : "0")),
       };
   
       // Set state with sanitized data
