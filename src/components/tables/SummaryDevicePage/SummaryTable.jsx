@@ -31,8 +31,8 @@ export const renderSummaryTable = (summaryData) => {
         <DataGrid
           rows={rows}
           columns={columns}
-          pageSize={5}
-          rowsPerPageOptions={[5, 10, 20]}
+          pageSize={1}
+          rowsPerPageOptions={[1, 5, 10, 20, 50, 100]}
           disableSelectionOnClick
           sx={{
             '& .MuiDataGrid-root': {

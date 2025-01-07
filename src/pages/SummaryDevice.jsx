@@ -89,11 +89,14 @@ const SummaryDevicePage = () => {
           <Grid item xs={6} md={12}>
             {renderSummaryCards(summaryData)}
           </Grid>
-          <Grid item xs={12} md={6}>
+          {/* <Grid item xs={12} md={6}>
             {renderSunburstChart(summaryData, summaryData.patient, 'Patient Distribution by Devices')}
+          </Grid> */}
+          <Grid item xs={12} md={6}>
+            <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.patient} titleText="Patient Distribution by Devices" />
           </Grid>
           <Grid item xs={12} md={6}>
-            <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.session} titleText="Session Distribution" />
+            <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.session} titleText="Session Distribution by Devices" />
           </Grid>
           <Grid item xs={12} md={6}>
             {renderBarChart(summaryData, summaryData.duration, 'Duration Distribution by Devices')}

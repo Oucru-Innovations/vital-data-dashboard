@@ -96,8 +96,11 @@ const SummaryDataTypePage = () => {
           <Grid item xs={12}>
             {renderSummaryCards(summaryData)}
           </Grid>
-          <Grid item xs={12} md={6}>
+          {/* <Grid item xs={12} md={6}>
             {renderSunburstChart(summaryData, summaryData.patient, 'Patient Distribution by Data Types and Studies')}
+          </Grid> */}
+          <Grid item xs={12} md={6}>
+            <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.patient} titleText="Patient Distribution" />
           </Grid>
           <Grid item xs={12} md={6}>
             <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.session} titleText="Session Distribution" />
