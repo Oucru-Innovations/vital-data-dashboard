@@ -12,9 +12,9 @@ export const renderSummaryCards = (summaryData) => {
     }
   };
 
-  const totalPatients = summaryData.patient.reduce((sum, p) => sum + parseInt(p, 10), 0);
-  const totalDuration = summaryData.duration.reduce((sum, d) => sum + parseFloat(d), 0);
-  const totalSessions = summaryData.session.reduce((sum, s) => sum + parseInt(s, 10), 0);
+  const totalPatients = summaryData.patient.reduce((sum, p) => sum + (parseInt(p, 10) || 0), 0);
+  const totalDuration = summaryData.duration.reduce((sum, d) => sum + (parseFloat(d) || 0 ), 0);
+  const totalSessions = summaryData.session.reduce((sum, s) => sum + (parseInt(s, 10) || 0), 0);
 
   // Calculating averages
   const avgDurationPerPatient = totalPatients > 0 ? totalDuration / totalPatients : 0;

@@ -57,15 +57,27 @@ export const renderSummaryCards = (summaryData) => {
     // ];
     // Calculating total duration for each datatype
   const totalPPGDuration = summaryData.datatype
-  .map((type, index) => (type === 'PPG' ? parseFloat(summaryData.duration[index]) : 0))
+  .map((type, index) =>
+    type === 'PPG'
+      ? parseFloat(summaryData.duration[index] || 0) // Default to 0 if value is null/undefined
+      : 0
+  )
   .reduce((a, b) => a + b, 0);
 
   const totalECGDuration = summaryData.datatype
-    .map((type, index) => (type === 'ECG' ? parseFloat(summaryData.duration[index]) : 0))
+    .map((type, index) =>
+      type === 'ECG'
+        ? parseFloat(summaryData.duration[index] || 0) // Default to 0 if value is null/undefined
+        : 0
+    )
     .reduce((a, b) => a + b, 0);
 
   const totalGyroDuration = summaryData.datatype
-    .map((type, index) => (type === 'Gyro' ? parseFloat(summaryData.duration[index]) : 0))
+    .map((type, index) =>
+      type === 'Gyro'
+        ? parseFloat(summaryData.duration[index] || 0) // Default to 0 if value is null/undefined
+        : 0
+    )
     .reduce((a, b) => a + b, 0);
 
   // Calculating average durations
