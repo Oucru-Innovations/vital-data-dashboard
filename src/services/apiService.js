@@ -43,9 +43,9 @@ export const getSummaryDataByDataType = async (params) => {
 };
 
 // Fetch summary data by study
-export const getSummaryDataByStudy = async () => {
+export const getSummaryDataByStudy = async (params) => {
   try {
-    const response = await apiClient.get('/summary/study');
+    const response = await apiClient.get('/summary/study', { params });
     return response.data;
   } catch (error) {
     console.error("Error fetching summary data by study", error);

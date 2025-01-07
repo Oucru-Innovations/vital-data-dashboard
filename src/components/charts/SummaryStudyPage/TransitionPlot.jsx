@@ -6,25 +6,25 @@ const TransitionPlot = ({ summaryData, summaryDataValues, titleText }) => {
   const chartRef = useRef(null); // Reference to the ECharts instance
   const [isTransitioning, setIsTransitioning] = useState(true); // State to control transition
 
-  const uniqueDevices = Array.from(new Set(summaryData?.device || [])).filter(Boolean);
+  const uniqueStudies = Array.from(new Set(summaryData?.study || [])).filter(Boolean);
 
   const modernColors = [
     '#FF6F61', '#6B5B95', '#88B04B', '#F7CAC9', '#92A8D1',
     '#955251', '#B565A7', '#009B77', '#DD4124', '#D65076',
   ];
 
-  const deviceColorMap = uniqueDevices.reduce((acc, device, index) => {
-    acc[device] = modernColors[index % modernColors.length];
+  const studyColorMap = uniqueStudies.reduce((acc, study, index) => {
+    acc[study] = modernColors[index % modernColors.length];
     return acc;
   }, {});
 
-  const data = uniqueDevices.map((device) => ({
-    name: device,
-    value: summaryData.device.reduce(
-      (sum, cond, idx) => (cond === device ? sum + parseInt(summaryDataValues[idx], 10) : sum),
+  const data = uniqueStudies.map((study) => ({
+    name: study,
+    value: summaryData.study.reduce(
+      (sum, cond, idx) => (cond === study ? sum + parseInt(summaryDataValues[idx], 10) : sum),
       0
     ),
-    itemStyle: { color: deviceColorMap[device] },
+    itemStyle: { color: studyColorMap[study] },
   }));
 
   const treemapOption = {
@@ -140,11 +140,7 @@ const TransitionPlot = ({ summaryData, summaryDataValues, titleText }) => {
       >
         {isTransitioning ? 'Stop Transition' : 'Start Transition'}
       </Button>
-      <ReactECharts
-        ref={chartRef}
-        style={{ height: '450px', marginTop: '16px' }}
-        option={treemapOption} // Initial option
-      />
+      <ReactECharts ref={chartRef} option={treemapOption} style={{ height: '450px', marginTop: '16px' }} />
     </Box>
   );
 };

@@ -1,25 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { getSummaryDataByCondition } from '../services/apiService';
-import { renderSummaryCards } from '../components/cards/SummaryConditionPage/SummaryCards';
-import { renderSummaryTable } from '../components/tables/SummaryConditionPage/SummaryTable';
-import { renderGroupedBarChart } from '../components/charts/SummaryConditionPage/GroupedBarChart';
-import { renderSunburstChart } from '../components/charts/SummaryConditionPage/SunburstChart';
-import { renderTreeMapChart } from '../components/charts/SummaryConditionPage/TreeMapChart';
-import { renderStackedAreaChart } from '../components/charts/SummaryConditionPage/StackAreaChart';
-import TransitionPlot from '../components/charts/SummaryConditionPage/TransitionPlot';
+import { getSummaryDataByStudy } from '../services/apiService';
+import { renderSummaryCards } from '../components/cards/SummaryStudyPage/SummaryCards';
+import SummaryTable from '../components/tables/SummaryStudyPage/SummaryTable';
+import TransitionPlot from '../components/charts/SummaryStudyPage/TransitionPlot';
 import { Box, Grid, Typography, CircularProgress, Divider } from '@mui/material';
 import Footer from '../components/toolbars/Footer';
 
-const SummaryConditionPage = () => {
+const SummaryStudyPage = () => {
   const [summaryData, setSummaryData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const defaultParams = [
-    // { key: 'studies', value: '01NVa_Dengue,06NV,05EI,39EI', equals: true, enabled: true },
-    // { key: 'datatypes', value: 'PPG,Gyro,ECG', equals: true, enabled: true },
-    { key: 'conditions', value: 'Covid-19,Mpox', enabled: false },
+    // { key: 'studies', value: '01NVa_Dengue,06NV,05EI,39EI', equals: true, enabled: false },
+    // { key: 'datatypes', value: 'PPG,Gyro,ECG', equals: true, enabled: false },
+    // { key: 'conditions', value: 'Covid-19,Mpox', enabled: false },
     // { key: 'conditions', value: 'Gyro,SmartCare,Shimmer', enabled: false },
-    // { key: 'study', value: '01NVa_Dengue', enabled: false },
+    { key: 'study', value: '01NVa_Dengue', enabled: false },
     // { key: 'others', value: "datatype='PPG'", equals: true, enabled: false },
   ];
 
@@ -34,32 +30,55 @@ const SummaryConditionPage = () => {
 
   const cleanAndParseJSON = (rawString) => {
     try {
-      let cleanedString = rawString.replace(/\r|\n/g, '').replace(/\\/g, '').replace(/,\s*,/g, ',').replace(/,\s*\]/g, ']').replace(/,\s*\}/g, '}');
+      // Step 1: Remove \r and \n
+      let cleanedString = rawString.replace(/\r|\n/g, '');
+  
+      // Step 2: Add a missing comma between objects or arrays
+      cleanedString = cleanedString.replace(/}(\s*)"/g, '},$1"').replace(/](\s*)"/g, '],$1"');
+  
+      // Step 3: Remove trailing commas before closing brackets
+      cleanedString = cleanedString.replace(/,\s*([}\]])/g, '$1');
+  
+      // Step 4: Parse the cleaned JSON string
       return JSON.parse(cleanedString);
     } catch (error) {
       console.error('Error cleaning/parsing JSON:', error);
-      return null;
+      return null; // Return null if parsing fails
     }
   };
+  
 
   const fetchSummaryData = async (queryParams) => {
     try {
-      const response = await getSummaryDataByCondition(queryParams);
+      const response = await getSummaryDataByStudy(queryParams);
       let data = typeof response === 'string' ? cleanAndParseJSON(response) : response;
+  
+      // Sanitize and validate the data
       data = {
-        condition: data.condition.filter((d) => d && d.trim()),
+        study: data.study.filter((d) => d && d.trim()),
         patient: data.patient.filter((p) => p && p.trim()),
-        // duration: data.duration.filter((d) => d && d.trim()),
+        title: data.title.filter((t) => t && t.trim()),
+        description: data.description.filter((d) => d && d.trim()),
+        site: data.site.map((siteArray) =>
+          siteArray
+            .filter((s) => s && s.trim()) // Filter valid site entries
+            .join(', ') // Combine site entries into a single string (e.g., "HTD, NHTD")
+        ),
         session: data.session.filter((s) => s && s.trim()),
       };
-      setSummaryData(data || { condition: [], patient: [], duration: [], session: [] });
+  
+      // Set state with sanitized data
+      setSummaryData(
+        data || { study: [], patient: [], title: [], description: [], site: [], session: [] }
+      );
     } catch (error) {
       console.error('Error fetching summary data:', error);
-      setSummaryData({ condition: [], patient: [], duration: [], session: [] });
+      setSummaryData({ study: [], patient: [], title: [], description: [], site: [], session: [] });
     } finally {
       setLoading(false);
     }
   };
+  
 
   useEffect(() => {
     const query = constructParams(defaultParams);
@@ -69,27 +88,29 @@ const SummaryConditionPage = () => {
   return (
     <Box sx={{ padding: '16px' }}>
       <Typography variant="h4" align="center" sx={{ fontWeight: 'bold', marginBottom: '16px' }}>
-        Summary by Condition
+        Summary by Study
       </Typography>
       <Divider sx={{ marginBottom: '24px' }} />
       {loading ? (
         <CircularProgress />
       ) : (
         <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
-            {renderSummaryTable(summaryData)}
+          <Grid item xs={12} md={8}>
+            {/* {renderSummaryTable(summaryData)} */}
+            <SummaryTable summaryData={summaryData} />
           </Grid>
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={4}>
             {renderSummaryCards(summaryData)}
           </Grid>
           <Grid item xs={12} md={6}>
-            {renderSunburstChart(summaryData, summaryData.patient, 'Patient Distribution by Conditions')}
+            {/* {renderSunburstChart(summaryData, summaryData.patient, 'Patient Distribution by Studys')} */}
+            <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.patient} titleText="Patient Distribution" />
           </Grid>
           {/* <Grid item xs={12} md={6}>
-            {renderGroupedBarChart(summaryData, 'Duration Distribution by Conditions')}
+            {renderGroupedBarChart(summaryData, 'Duration Distribution by Studys')}
           </Grid>
           <Grid item xs={12} md={6}>
-            {renderStackedAreaChart(summaryData, 'Session Distribution by Conditions')}
+            {renderStackedAreaChart(summaryData, 'Session Distribution by Studys')}
           </Grid> */}
           <Grid item xs={12} md={6}>
             <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.session} titleText="Session Distribution" />
@@ -101,4 +122,4 @@ const SummaryConditionPage = () => {
   );
 };
 
-export default SummaryConditionPage;
+export default SummaryStudyPage;

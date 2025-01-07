@@ -1,8 +1,10 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
+import { Button, Box } from '@mui/material';
 
 const TransitionPlot = ({ summaryData, summaryDataValues, titleText }) => {
   const chartRef = useRef(null); // Reference to the ECharts instance
+  const [isTransitioning, setIsTransitioning] = useState(true); // State to control transition
 
   const uniqueConditions = Array.from(new Set(summaryData?.condition || [])).filter(Boolean);
 
@@ -113,18 +115,34 @@ const TransitionPlot = ({ summaryData, summaryDataValues, titleText }) => {
 
   useEffect(() => {
     let currentOption = treemapOption;
-    const intervalId = setInterval(() => {
-      if (chartRef.current && chartRef.current.getEchartsInstance) {
-        const chartInstance = chartRef.current.getEchartsInstance();
-        currentOption = currentOption === treemapOption ? sunburstOption : treemapOption;
-        chartInstance.setOption(currentOption);
-      }
-    }, 5000);
+    let intervalId;
+
+    if (isTransitioning) {
+      intervalId = setInterval(() => {
+        if (chartRef.current && chartRef.current.getEchartsInstance) {
+          const chartInstance = chartRef.current.getEchartsInstance();
+          currentOption = currentOption === treemapOption ? sunburstOption : treemapOption;
+          chartInstance.setOption(currentOption);
+        }
+      }, 5000);
+    }
 
     return () => clearInterval(intervalId);
-  }, [data]);
+  }, [data, isTransitioning]);
 
-  return <ReactECharts ref={chartRef} option={treemapOption} style={{ height: '450px', marginTop: '16px' }} />;
+  return (
+    <Box>
+      <Button
+        variant="contained"
+        color={isTransitioning ? 'error' : 'primary'}
+        onClick={() => setIsTransitioning(!isTransitioning)}
+        sx={{ marginBottom: '16px' }}
+      >
+        {isTransitioning ? 'Stop Transition' : 'Start Transition'}
+      </Button>
+      <ReactECharts ref={chartRef} option={treemapOption} style={{ height: '450px', marginTop: '16px' }} />
+    </Box>
+  );
 };
 
 export default TransitionPlot;

@@ -1,8 +1,10 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
+import { Button, Box } from '@mui/material';
 
-const TransitionPlot = ({ summaryData, summaryDataValues,titleText }) => {
+const TransitionPlot = ({ summaryData, summaryDataValues, titleText }) => {
   const chartRef = useRef(null); // Reference to the ECharts instance
+  const [isTransitioning, setIsTransitioning] = useState(true); // State to control transition
 
   const uniqueDatatypes = Array.from(new Set(summaryData?.datatype || []));
   const uniqueStudies = Array.from(new Set(summaryData?.study || []));
@@ -132,19 +134,20 @@ const TransitionPlot = ({ summaryData, summaryDataValues,titleText }) => {
 
   useEffect(() => {
     let currentOption = treemapOption;
+    let intervalId;
 
-    const intervalId = setInterval(() => {
-      if (chartRef.current && chartRef.current.getEchartsInstance) {
-        const chartInstance = chartRef.current.getEchartsInstance();
-        currentOption = currentOption === treemapOption ? sunburstOption : treemapOption;
-        chartInstance.setOption(currentOption);
-      }
-    }, 5000);
+    if (isTransitioning) {
+      intervalId = setInterval(() => {
+        if (chartRef.current && chartRef.current.getEchartsInstance) {
+          const chartInstance = chartRef.current.getEchartsInstance();
+          currentOption = currentOption === treemapOption ? sunburstOption : treemapOption;
+          chartInstance.setOption(currentOption);
+        }
+      }, 5000);
+    }
 
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, [safeData]);
+    return () => clearInterval(intervalId);
+  }, [safeData, isTransitioning]);
 
   // Render fallback message if data is invalid
   if (!summaryData || !summaryDataValues || safeData.length === 1) {
@@ -152,11 +155,21 @@ const TransitionPlot = ({ summaryData, summaryDataValues,titleText }) => {
   }
 
   return (
-    <ReactECharts
-      ref={chartRef}
-      style={{ height: '450px', marginTop: '16px' }}
-      option={treemapOption} // Set initial option
-    />
+    <Box>
+      <Button
+        variant="contained"
+        color={isTransitioning ? 'error' : 'primary'}
+        onClick={() => setIsTransitioning(!isTransitioning)}
+        sx={{ marginBottom: '16px' }}
+      >
+        {isTransitioning ? 'Stop Transition' : 'Start Transition'}
+      </Button>
+      <ReactECharts
+        ref={chartRef}
+        style={{ height: '450px', marginTop: '16px' }}
+        option={treemapOption} // Set initial option
+      />
+    </Box>
   );
 };
 

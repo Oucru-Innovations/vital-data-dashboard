@@ -12,6 +12,7 @@ const Login = lazy(() => import('../pages/Login'));
 const SummaryDataTypePage = lazy(() => import('../pages/SummaryDataType'));
 const SummaryConditionPage = lazy(() => import('../pages/SummaryCondition'));
 const SummaryDevicePage = lazy(() => import('../pages/SummaryDevice'));
+const SummaryStudyPage = lazy(() => import('../pages/SummaryStudy'));
 
 // Fallback Component
 const Loading = () => (
@@ -125,6 +126,17 @@ const routes = (isAuthenticated, onLogin) => [
       <ProtectedRoute isAuthenticated={isAuthenticated}>
         <Suspense fallback={<Loading />}>
           <SummaryDevicePage />
+        </Suspense>
+      </ProtectedRoute>
+    ),
+    title: 'Vital Device',
+  },
+  {
+    path: '/summary/study',
+    element: (
+      <ProtectedRoute isAuthenticated={isAuthenticated}>
+        <Suspense fallback={<Loading />}>
+          <SummaryStudyPage />
         </Suspense>
       </ProtectedRoute>
     ),

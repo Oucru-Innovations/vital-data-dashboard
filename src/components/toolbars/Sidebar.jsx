@@ -21,6 +21,7 @@ import DataUsageIcon from '@mui/icons-material/DataUsage';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import MedicalInformationIcon from '@mui/icons-material/MedicalInformation';
 import DevicesOtherIcon from '@mui/icons-material/DevicesOther';
+import SourceIcon from '@mui/icons-material/Source';
 
 const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
@@ -32,6 +33,7 @@ const Sidebar = () => {
     // { text: 'Ultrasound', icon: <MedicalServicesIcon />, path: '/ultrasound' },
     // { text: 'Images', icon: <ImageIcon />, path: '/images' },
     { text: 'Summary by DataType', icon: <DataUsageIcon />, path: '/summary/datatype' },
+    { text: 'Summary by Study', icon: <SourceIcon />, path: '/summary/study' },
     { text: 'Summary by Condition', icon: <MedicalInformationIcon />, path: '/summary/condition' },
     { text: 'Summary by Device', icon: <DevicesOtherIcon />, path: '/summary/device' },
   ];
