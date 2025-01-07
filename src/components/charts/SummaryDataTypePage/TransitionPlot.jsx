@@ -20,12 +20,13 @@ const TransitionPlot = ({ summaryData, summaryDataValues, titleText }) => {
     value: summaryDataValues
       ?.map((_, index) => (summaryData?.datatype[index] === datatype ? parseInt(summaryDataValues[index], 10) : 0))
       .reduce((a, b) => a + b, 0) || 0,
-    children: uniqueStudies.map((study, index) => ({
-      name: study,
-      value:
-        summaryData?.datatype[index] === datatype ? parseInt(summaryDataValues[index], 10) : 0,
-      itemStyle: { color: datatypeColorMap[datatype] },
-    })),
+    children: summaryData.study
+      .map((study, index) => ({
+        name: study,
+        value: summaryData?.datatype[index] === datatype ? parseInt(summaryDataValues[index], 10) : 0,
+        itemStyle: { color: datatypeColorMap[datatype] },
+      }))
+      .filter((child) => child.value > 0), // Remove entries with value 0
     itemStyle: { color: datatypeColorMap[datatype] },
   }));
 
