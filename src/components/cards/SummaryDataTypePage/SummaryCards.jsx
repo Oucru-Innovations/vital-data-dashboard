@@ -56,52 +56,71 @@ export const renderSummaryCards = (summaryData) => {
     //   { title: 'Average Gyro Duration', value: avgGyroDuration, color: { 50: '#e1f5fe', 700: '#0288d1', 800: '#01579b' } },
     // ];
     // Calculating total duration for each datatype
-  const totalPPGDuration = summaryData.datatype
-  .map((type, index) =>
-    type === 'PPG'
-      ? parseFloat(summaryData.duration[index] || 0) // Default to 0 if value is null/undefined
-      : 0
-  )
-  .reduce((a, b) => a + b, 0);
-
-  const totalECGDuration = summaryData.datatype
+    const totalPPGDuration = summaryData.datatype
     .map((type, index) =>
-      type === 'ECG'
+      type === 'PPG'
         ? parseFloat(summaryData.duration[index] || 0) // Default to 0 if value is null/undefined
         : 0
     )
     .reduce((a, b) => a + b, 0);
 
-  const totalGyroDuration = summaryData.datatype
+    const totalECGDuration = summaryData.datatype
+      .map((type, index) =>
+        type === 'ECG'
+          ? parseFloat(summaryData.duration[index] || 0) // Default to 0 if value is null/undefined
+          : 0
+      )
+      .reduce((a, b) => a + b, 0);
+
+    const totalGyroDuration = summaryData.datatype
+      .map((type, index) =>
+        type === 'Gyro'
+          ? parseFloat(summaryData.duration[index] || 0) // Default to 0 if value is null/undefined
+          : 0
+      )
+      .reduce((a, b) => a + b, 0);
+
+    // Calculating total patients for each datatype
+    const totalPPGPatients = summaryData.datatype
     .map((type, index) =>
-      type === 'Gyro'
-        ? parseFloat(summaryData.duration[index] || 0) // Default to 0 if value is null/undefined
-        : 0
+      type === 'PPG' ? parseInt(summaryData.patient[index] || 0, 10) : 0
     )
     .reduce((a, b) => a + b, 0);
 
-  // Calculating average durations
-  const avgPPGDuration = totalPPGDuration > 0
-    ? formatDuration(totalPPGDuration / summaryData.datatype.filter((type) => type === 'PPG').length)
+    const totalECGPatients = summaryData.datatype
+    .map((type, index) =>
+      type === 'ECG' ? parseInt(summaryData.patient[index] || 0, 10) : 0
+    )
+    .reduce((a, b) => a + b, 0);
+
+    const totalGyroPatients = summaryData.datatype
+    .map((type, index) =>
+      type === 'Gyro' ? parseInt(summaryData.patient[index] || 0, 10) : 0
+    )
+    .reduce((a, b) => a + b, 0);
+
+    // Calculating average durations per patient
+    const avgPPGDurationPerPatient = totalPPGPatients > 0
+    ? formatDuration(totalPPGDuration / totalPPGPatients)
     : '0 mins';
 
-  const avgECGDuration = totalECGDuration > 0
-    ? formatDuration(totalECGDuration / summaryData.datatype.filter((type) => type === 'ECG').length)
+    const avgECGDurationPerPatient = totalECGPatients > 0
+    ? formatDuration(totalECGDuration / totalECGPatients)
     : '0 mins';
 
-  const avgGyroDuration = totalGyroDuration > 0
-    ? formatDuration(totalGyroDuration / summaryData.datatype.filter((type) => type === 'Gyro').length)
+    const avgGyroDurationPerPatient = totalGyroPatients > 0
+    ? formatDuration(totalGyroDuration / totalGyroPatients)
     : '0 mins';
 
-  // Creating card data
-  const cards = [
-    { title: 'PPG Duration', value: formatDuration(totalPPGDuration), color: { 50: '#c8e6c9', 700: '#388e3c', 800: '#1b5e20' } },
-    { title: 'ECG Duration', value: formatDuration(totalECGDuration), color: { 50: '#bbdefb', 700: '#1976d2', 800: '#0d47a1' } },
-    { title: 'Gyro Duration', value: formatDuration(totalGyroDuration), color: { 50: '#f8bbd0', 700: '#d81b60', 800: '#880e4f' } },
-    { title: 'Average PPG', value: avgPPGDuration, color: { 50: '#ede7f6', 700: '#673ab7', 800: '#311b92' } },
-    { title: 'Average ECG', value: avgECGDuration, color: { 50: '#fff8e1', 700: '#f57c00', 800: '#e65100' } },
-    { title: 'Average Gyro', value: avgGyroDuration, color: { 50: '#e1f5fe', 700: '#0288d1', 800: '#01579b' } },
-  ];
+    // Creating card data
+    const cards = [
+      { title: 'PPG Duration', value: formatDuration(totalPPGDuration), color: { 50: '#c8e6c9', 700: '#388e3c', 800: '#1b5e20' } },
+      { title: 'ECG Duration', value: formatDuration(totalECGDuration), color: { 50: '#bbdefb', 700: '#1976d2', 800: '#0d47a1' } },
+      { title: 'Gyro Duration', value: formatDuration(totalGyroDuration), color: { 50: '#f8bbd0', 700: '#d81b60', 800: '#880e4f' } },
+      { title: 'Average PPG', value: avgPPGDurationPerPatient, color: { 50: '#ede7f6', 700: '#673ab7', 800: '#311b92' } },
+      { title: 'Average ECG', value: avgECGDurationPerPatient, color: { 50: '#fff8e1', 700: '#f57c00', 800: '#e65100' } },
+      { title: 'Average Gyro', value: avgGyroDurationPerPatient, color: { 50: '#e1f5fe', 700: '#0288d1', 800: '#01579b' } },
+    ];
   
 
     return (
