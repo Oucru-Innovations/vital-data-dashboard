@@ -59,7 +59,7 @@ export const renderSummaryCards = (summaryData) => {
     return (
       <Grid container spacing={2}>
         {cards.map((card, idx) => (
-          <Grid item xs={4} md={8} key={idx}>
+          <Grid item xs={4} md={6} key={idx}>
             <Paper
               elevation={3}
               sx={{

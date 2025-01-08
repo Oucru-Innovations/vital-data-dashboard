@@ -57,8 +57,8 @@ const SummaryStudyPage = () => {
       data = {
         study: data.study.filter((d) => (d && d.trim() ? d.trim() : "")),
         patient: data.patient.filter((p) => (p && p.trim() ? p.trim() : "0")),
-        title: data.title.filter((t) => (t && t.trim()) ? t.trim() : ""),
-        description: data.description.filter((d) => (d && d.trim()) ? d.trim() : ""),
+        title: data.title.filter((t) => (t && t.trim() ? t.trim() : "")),
+        description: data.description.filter((d) => (d && d.trim() ? d.trim() : "")),
         site: data.site.map((siteArray) =>
           siteArray
             .filter((s) => ((s && s.trim() ?  s.trim() : "")))
@@ -95,11 +95,11 @@ const SummaryStudyPage = () => {
         <CircularProgress />
       ) : (
         <Grid container spacing={3}>
-          <Grid item xs={12} md={8}>
+          <Grid item xs={12} md={12}>
             {/* {renderSummaryTable(summaryData)} */}
             <SummaryTable summaryData={summaryData} />
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={12}>
             {renderSummaryCards(summaryData)}
           </Grid>
           <Grid item xs={12} md={6}>

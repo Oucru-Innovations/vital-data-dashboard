@@ -6,12 +6,53 @@ const SummaryTable = ({ summaryData }) => {
   const apiRef = useGridApiRef();
 
   const columns = [
-    { field: 'study', headerName: 'Study', flex: 1 },
-    { field: 'title', headerName: 'Title', flex: 1 },
-    { field: 'description', headerName: 'Description', flex: 1 },
-    { field: 'site', headerName: 'Site', flex: 1 },
-    { field: 'patient', headerName: 'Patient', flex: 1 },
-    { field: 'session', headerName: 'Session', flex: 1 },
+    {
+      field: 'study',
+      headerName: 'Study',
+      width: 100,
+      // flex: 1,
+      headerClassName: 'word-wrap-header',
+      cellClassName: 'word-wrap-cell',
+    },
+    {
+      field: 'title',
+      headerName: 'Title',
+      flex: 1,
+      headerClassName: 'word-wrap-header',
+      cellClassName: 'word-wrap-cell',
+    },
+    {
+      field: 'description',
+      headerName: 'Description',
+      flex: 1,
+      headerClassName: 'word-wrap-header',
+      cellClassName: 'word-wrap-cell',
+    },
+    {
+      field: 'site',
+      headerName: 'Site',
+      flex: 1,
+      headerClassName: 'word-wrap-header',
+      cellClassName: 'word-wrap-cell',
+      renderCell: (params) => {
+        const value = params.value;
+        return value ? value : 'N/A'; // Render the string or 'N/A' if null/undefined
+      },
+    },
+    {
+      field: 'patient',
+      headerName: 'Patient',
+      width: 100,
+      // flex: 1,
+      headerClassName: 'word-wrap-header',
+    },
+    {
+      field: 'session',
+      headerName: 'Session',
+      width: 100,
+      // flex: 1,
+      headerClassName: 'word-wrap-header',
+    },
   ];
 
   const rows = summaryData.study.map((study, index) => ({
@@ -19,6 +60,9 @@ const SummaryTable = ({ summaryData }) => {
     study,
     patient: summaryData.patient[index],
     session: summaryData.session[index],
+    description: summaryData.description[index],
+    title: summaryData.title[index],
+    site: summaryData.site[index],
   }));
 
   return (
@@ -52,6 +96,8 @@ const SummaryTable = ({ summaryData }) => {
             '& .MuiDataGrid-cell': {
               borderBottom: '1px solid rgba(201, 205, 216, 0.9)',
               backgroundColor: '#f9f9f9',
+              whiteSpace: 'normal',
+              wordWrap: 'break-word',
               '&:hover': {
                 backgroundColor: '#e3f2fd',
               },
