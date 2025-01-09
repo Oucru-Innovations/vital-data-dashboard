@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Grid, Paper, Typography } from '@mui/material';
 
-export const renderSummaryCards = (summaryData) => {
+export const renderSummaryCards = (summaryData, uniquePatientData) => {
   const formatDuration = (hours) => {
     const minutes = hours * 60;
     if (minutes >= 14400) { // Greater than or equal to 1 day
@@ -13,7 +13,7 @@ export const renderSummaryCards = (summaryData) => {
     }
   };
 
-  const totalPatients = summaryData.patient.reduce((sum, p) => sum + (parseInt(p, 10) || 0), 0);
+  const totalPatients = uniquePatientData.patient.reduce((sum, p) => sum + (parseInt(p, 10) || 0), 0);
   const totalDuration = summaryData.duration.reduce((sum, d) => sum + (parseFloat(d) || 0 ), 0);
   const totalSessions = summaryData.session.reduce((sum, s) => sum + (parseInt(s, 10) || 0), 0);
 

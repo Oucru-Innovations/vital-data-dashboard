@@ -8,10 +8,12 @@ const TransitionPlot = ({ summaryData, summaryDataValues, titleText }) => {
 
   const uniqueConditions = Array.from(new Set(summaryData?.condition || [])).filter(Boolean);
 
-  const modernColors = [
-    '#FF6F61', '#6B5B95', '#88B04B', '#F7CAC9', '#92A8D1',
-    '#955251', '#B565A7', '#009B77', '#DD4124', '#D65076',
-  ];
+  // const modernColors = [
+  //   '#FF6F61', '#6B5B95', '#88B04B', '#F7CAC9', '#92A8D1',
+  //   '#955251', '#B565A7', '#009B77', '#DD4124', '#D65076',
+  // ];
+  const modernColors = ['#4caf50', '#2196f3', '#9c27b0', '#ff9800', '#f44336',
+    '#009688', '#795548', '#e91e63', '#607d8b', '#ffc107'];
 
   const conditionColorMap = uniqueConditions.reduce((acc, condition, index) => {
     acc[condition] = modernColors[index % modernColors.length];

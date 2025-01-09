@@ -22,6 +22,15 @@ export const renderSummaryCards = (summaryData) => {
     // const totalDuration = summaryData.duration.reduce((sum, d) => sum + parseFloat(d), 0);
     const totalSessions = summaryData.session.reduce((sum, s) => sum + (parseInt(s, 10) || 0), 0);
     
+    // Extract unique sites
+    const uniqueSites = new Set(
+      summaryData.site
+        .flatMap((site) => site.split(',').map((s) => s.trim())) // Split by comma and trim whitespace
+        .filter(Boolean) // Remove empty strings
+    );
+
+    // Count total unique sites
+    const totalSites = uniqueSites.size;    
     // const ppgDurations = summaryData.condition
     //   .map((type, index) => (type === 'Dengue' ? parseFloat(summaryData.duration[index]) : 0))
     //   .filter((d) => d > 0);
@@ -50,7 +59,7 @@ export const renderSummaryCards = (summaryData) => {
       { title: 'Total Patient', value: totalPatients, color: { 50: '#e8f5e9', 700: '#388e3c', 800: '#1b5e20' } },
       // { title: 'Total Duration', value: formatDuration(totalDuration), color: { 50: '#e3f2fd', 700: '#1976d2', 800: '#0d47a1' } },
       { title: 'Total Session', value: totalSessions, color: { 50: '#ffebee', 700: '#d32f2f', 800: '#b71c1c' } },
-      // { title: 'Average Duration', value: formatDuration(totalDuration / totalSessions), color: { 50: '#ede7f6', 700: '#673ab7', 800: '#311b92' } },
+      { title: 'Total Site', value: totalSites, color: { 50: '#ede7f6', 700: '#673ab7', 800: '#311b92' } },
       // { title: 'Average ECG Duration', value: avgECGDuration, color: { 50: '#fff8e1', 700: '#f57c00', 800: '#e65100' } },
       // { title: 'Average Gyro Duration', value: avgGyroDuration, color: { 50: '#e1f5fe', 700: '#0288d1', 800: '#01579b' } },
     ];
@@ -59,7 +68,7 @@ export const renderSummaryCards = (summaryData) => {
     return (
       <Grid container spacing={2}>
         {cards.map((card, idx) => (
-          <Grid item xs={4} md={6} key={idx}>
+          <Grid item xs={4} md={4} key={idx}>
             <Paper
               elevation={3}
               sx={{

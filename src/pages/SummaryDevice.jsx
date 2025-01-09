@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getSummaryDataByDevice } from '../services/apiService';
+import { getSummaryDataByDevice, getUniquePatients } from '../services/apiService';
 import { renderSummaryCards } from '../components/cards/SummaryDevicePage/SummaryCards';
 import SummaryTable from '../components/tables/SummaryDevicePage/SummaryTable';
 import { renderGroupedBarChart } from '../components/charts/SummaryDevicePage/GroupedBarChart';
@@ -13,6 +13,7 @@ import Footer from '../components/toolbars/Footer';
 
 const SummaryDevicePage = () => {
   const [summaryData, setSummaryData] = useState(null);
+  const [uniquePatientData, setUniquePatientData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const defaultParams = [
@@ -21,6 +22,7 @@ const SummaryDevicePage = () => {
     { key: 'devices', value: 'Covid-19,Mpox', enabled: false },
     // { key: 'devices', value: 'Gyro,SmartCare,Shimmer', enabled: false },
     // { key: 'study', value: '01NVa_Dengue', enabled: false },
+    { key: 'others', value: "others=s.name<>'01NVe'", equals: true, enabled: true },
     // { key: 'others', value: "datatype='PPG'", equals: true, enabled: false },
   ];
 
@@ -68,9 +70,28 @@ const SummaryDevicePage = () => {
     }
   };
 
+  const fetchUniquePatients = async (queryParams) => {
+    try {
+      const response = await getUniquePatients(queryParams);
+      let data = typeof response === 'string' ? cleanAndParseJSON(response) : response;
+      data = {
+        study: data.study.filter((d) => (d && d.trim() ? d.trim() : "")),
+        patient: data.patient.filter((p) => (p && p.trim() ? p.trim() : "0")),
+        // duration: data.duration.filter((d) => (d && d.trim() ? d.trim() : "0")),
+        // session: data.session.filter((s) => (s && s.trim() ? s.trim() : "0")),
+      };
+      setUniquePatientData(data || { device: [], patient: [], duration: [], session: [], durationPerSession: [] });
+    } catch (error) {
+      console.error('Error fetching unique patient data:', error);
+      setUniquePatientData({ device: [], patient: [], duration: [], session: [], durationPerSession: [] });
+    } finally {
+      setLoading(false);
+    }
+  }
   useEffect(() => {
     const query = constructParams(defaultParams);
     fetchSummaryData(query);
+    fetchUniquePatients(query);
   }, []);
 
   return (
@@ -88,7 +109,7 @@ const SummaryDevicePage = () => {
             <SummaryTable summaryData={summaryData} />
           </Grid>
           <Grid item xs={6} md={12}>
-            {renderSummaryCards(summaryData)}
+            {renderSummaryCards(summaryData, uniquePatientData)}
           </Grid>
           {/* <Grid item xs={12} md={6}>
             {renderSunburstChart(summaryData, summaryData.patient, 'Patient Distribution by Devices')}

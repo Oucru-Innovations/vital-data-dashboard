@@ -74,3 +74,13 @@ export const getSummaryDataByCondition = async (params) => {
     return {};
   }
 };
+
+export const getUniquePatients = async (params) => {
+  try {
+    const response = await apiClient.get('/summary/patient/count', { params });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching summary data by condition", error);
+    return {};
+  }
+};
