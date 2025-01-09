@@ -46,9 +46,8 @@ const generateSunBurstColor = (baseColor, level, step = 0) => {
   const { h, s, l } = hexToHSL(baseColor);
 
   // Adjust lightness for different levels and steps
-  const newLightness = level === 0
-    ? l // Bold color for parent
-    : Math.min(l + 30 + step * 5, 90); // Gradually lighter for child nodes
+  const adjustment = level === 0 ? -20 : 15 + step * 5; // Make base color bolder and children progressively lighter
+  const newLightness = Math.max(0, Math.min(l + adjustment, 90));
 
   return `hsl(${h}, ${s}%, ${newLightness}%)`;
 };
@@ -76,14 +75,16 @@ const TransitionPlot = ({ summaryData, summaryDataValues, titleText }) => {
       .map((study, index) => ({
         name: study,
         value: summaryData?.datatype[index] === datatype ? parseInt(summaryDataValues[index], 10) : 0,
-        // itemStyle: { color: datatypeColorMap[datatype] },
-        itemStyle:{
+        itemStyle: {
           color: generateSunBurstColor(datatypeColorMap[datatype], 1, index), // Progressive lighter colors
         },
       }))
       .filter((child) => child.value > 0), // Remove entries with value 0
-    itemStyle: { color: datatypeColorMap[datatype] },
+    itemStyle: {
+      color: generateSunBurstColor(datatypeColorMap[datatype], 0), // Bold base color for parent
+    },
   }));
+  
 
   const safeDataSunBurst = dataSunBurst.length > 0 ? dataSunBurst : [{ name: 'No Data', value: 0 }];
 
