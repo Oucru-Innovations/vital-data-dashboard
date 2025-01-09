@@ -67,7 +67,7 @@ const TransitionPlot = ({ summaryData, summaryDataValues, titleText }) => {
     return acc;
   }, {});
 
-  const data = uniqueDatatypes.map((datatype) => ({
+  const dataSunBurst = uniqueDatatypes.map((datatype) => ({
     name: datatype,
     value: summaryDataValues
       ?.map((_, index) => (summaryData?.datatype[index] === datatype ? parseInt(summaryDataValues[index], 10) : 0))
@@ -85,7 +85,24 @@ const TransitionPlot = ({ summaryData, summaryDataValues, titleText }) => {
     itemStyle: { color: datatypeColorMap[datatype] },
   }));
 
-  const safeData = data.length > 0 ? data : [{ name: 'No Data', value: 0 }];
+  const safeDataSunBurst = dataSunBurst.length > 0 ? dataSunBurst : [{ name: 'No Data', value: 0 }];
+
+  const dataTreeMap = uniqueDatatypes.map((datatype) => ({
+    name: datatype,
+    value: summaryDataValues
+      ?.map((_, index) => (summaryData?.datatype[index] === datatype ? parseInt(summaryDataValues[index], 10) : 0))
+      .reduce((a, b) => a + b, 0) || 0,
+    children: summaryData.study
+      .map((study, index) => ({
+        name: study,
+        value: summaryData?.datatype[index] === datatype ? parseInt(summaryDataValues[index], 10) : 0,
+        itemStyle: { color: datatypeColorMap[datatype] },
+      }))
+      .filter((child) => child.value > 0), // Remove entries with value 0
+    itemStyle: { color: datatypeColorMap[datatype] },
+  }));
+
+  const safeDataTreeMap = dataTreeMap.length > 0 ? dataTreeMap : [{ name: 'No Data', value: 0 }];
 
   const treemapOption = {
     title: {
@@ -108,7 +125,7 @@ const TransitionPlot = ({ summaryData, summaryDataValues, titleText }) => {
         animationDurationUpdate: 1000,
         roam: true,
         nodeClick: undefined,
-        data: safeData,
+        data: safeDataTreeMap,
         universalTransition: true,
         label: {
           show: true,
@@ -163,7 +180,7 @@ const TransitionPlot = ({ summaryData, summaryDataValues, titleText }) => {
         radius: ['15%', '85%'],
         animationDurationUpdate: 1000,
         nodeClick: undefined,
-        data: safeData,
+        data: safeDataSunBurst,
         universalTransition: true,
         itemStyle: {
           borderWidth: 1,
@@ -203,10 +220,10 @@ const TransitionPlot = ({ summaryData, summaryDataValues, titleText }) => {
     }
 
     return () => clearInterval(intervalId);
-  }, [safeData, isTransitioning]);
+  }, [safeDataTreeMap, isTransitioning]);
 
   // Render fallback message if data is invalid
-  if (!summaryData || !summaryDataValues || safeData.length === 1) {
+  if (!summaryData || !summaryDataValues || safeDataTreeMap.length === 1) {
     return <div>No data available for the transition plot.</div>;
   }
 
