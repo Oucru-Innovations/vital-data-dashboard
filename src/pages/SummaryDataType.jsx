@@ -20,7 +20,7 @@ const SummaryDataTypePage = () => {
     { key: 'conditions', value: '', enabled: false },
     { key: 'devices', value: '', enabled: false },
     { key: 'study', value: '', enabled: false },
-    { key: 'others', value: "others=s.name<>'01NVe'", equals: true, enabled: false },
+    { key: 'others', value: "s.name<>'01NVe'", equals: true, enabled: false },
   ];
 
   const constructParams = (params) => {

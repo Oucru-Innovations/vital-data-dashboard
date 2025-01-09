@@ -16,7 +16,7 @@ const SummaryStudyPage = () => {
     // { key: 'conditions', value: 'Covid-19,Mpox', enabled: false },
     // { key: 'conditions', value: 'Gyro,SmartCare,Shimmer', enabled: false },
     { key: 'study', value: '01NVa_Dengue', enabled: false },
-    {key: 'others', value: "others=s.name<>'01NVe'", equals: true, enabled: true}
+    {key: 'others', value: "s.name<>'01NVe'", equals: true, enabled: true}
     // { key: 'others', value: "datatype='PPG'", equals: true, enabled: false },
   ];
 

@@ -2,96 +2,83 @@ import React, { useEffect, useState } from 'react';
 import { getSummaryDataByDevice, getUniquePatients } from '../services/apiService';
 import { renderSummaryCards } from '../components/cards/SummaryDevicePage/SummaryCards';
 import SummaryTable from '../components/tables/SummaryDevicePage/SummaryTable';
-import { renderGroupedBarChart } from '../components/charts/SummaryDevicePage/GroupedBarChart';
 import { renderBarChart } from '../components/charts/SummaryDevicePage/BarChart';
-import { renderSunburstChart } from '../components/charts/SummaryDevicePage/SunburstChart';
-import { renderTreeMapChart } from '../components/charts/SummaryDevicePage/TreeMapChart';
-import { renderStackedAreaChart } from '../components/charts/SummaryDevicePage/StackAreaChart';
 import TransitionPlot from '../components/charts/SummaryDevicePage/TransitionPlot';
 import { Box, Grid, Typography, CircularProgress, Divider } from '@mui/material';
 import Footer from '../components/toolbars/Footer';
 
 const SummaryDevicePage = () => {
-  const [summaryData, setSummaryData] = useState(null);
-  const [uniquePatientData, setUniquePatientData] = useState(null);
+  const [summaryData, setSummaryData] = useState({ device: [], patient: [], duration: [], session: [], durationPerSession: [] });
+  const [uniquePatientData, setUniquePatientData] = useState({ study: [], patient: [] });
   const [loading, setLoading] = useState(true);
 
   const defaultParams = [
-    // { key: 'studies', value: '01NVa_Dengue,06NV,05EI,39EI', equals: true, enabled: true },
-    // { key: 'datatypes', value: 'PPG,Gyro,ECG', equals: true, enabled: true },
     { key: 'devices', value: 'Covid-19,Mpox', enabled: false },
-    // { key: 'devices', value: 'Gyro,SmartCare,Shimmer', enabled: false },
-    // { key: 'study', value: '01NVa_Dengue', enabled: false },
-    { key: 'others', value: "others=s.name<>'01NVe'", equals: true, enabled: true },
-    // { key: 'others', value: "datatype='PPG'", equals: true, enabled: false },
+    { key: 'others', value: "s.name<>'01NVe'", equals: true, enabled: true },
   ];
 
-  const constructParams = (params) => {
-    return params
+  const constructParams = (params) =>
+    params
       .filter((param) => param.enabled)
       .reduce((query, param) => {
         query[param.key] = param.value;
         return query;
       }, {});
-  };
 
   const cleanAndParseJSON = (rawString) => {
     try {
-      let cleanedString = rawString.replace(/\r|\n/g, '').replace(/\\/g, '').replace(/,\s*,/g, ',').replace(/,\s*\]/g, ']').replace(/,\s*\}/g, '}');
+      const cleanedString = rawString
+        .replace(/\r|\n/g, '')
+        .replace(/\\/g, '')
+        .replace(/,\s*,/g, ',')
+        .replace(/,\s*\]/g, ']')
+        .replace(/,\s*\}/g, '}');
       return JSON.parse(cleanedString);
     } catch (error) {
-      console.error('Error cleaning/parsing JSON:', error);
+      console.error('Error parsing JSON:', error);
       return null;
     }
   };
 
-  const fetchSummaryData = async (queryParams) => {
+  const processSummaryData = (data) => ({
+    device: data.device.map((d) => d?.trim() || ''),
+    patient: data.patient.map((p) => p?.trim() || '0'),
+    duration: data.duration.map((d) => d?.trim() || '0'),
+    session: data.session.map((s) => s?.trim() || '0'),
+    durationPerSession: data.duration.map((dur, index) => {
+      const sessionCount = parseFloat(data.session[index]) || 1;
+      const durationValue = parseFloat(dur) || 0;
+      return sessionCount > 0 ? (durationValue / sessionCount).toFixed(2) : 'N/A';
+    }),
+  });
+
+  const fetchData = async () => {
+    setLoading(true);
+    const query = constructParams(defaultParams);
+
     try {
-      const response = await getSummaryDataByDevice(queryParams);
-      let data = typeof response === 'string' ? cleanAndParseJSON(response) : response;
-      data = {
-        device: data.device.filter((d) => (d && d.trim() ? d.trim() : "")),
-        patient: data.patient.filter((p) => (p && p.trim() ? p.trim() : "0")),
-        duration: data.duration.filter((d) => (d && d.trim() ? d.trim() : "0")),
-        session: data.session.filter((s) => (s && s.trim() ? s.trim() : "0")),
-      };
-      // Add the new column averageDuration
-      data.durationPerSession = data.duration.map((dur, index) => {
-        const sessionCount = parseFloat(data.session[index]) || 1;
-        const durationValue = parseFloat(dur) || 0;
-        return sessionCount > 0 ? (durationValue / sessionCount).toFixed(2) : 'N/A'; // Handle division by zero
+      const [summaryResponse, uniquePatientsResponse] = await Promise.all([
+        getSummaryDataByDevice(query),
+        getUniquePatients(query),
+      ]);
+
+      const summaryRawData = typeof summaryResponse === 'string' ? cleanAndParseJSON(summaryResponse) : summaryResponse;
+      const uniquePatientsRawData = typeof uniquePatientsResponse === 'string' ? cleanAndParseJSON(uniquePatientsResponse) : uniquePatientsResponse;
+
+      setSummaryData(processSummaryData(summaryRawData || { device: [], patient: [], duration: [], session: [] }));
+      setUniquePatientData({
+        study: uniquePatientsRawData.study?.map((d) => d?.trim() || '') || [],
+        patient: uniquePatientsRawData.patient?.map((p) => p?.trim() || '0') || [],
       });
-      setSummaryData(data || { device: [], patient: [], duration: [], session: [], durationPerSession: [] });
     } catch (error) {
-      console.error('Error fetching summary data:', error);
-      setSummaryData({ device: [], patient: [], duration: [], session: [], durationPerSession: [] });
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchUniquePatients = async (queryParams) => {
-    try {
-      const response = await getUniquePatients(queryParams);
-      let data = typeof response === 'string' ? cleanAndParseJSON(response) : response;
-      data = {
-        study: data.study.filter((d) => (d && d.trim() ? d.trim() : "")),
-        patient: data.patient.filter((p) => (p && p.trim() ? p.trim() : "0")),
-        // duration: data.duration.filter((d) => (d && d.trim() ? d.trim() : "0")),
-        // session: data.session.filter((s) => (s && s.trim() ? s.trim() : "0")),
-      };
-      setUniquePatientData(data || { device: [], patient: [], duration: [], session: [], durationPerSession: [] });
-    } catch (error) {
-      console.error('Error fetching unique patient data:', error);
-      setUniquePatientData({ device: [], patient: [], duration: [], session: [], durationPerSession: [] });
-    } finally {
-      setLoading(false);
-    }
-  }
   useEffect(() => {
-    const query = constructParams(defaultParams);
-    fetchSummaryData(query);
-    fetchUniquePatients(query);
+    fetchData();
   }, []);
 
   return (
@@ -105,15 +92,11 @@ const SummaryDevicePage = () => {
       ) : (
         <Grid container spacing={3}>
           <Grid item xs={12}>
-            {/* {renderSummaryTable(summaryData)} */}
             <SummaryTable summaryData={summaryData} />
           </Grid>
           <Grid item xs={6} md={12}>
             {renderSummaryCards(summaryData, uniquePatientData)}
           </Grid>
-          {/* <Grid item xs={12} md={6}>
-            {renderSunburstChart(summaryData, summaryData.patient, 'Patient Distribution by Devices')}
-          </Grid> */}
           <Grid item xs={12} md={6}>
             <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.patient} titleText="Patient Distribution by Devices" />
           </Grid>
@@ -126,10 +109,6 @@ const SummaryDevicePage = () => {
           <Grid item xs={12} md={6}>
             {renderBarChart(summaryData, summaryData.durationPerSession, 'Duration Per Session Distribution by Devices')}
           </Grid>
-          {/* <Grid item xs={12} md={6}>
-            {renderStackedAreaChart(summaryData, 'Session Distribution by Devices')}
-          </Grid> */}
-          
         </Grid>
       )}
       <Footer />
