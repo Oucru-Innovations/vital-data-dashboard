@@ -8,10 +8,10 @@ const SummaryTable = ({ summaryData }) => {
   const columns = [
     { field: 'datatype', headerName: 'Datatype', flex: 1 },
     { field: 'study', headerName: 'Study', flex: 1 },
-    { field: 'patient', headerName: 'Patient', flex: 1 },
+    { field: 'patient', headerName: 'Patient', flex: 1, type: 'number' },
     { field: 'duration', headerName: 'Duration', flex: 1 },
-    { field: 'session', headerName: 'Session', flex: 1 },
-    { field: 'averageDuration', headerName: 'Average Duration', flex: 1 },
+    { field: 'session', headerName: 'Session', flex: 1, type: 'number' },
+    { field: 'averageDuration', headerName: 'Average Duration', flex: 1, type: 'number'},
   ];
 
   const rows = summaryData.datatype.map((datatype, index) => ({

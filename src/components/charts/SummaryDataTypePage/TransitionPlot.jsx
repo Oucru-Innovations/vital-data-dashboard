@@ -2,6 +2,20 @@ import React, { useEffect, useRef, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Button, Box } from '@mui/material';
 
+const generateSunBurstColor = (baseColor, level, step = 0) => {
+  // Parse the base HSL color and adjust lightness
+  const hslMatch = baseColor.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/);
+  if (!hslMatch) return baseColor; // Fallback to base color if parsing fails
+  const [hue, saturation, lightness] = hslMatch.slice(1).map(Number);
+
+  // Adjust lightness for different levels and steps
+  const newLightness = level === 0
+    ? lightness // Bold color for parent
+    : Math.min(lightness + 30 + step * 5, 90); // Gradually lighter for child nodes
+
+  return `hsl(${hue}, ${saturation}%, ${newLightness}%)`;
+};
+
 const TransitionPlot = ({ summaryData, summaryDataValues, titleText }) => {
   const chartRef = useRef(null); // Reference to the ECharts instance
   const [isTransitioning, setIsTransitioning] = useState(true); // State to control transition
@@ -9,7 +23,8 @@ const TransitionPlot = ({ summaryData, summaryDataValues, titleText }) => {
   const uniqueDatatypes = Array.from(new Set(summaryData?.datatype || []));
   const uniqueStudies = Array.from(new Set(summaryData?.study || []));
 
-  const datatypeColors = ['#4caf50', '#2196f3', '#9c27b0', '#ff9800', '#f44336'];
+  const datatypeColors = ['#4caf50', '#2196f3', '#9c27b0', '#ff9800', '#f44336',
+    '#009688', '#795548', '#e91e63', '#607d8b', '#ffc107'];
   const datatypeColorMap = uniqueDatatypes.reduce((acc, datatype, index) => {
     acc[datatype] = datatypeColors[index % datatypeColors.length];
     return acc;
@@ -24,7 +39,10 @@ const TransitionPlot = ({ summaryData, summaryDataValues, titleText }) => {
       .map((study, index) => ({
         name: study,
         value: summaryData?.datatype[index] === datatype ? parseInt(summaryDataValues[index], 10) : 0,
-        itemStyle: { color: datatypeColorMap[datatype] },
+        // itemStyle: { color: datatypeColorMap[datatype] },
+        itemStyle:{
+          color: generateSunBurstColor(datatypeColorMap[datatype], 1, index), // Progressive lighter colors
+        },
       }))
       .filter((child) => child.value > 0), // Remove entries with value 0
     itemStyle: { color: datatypeColorMap[datatype] },

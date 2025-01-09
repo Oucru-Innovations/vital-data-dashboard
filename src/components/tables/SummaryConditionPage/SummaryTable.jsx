@@ -7,8 +7,8 @@ const SummaryTable = ({ summaryData }) => {
 
   const columns = [
     { field: 'condition', headerName: 'Condition', flex: 1 },
-    { field: 'patient', headerName: 'Patient', flex: 1 },
-    { field: 'session', headerName: 'Session', flex: 1 },
+    { field: 'patient', headerName: 'Patient', flex: 1, type: 'number' },
+    { field: 'session', headerName: 'Session', flex: 1, type: 'number' },
   ];
 
   const rows = summaryData.condition.map((condition, index) => ({
