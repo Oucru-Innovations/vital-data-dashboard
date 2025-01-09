@@ -5,18 +5,20 @@ export const renderGroupedBarChart = (summaryData, titleText) => {
   const uniqueDevices = [...new Set(summaryData.device)].filter(Boolean); // Remove null/undefined
 
   // Modern color palette
-  const modernColors = [
-    '#FF6F61', // Coral
-    '#6B5B95', // Purple
-    '#88B04B', // Green
-    '#F7CAC9', // Pink
-    '#92A8D1', // Blue
-    '#955251', // Rose
-    '#B565A7', // Orchid
-    '#009B77', // Emerald
-    '#DD4124', // Tomato
-    '#D65076', // Amethyst
-  ];
+  // const modernColors = [
+  //   '#FF6F61', // Coral
+  //   '#6B5B95', // Purple
+  //   '#88B04B', // Green
+  //   '#F7CAC9', // Pink
+  //   '#92A8D1', // Blue
+  //   '#955251', // Rose
+  //   '#B565A7', // Orchid
+  //   '#009B77', // Emerald
+  //   '#DD4124', // Tomato
+  //   '#D65076', // Amethyst
+  // ];
+  const modernColors = ['#4caf50', '#2196f3', '#9c27b0', '#ff9800', '#f44336',
+    '#009688', '#795548', '#e91e63', '#607d8b', '#ffc107'];
 
   const deviceColorMap = uniqueDevices.reduce((acc, device, index) => {
     acc[device] = modernColors[index % modernColors.length];
