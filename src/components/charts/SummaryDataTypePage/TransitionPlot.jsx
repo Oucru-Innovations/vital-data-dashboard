@@ -2,18 +2,55 @@ import React, { useEffect, useRef, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Button, Box } from '@mui/material';
 
+const hexToHSL = (hex) => {
+  // Convert HEX to RGB
+  let r = parseInt(hex.slice(1, 3), 16) / 255;
+  let g = parseInt(hex.slice(3, 5), 16) / 255;
+  let b = parseInt(hex.slice(5, 7), 16) / 255;
+
+  let max = Math.max(r, g, b);
+  let min = Math.min(r, g, b);
+  let h, s, l;
+
+  l = (max + min) / 2;
+
+  if (max === min) {
+    h = s = 0; // Achromatic
+  } else {
+    let delta = max - min;
+    s = l > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+    switch (max) {
+      case r:
+        h = (g - b) / delta + (g < b ? 6 : 0);
+        break;
+      case g:
+        h = (b - r) / delta + 2;
+        break;
+      case b:
+        h = (r - g) / delta + 4;
+        break;
+      default:
+        break;
+    }
+    h /= 6;
+  }
+
+  h = Math.round(h * 360);
+  s = Math.round(s * 100);
+  l = Math.round(l * 100);
+
+  return { h, s, l };
+};
+
 const generateSunBurstColor = (baseColor, level, step = 0) => {
-  // Parse the base HSL color and adjust lightness
-  const hslMatch = baseColor.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/);
-  if (!hslMatch) return baseColor; // Fallback to base color if parsing fails
-  const [hue, saturation, lightness] = hslMatch.slice(1).map(Number);
+  const { h, s, l } = hexToHSL(baseColor);
 
   // Adjust lightness for different levels and steps
   const newLightness = level === 0
-    ? lightness // Bold color for parent
-    : Math.min(lightness + 30 + step * 5, 90); // Gradually lighter for child nodes
+    ? l // Bold color for parent
+    : Math.min(l + 30 + step * 5, 90); // Gradually lighter for child nodes
 
-  return `hsl(${hue}, ${saturation}%, ${newLightness}%)`;
+  return `hsl(${h}, ${s}%, ${newLightness}%)`;
 };
 
 const TransitionPlot = ({ summaryData, summaryDataValues, titleText }) => {
