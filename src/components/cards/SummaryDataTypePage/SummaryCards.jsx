@@ -75,11 +75,35 @@ export const renderSummaryCards = (summaryData) => {
 
     const totalGyroDuration = summaryData.datatype
       .map((type, index) =>
-        type === 'Gyro'
-          ? parseFloat(summaryData.duration[index] || 0) // Default to 0 if value is null/undefined
+          type === 'Gyro'
+            ? parseFloat(summaryData.duration[index] || 0) // Default to 0 if value is null/undefined
+            : 0
+      )
+      .reduce((a, b) => a + b, 0);
+
+    const totalUltrasoundSession = summaryData.datatype
+      .map((type, index) =>
+        type === 'Ultrasound'
+          ? parseFloat(summaryData.session[index] || 0) // Default to 0 if value is null/undefined
           : 0
       )
       .reduce((a, b) => a + b, 0);
+
+    const totalMRISession = summaryData.datatype
+      .map((type, index) =>
+        type === 'MRI'
+          ? parseFloat(summaryData.session[index] || 0) // Default to 0 if value is null/undefined
+          : 0
+      )
+      .reduce((a, b) => a + b, 0);
+  
+    const totalImageSession = summaryData.datatype
+        .map((type, index) =>
+          type === 'Image'
+            ? parseFloat(summaryData.session[index] || 0) // Default to 0 if value is null/undefined
+            : 0
+        )
+        .reduce((a, b) => a + b, 0);
 
     // Calculating total patients for each datatype
     const totalPPGPatients = summaryData.datatype
@@ -102,15 +126,15 @@ export const renderSummaryCards = (summaryData) => {
 
     // Calculating average durations per patient
     const avgPPGDurationPerPatient = totalPPGPatients > 0
-    ? formatDuration(totalPPGDuration / totalPPGPatients)
+    ? formatDuration(totalPPGDuration / totalPPGPatients)+'/patient'
     : '0 hours';
 
     const avgECGDurationPerPatient = totalECGPatients > 0
-    ? formatDuration(totalECGDuration / totalECGPatients)
+    ? formatDuration(totalECGDuration / totalECGPatients)+'/patient'
     : '0 hours';
 
     const avgGyroDurationPerPatient = totalGyroPatients > 0
-    ? formatDuration(totalGyroDuration / totalGyroPatients)
+    ? formatDuration(totalGyroDuration / totalGyroPatients)+'/patient'
     : '0 hours';
 
     // Creating card data
@@ -118,16 +142,19 @@ export const renderSummaryCards = (summaryData) => {
       { title: 'PPG Duration', value: formatDuration(totalPPGDuration), color: { 50: '#c8e6c9', 700: '#388e3c', 800: '#1b5e20' } },
       { title: 'ECG Duration', value: formatDuration(totalECGDuration), color: { 50: '#bbdefb', 700: '#1976d2', 800: '#0d47a1' } },
       { title: 'Gyro Duration', value: formatDuration(totalGyroDuration), color: { 50: '#f8bbd0', 700: '#d81b60', 800: '#880e4f' } },
-      { title: 'Average PPG', value: avgPPGDurationPerPatient, color: { 50: '#ede7f6', 700: '#673ab7', 800: '#311b92' } },
-      { title: 'Average ECG', value: avgECGDurationPerPatient, color: { 50: '#fff8e1', 700: '#f57c00', 800: '#e65100' } },
-      { title: 'Average Gyro', value: avgGyroDurationPerPatient, color: { 50: '#e1f5fe', 700: '#0288d1', 800: '#01579b' } },
+      { title: 'PPG Duration per Patient', value: avgPPGDurationPerPatient, color: { 50: '#ede7f6', 700: '#673ab7', 800: '#311b92' } },
+      { title: 'ECG Duration per Patient', value: avgECGDurationPerPatient, color: { 50: '#fff8e1', 700: '#f57c00', 800: '#e65100' } },
+      { title: 'Gyro Duration per Patient', value: avgGyroDurationPerPatient, color: { 50: '#e1f5fe', 700: '#0288d1', 800: '#01579b' } },
+      { title: 'Ultrasound Session', value: totalUltrasoundSession, color: { 50: '#ffecb3', 700: '#ffa726', 800: '#ff6f00' } }, 
+      { title: 'MRI Session', value: totalMRISession, color: { 50: '#dcedc8', 700: '#689f38', 800: '#33691e' } }, 
+      { title: 'Image Session', value: totalImageSession, color: { 50: '#e0f7fa', 700: '#00acc1', 800: '#006064' } }, 
     ];
   
 
     return (
       <Grid container spacing={2}>
         {cards.map((card, idx) => (
-          <Grid item xs={6} md={2} key={idx}>
+          <Grid item xs={4} md={4} key={idx}>
             <Paper
               elevation={3}
               sx={{

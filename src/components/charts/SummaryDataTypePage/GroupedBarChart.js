@@ -5,7 +5,9 @@ export const renderGroupedBarChart = (summaryData, summaryDataValues, titleText)
   const uniqueDatatypes = Array.from(new Set(summaryData?.datatype || []));
   const uniqueStudies = Array.from(new Set(summaryData?.study || []));
 
-  const datatypeColors = ['#4caf50', '#2196f3', '#9c27b0', '#ff9800', '#f44336'];
+  // const datatypeColors = ['#4caf50', '#2196f3', '#9c27b0', '#ff9800', '#f44336'];
+  const datatypeColors = ['#4caf50', '#2196f3', '#9c27b0', '#ff9800', '#f44336',
+    '#009688', '#795548', '#e91e63', '#607d8b', '#ffc107'];
   const datatypeColorMap = uniqueDatatypes.reduce((acc, datatype, index) => {
     acc[datatype] = datatypeColors[index % datatypeColors.length];
     return acc;
@@ -27,7 +29,20 @@ export const renderGroupedBarChart = (summaryData, summaryDataValues, titleText)
     };
   });
 
-  const series = aggregatedData.map((entry) => ({
+  // Filter out studies with all zero values across datatypes
+  const validStudies = uniqueStudies.filter((study, studyIndex) =>
+    aggregatedData.some((entry) => entry.data[studyIndex] > 0)
+  );
+
+  // Filter data for valid studies only
+  const filteredAggregatedData = aggregatedData.map((entry) => ({
+    ...entry,
+    data: entry.data.filter((_, studyIndex) =>
+      validStudies.includes(uniqueStudies[studyIndex])
+    ),
+  }));
+
+  const series = filteredAggregatedData.map((entry) => ({
     name: entry.datatype,
     type: 'bar',
     barGap: 0,
@@ -68,7 +83,7 @@ export const renderGroupedBarChart = (summaryData, summaryDataValues, titleText)
     },
     xAxis: {
       type: 'category',
-      data: uniqueStudies,
+      data: validStudies,
       name: 'Study',
       axisLabel: {
         fontSize: 12,
