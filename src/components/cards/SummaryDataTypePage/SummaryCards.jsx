@@ -3,18 +3,19 @@ import { Box, Grid, Paper, Typography, CircularProgress, CardContent } from '@mu
 
 
 export const renderSummaryCards = (summaryData) => {
-    const formatDuration = (minutes) => {
+    const formatDuration = (hours) => {
+      const minutes = hours * 60;
       if (minutes >= (1440 * 10)) { // Greater than or equal to 10 days (1440 * 10)
         return `${(minutes / 1440).toFixed(2)} days`;
       } else if (minutes >= 180) { // Greater than or equal to 3 hours (60 * 3)
         return `${(minutes / 60).toFixed(2)} hours`;
       } else {
-        return `${minutes.toFixed(2)} mins`;
+        return `${minutes.toFixed(2)} hours`;
       }
       // if (minutes >= 180) { // Greater than or equal to 3 hours (60 * 3)
       //   return `${(minutes / 60).toFixed(2)} hours`;
       // } else {
-      //   return `${minutes.toFixed(2)} mins`;
+      //   return `${minutes.toFixed(2)} hours`;
       // }
     };
     
@@ -36,15 +37,15 @@ export const renderSummaryCards = (summaryData) => {
     
     // const avgPPGDuration = ppgDurations.length > 0
     //   ? formatDuration(ppgDurations.reduce((a, b) => a + b, 0) / ppgDurations.length)
-    //   : '0 mins';
+    //   : '0 hours';
     
     // const avgECGDuration = ecgDurations.length > 0
     //   ? formatDuration(ecgDurations.reduce((a, b) => a + b, 0) / ecgDurations.length)
-    //   : '0 mins';
+    //   : '0 hours';
     
     // const avgGyroDuration = gyroDurations.length > 0
     //   ? formatDuration(gyroDurations.reduce((a, b) => a + b, 0) / gyroDurations.length)
-    //   : '0 mins';
+    //   : '0 hours';
     
     // const cards = [
     //   // TODO: SUM each datatype (ecg, ppg, gyro)
@@ -102,15 +103,15 @@ export const renderSummaryCards = (summaryData) => {
     // Calculating average durations per patient
     const avgPPGDurationPerPatient = totalPPGPatients > 0
     ? formatDuration(totalPPGDuration / totalPPGPatients)
-    : '0 mins';
+    : '0 hours';
 
     const avgECGDurationPerPatient = totalECGPatients > 0
     ? formatDuration(totalECGDuration / totalECGPatients)
-    : '0 mins';
+    : '0 hours';
 
     const avgGyroDurationPerPatient = totalGyroPatients > 0
     ? formatDuration(totalGyroDuration / totalGyroPatients)
-    : '0 mins';
+    : '0 hours';
 
     // Creating card data
     const cards = [

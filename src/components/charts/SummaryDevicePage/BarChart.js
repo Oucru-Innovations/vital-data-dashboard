@@ -40,7 +40,7 @@ export const renderBarChart = (summaryData, summaryDataValues, titleText) => {
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
-      formatter: '{b}<br />{a}: {c} mins',
+      formatter: '{b}<br />{a}: {c} hours',
     },
     grid: {
       left: '3%',
@@ -60,7 +60,7 @@ export const renderBarChart = (summaryData, summaryDataValues, titleText) => {
     },
     yAxis: {
       type: 'value',
-      name: 'Duration (mins)',
+      name: 'Duration (hours)',
       axisLabel: {
         fontSize: 12,
         color: '#666',

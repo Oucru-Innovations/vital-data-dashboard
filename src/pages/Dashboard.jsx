@@ -51,7 +51,7 @@ const Dashboard = () => {
     } else if (minutes >= 180) { // Greater than or equal to 3 hours (60 * 3)
       return `${(minutes / 60).toFixed(2)} hours`;
     } else {
-      return `${minutes.toFixed(2)} mins`;
+      return `${minutes.toFixed(2)} hours`;
     }
   };
 

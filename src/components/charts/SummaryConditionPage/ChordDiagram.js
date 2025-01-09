@@ -6,11 +6,11 @@ export const renderChordDiagram = (summaryData, titleText) => {
 
   // Generate matrix data for relationships between conditions and metrics
   const matrix = uniqueConditions.map((condition) =>
-    ['Patients', 'Duration (mins)', 'Sessions'].map((metric, index) => {
+    ['Patients', 'Duration (hours)', 'Sessions'].map((metric, index) => {
       switch (metric) {
         case 'Patients':
           return parseInt(summaryData.patient[summaryData.condition.indexOf(condition)] || 0, 10);
-        case 'Duration (mins)':
+        case 'Duration (hours)':
           return parseFloat(summaryData.duration[summaryData.condition.indexOf(condition)] || 0);
         case 'Sessions':
           return parseInt(summaryData.session[summaryData.condition.indexOf(condition)] || 0, 10);
@@ -40,7 +40,7 @@ export const renderChordDiagram = (summaryData, titleText) => {
         data: [
           ...uniqueConditions.map((condition) => ({ name: condition })),
           { name: 'Patients' },
-          { name: 'Duration (mins)' },
+          { name: 'Duration (hours)' },
           { name: 'Sessions' },
         ],
         matrix: matrix,

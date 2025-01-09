@@ -3,7 +3,7 @@ import ReactECharts from 'echarts-for-react';
 
 export const renderRadarChart = (summaryData, titleText) => {
   const uniqueDevices = [...new Set(summaryData.device)].filter(Boolean); // Remove null/undefined
-  const metrics = ['Patients', 'Duration (mins)', 'Sessions'];
+  const metrics = ['Patients', 'Duration (hours)', 'Sessions'];
 
   // Define radar indicators based on the metrics
   const indicator = metrics.map((metric) => ({
@@ -13,7 +13,7 @@ export const renderRadarChart = (summaryData, titleText) => {
         switch (metric) {
           case 'Patients':
             return parseInt(summaryData.patient[summaryData.device.indexOf(device)], 10) || 0;
-          case 'Duration (mins)':
+          case 'Duration (hours)':
             return parseFloat(summaryData.duration[summaryData.device.indexOf(device)], 10) || 0;
           case 'Sessions':
             return parseInt(summaryData.session[summaryData.device.indexOf(device)], 10) || 0;

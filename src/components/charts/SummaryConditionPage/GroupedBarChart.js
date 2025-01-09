@@ -53,7 +53,7 @@ export const renderGroupedBarChart = (summaryData, titleText) => {
     },
     xAxis: {
       type: 'category',
-      data: ['Patients', 'Duration (mins)', 'Sessions'],
+      data: ['Patients', 'Duration (hours)', 'Sessions'],
       name: 'Metrics',
       axisLabel: {
         fontSize: 12,

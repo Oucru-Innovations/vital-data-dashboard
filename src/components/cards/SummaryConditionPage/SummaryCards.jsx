@@ -9,12 +9,12 @@ export const renderSummaryCards = (summaryData) => {
       // } else if (minutes >= 180) { // Greater than or equal to 3 hours (60 * 3)
       //   return `${(minutes / 60).toFixed(2)} hours`;
       // } else {
-      //   return `${minutes.toFixed(2)} mins`;
+      //   return `${minutes.toFixed(2)} hours`;
       // }
       if (minutes >= 180) { // Greater than or equal to 3 hours (60 * 3)
         return `${(minutes / 60).toFixed(2)} hours`;
       } else {
-        return `${minutes.toFixed(2)} mins`;
+        return `${minutes.toFixed(2)} hours`;
       }
     };
     
@@ -36,15 +36,15 @@ export const renderSummaryCards = (summaryData) => {
     
     // const avgPPGDuration = ppgDurations.length > 0
     //   ? formatDuration(ppgDurations.reduce((a, b) => a + b, 0) / ppgDurations.length)
-    //   : '0 mins';
+    //   : '0 hours';
     
     // const avgECGDuration = ecgDurations.length > 0
     //   ? formatDuration(ecgDurations.reduce((a, b) => a + b, 0) / ecgDurations.length)
-    //   : '0 mins';
+    //   : '0 hours';
     
     // const avgGyroDuration = gyroDurations.length > 0
     //   ? formatDuration(gyroDurations.reduce((a, b) => a + b, 0) / gyroDurations.length)
-    //   : '0 mins';
+    //   : '0 hours';
     
     const cards = [
       { title: 'Total Patients', value: totalPatients, color: { 50: '#e8f5e9', 700: '#388e3c', 800: '#1b5e20' } },

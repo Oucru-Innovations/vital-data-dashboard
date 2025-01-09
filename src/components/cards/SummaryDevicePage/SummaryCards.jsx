@@ -2,13 +2,14 @@ import React from 'react';
 import { Box, Grid, Paper, Typography } from '@mui/material';
 
 export const renderSummaryCards = (summaryData) => {
-  const formatDuration = (minutes) => {
+  const formatDuration = (hours) => {
+    const minutes = hours * 60;
     if (minutes >= 14400) { // Greater than or equal to 1 day
       return `${(minutes / 1440).toFixed(2)} days`;
     } else if (minutes >= 60) { // Greater than or equal to 1 hour
       return `${(minutes / 60).toFixed(2)} hours`;
     } else {
-      return `${minutes.toFixed(2)} mins`;
+      return `${minutes.toFixed(2)} hours`;
     }
   };
 

@@ -27,7 +27,7 @@ export const RoseChart = ({ data }) => {
         data: roseData,
         label: {
           show: true,
-          formatter: '{b}: {c} mins',
+          formatter: '{b}: {c} hours',
         },
       },
     ],

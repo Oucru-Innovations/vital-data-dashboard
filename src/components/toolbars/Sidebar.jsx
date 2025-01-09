@@ -153,7 +153,7 @@ const Sidebar = () => {
             color: '#9e9e9e',
           }}
         >
-          © 2024 Vital Data Dashboard
+          © Oct 2024 VITAL Data Dashboard
         </Box>
       )}
     </Drawer>

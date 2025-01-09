@@ -6,11 +6,11 @@ export const renderChordDiagram = (summaryData, titleText) => {
 
   // Generate matrix data for relationships between devices and metrics
   const matrix = uniqueDevices.map((device) =>
-    ['Patients', 'Duration (mins)', 'Sessions'].map((metric, index) => {
+    ['Patients', 'Duration (hours)', 'Sessions'].map((metric, index) => {
       switch (metric) {
         case 'Patients':
           return parseInt(summaryData.patient[summaryData.device.indexOf(device)] || 0, 10);
-        case 'Duration (mins)':
+        case 'Duration (hours)':
           return parseFloat(summaryData.duration[summaryData.device.indexOf(device)] || 0);
         case 'Sessions':
           return parseInt(summaryData.session[summaryData.device.indexOf(device)] || 0, 10);
@@ -40,7 +40,7 @@ export const renderChordDiagram = (summaryData, titleText) => {
         data: [
           ...uniqueDevices.map((device) => ({ name: device })),
           { name: 'Patients' },
-          { name: 'Duration (mins)' },
+          { name: 'Duration (hours)' },
           { name: 'Sessions' },
         ],
         matrix: matrix,
