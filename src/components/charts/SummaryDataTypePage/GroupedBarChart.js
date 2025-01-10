@@ -27,13 +27,14 @@ export const renderGroupedBarChart = (summaryData, summaryDataValues, titleText)
         return totalDuration;
       }),
     };
-  });
+  }).filter((entry) => 
+    entry.data.some((value) => value > 0)
+  );
 
   // Filter out studies with all zero values across datatypes
   const validStudies = uniqueStudies.filter((study, studyIndex) =>
     aggregatedData.some((entry) => entry.data[studyIndex] > 0)
   );
-
   // Filter data for valid studies only
   const filteredAggregatedData = aggregatedData.map((entry) => ({
     ...entry,

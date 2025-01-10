@@ -58,8 +58,8 @@ export const renderSummaryCards = (summaryData) => {
     const cards = [
       { title: 'Total Patient', value: totalPatients, color: { 50: '#e8f5e9', 700: '#388e3c', 800: '#1b5e20' } },
       // { title: 'Total Duration', value: formatDuration(totalDuration), color: { 50: '#e3f2fd', 700: '#1976d2', 800: '#0d47a1' } },
-      { title: 'Total Session', value: totalSessions, color: { 50: '#ffebee', 700: '#d32f2f', 800: '#b71c1c' } },
-      { title: 'Total Site', value: totalSites, color: { 50: '#ede7f6', 700: '#673ab7', 800: '#311b92' } },
+      { title: 'Total Patient Day', value: totalSessions, color: { 50: '#ffebee', 700: '#d32f2f', 800: '#b71c1c' } },
+      { title: 'Total Site (TBU)', value: totalSites, color: { 50: '#ede7f6', 700: '#673ab7', 800: '#311b92' } },
       // { title: 'Average ECG Duration', value: avgECGDuration, color: { 50: '#fff8e1', 700: '#f57c00', 800: '#e65100' } },
       // { title: 'Average Gyro Duration', value: avgGyroDuration, color: { 50: '#e1f5fe', 700: '#0288d1', 800: '#01579b' } },
     ];
