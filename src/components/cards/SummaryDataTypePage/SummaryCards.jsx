@@ -147,7 +147,7 @@ export const renderSummaryCards = (summaryData) => {
       { title: 'Gyro Duration per Patient', value: avgGyroDurationPerPatient, color: { 50: '#e1f5fe', 700: '#0288d1', 800: '#01579b' } },
       { title: 'Ultrasound Session', value: totalUltrasoundSession, color: { 50: '#ffecb3', 700: '#ffa726', 800: '#ff6f00' } }, 
       { title: 'MRI Session', value: totalMRISession, color: { 50: '#dcedc8', 700: '#689f38', 800: '#33691e' } }, 
-      { title: 'Image Session', value: totalImageSession, color: { 50: '#e0f7fa', 700: '#00acc1', 800: '#006064' } }, 
+      { title: 'Image Document', value: totalImageSession, color: { 50: '#e0f7fa', 700: '#00acc1', 800: '#006064' } }, 
     ];
   
 

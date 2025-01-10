@@ -88,7 +88,7 @@ const SummaryStudyPage = () => {
             <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.patient} titleText="Patient Distribution" />
           </Grid>
           <Grid item xs={12} md={6}>
-            <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.session} titleText="Session Distribution" />
+            <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.session} titleText="Patient Day Distribution" />
           </Grid>
           <Grid item xs={12}>
             <Accordion>

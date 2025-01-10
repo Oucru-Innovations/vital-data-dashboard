@@ -86,7 +86,7 @@ const SummaryConditionPage = () => {
             <TransitionPlot
               summaryData={summaryData}
               summaryDataValues={summaryData.session}
-              titleText="Session Distribution"
+              titleText="Patient Day Distribution"
             />
           </Grid>
           <Grid item xs={12}>
