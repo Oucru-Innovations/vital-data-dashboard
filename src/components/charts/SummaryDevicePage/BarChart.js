@@ -23,14 +23,16 @@ export const renderBarChart = (summaryData, summaryDataValues, titleText) => {
     return acc;
   }, {});
 
-  const filteredDevices = uniqueDevices.filter((device, index) => {
-    const value = parseFloat(summaryDataValues[summaryData.device.indexOf(device)] || 0);
-    return value > 0; // Keep devices with summaryDataValues > 0
-  });
+  const filteredData = summaryDataValues
+    .map((value, index) => ({
+      device: summaryData.device[index],
+      value: parseFloat(value || 0),
+    }))
+    .filter((entry) => entry.value > 0);
 
-  const durationByDevice = filteredDevices.map((device) =>
-    parseFloat(summaryDataValues[summaryData.device.indexOf(device)] || 0)
-  );
+  const filteredDevices = filteredData.map((entry) => entry.device);
+  const filteredValues = filteredData.map((entry) => entry.value);
+
 
   const option = {
     title: {
@@ -55,7 +57,7 @@ export const renderBarChart = (summaryData, summaryDataValues, titleText) => {
     },
     xAxis: {
       type: 'category',
-      data: uniqueDevices,
+      data: filteredDevices,
       name: 'Device',
       axisLabel: {
         fontSize: 12,
@@ -75,7 +77,7 @@ export const renderBarChart = (summaryData, summaryDataValues, titleText) => {
       {
         name: 'Duration',
         type: 'bar',
-        data: durationByDevice,
+        data: filteredValues,
         itemStyle: {
           color: (params) => deviceColorMap[params.name],
         },
