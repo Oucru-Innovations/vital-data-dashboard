@@ -23,8 +23,13 @@ export const renderBarChart = (summaryData, summaryDataValues, titleText) => {
     return acc;
   }, {});
 
-  const durationByDevice = uniqueDevices.map(
-    (device, index) => parseFloat(summaryDataValues[index] || 0)
+  const filteredDevices = uniqueDevices.filter((device, index) => {
+    const value = parseFloat(summaryDataValues[summaryData.device.indexOf(device)] || 0);
+    return value > 0; // Keep devices with summaryDataValues > 0
+  });
+
+  const durationByDevice = filteredDevices.map((device) =>
+    parseFloat(summaryDataValues[summaryData.device.indexOf(device)] || 0)
   );
 
   const option = {
