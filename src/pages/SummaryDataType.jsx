@@ -3,11 +3,9 @@ import { getSummaryDataByDataType } from '../services/apiService';
 import { renderSummaryCards } from '../components/cards/SummaryDataTypePage/SummaryCards';
 import SummaryTable from '../components/tables/SummaryDataTypePage/SummaryTable';
 import { renderGroupedBarChart } from '../components/charts/SummaryDataTypePage/GroupedBarChart';
-import { renderSunburstChart } from '../components/charts/SummaryDataTypePage/SunburstChart';
-import { renderTreeMapChart } from '../components/charts/SummaryDataTypePage/TreeMapChart';
-import { renderStackedAreaChart } from '../components/charts/SummaryDataTypePage/StackAreaChart';
 import TransitionPlot from '../components/charts/SummaryDataTypePage/TransitionPlot';
-import { Box, Grid, Typography, CircularProgress, Divider } from '@mui/material';
+import { Box, Grid, Typography, CircularProgress, Divider, Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Footer from '../components/toolbars/Footer';
 
 const SummaryDataTypePage = () => {
@@ -34,7 +32,11 @@ const SummaryDataTypePage = () => {
 
   const cleanAndParseJSON = (rawString) => {
     try {
-      let cleanedString = rawString.replace(/\r|\n/g, '').replace(/\\/g, '').replace(/,\s*,/g, ',').replace(/,\s*\]/g, ']').replace(/,\s*\}/g, '}');
+      const cleanedString = rawString
+        .replace(/\r|\n/g, '')
+        .replace(/,\s*,/g, ',')
+        .replace(/,\s*\]/g, ']')
+        .replace(/,\s*\}/g, '}');
       return JSON.parse(cleanedString);
     } catch (error) {
       console.error('Error cleaning/parsing JSON:', error);
@@ -45,28 +47,20 @@ const SummaryDataTypePage = () => {
   const fetchSummaryData = async (queryParams) => {
     try {
       const response = await getSummaryDataByDataType(queryParams);
-      let data = typeof response === 'string' ? cleanAndParseJSON(response) : response;
-  
-      // Clean the data and calculate averageDuration
-      data = {
-        datatype: data.datatype.map((d) => (d && d.trim() ? d.trim() : "")), // Replace null or invalid strings with an empty string
-        study: data.study.map((s) => (s && s.trim() ? s.trim() : "")), // Replace null or invalid strings with an empty string
-        patient: data.patient.map((p) => (p && p.trim() ? p.trim() : "0")), // Replace null with "0"
-        duration: data.duration.map((d) => (d && d.trim() ? d.trim() : "0")), // Replace null with "0"
-        session: data.session.map((s) => (s && s.trim() ? s.trim() : "0")), // Replace null with "0"
-      };
-      
-  
-      // Add the new column averageDuration
-      data.averageDuration = data.duration.map((dur, index) => {
-        const sessionCount = parseFloat(data.session[index]) || 1;
-        const durationValue = parseFloat(dur) || 0;
-        return sessionCount > 0 ? (durationValue / sessionCount).toFixed(2) : 'N/A'; // Handle division by zero
+      const data = typeof response === 'string' ? cleanAndParseJSON(response) : response;
+
+      setSummaryData({
+        datatype: data.datatype?.map((d) => d?.trim() || '') || [],
+        study: data.study?.map((s) => s?.trim() || '') || [],
+        patient: data.patient?.map((p) => p?.trim() || '0') || [],
+        duration: data.duration?.map((d) => d?.trim() || '0') || [],
+        session: data.session?.map((s) => s?.trim() || '0') || [],
+        averageDuration: data.duration?.map((dur, index) => {
+          const sessionCount = parseFloat(data.session[index]) || 1;
+          const durationValue = parseFloat(dur) || 0;
+          return sessionCount > 0 ? (durationValue / sessionCount).toFixed(2) : 'N/A';
+        }) || [],
       });
-  
-      setSummaryData(
-        data || { datatype: [], study: [], patient: [], duration: [], session: [], averageDuration: [] }
-      );
     } catch (error) {
       console.error('Error fetching summary data:', error);
       setSummaryData({ datatype: [], study: [], patient: [], duration: [], session: [], averageDuration: [] });
@@ -74,7 +68,6 @@ const SummaryDataTypePage = () => {
       setLoading(false);
     }
   };
-  
 
   useEffect(() => {
     const query = constructParams(defaultParams);
@@ -92,15 +85,8 @@ const SummaryDataTypePage = () => {
       ) : (
         <Grid container spacing={3}>
           <Grid item xs={12}>
-            {/* {renderSummaryTable(summaryData)} */}
-            <SummaryTable summaryData={summaryData} />
-          </Grid>
-          <Grid item xs={12}>
             {renderSummaryCards(summaryData)}
           </Grid>
-          {/* <Grid item xs={12} md={6}>
-            {renderSunburstChart(summaryData, summaryData.patient, 'Patient Distribution by Data Types and Studies')}
-          </Grid> */}
           <Grid item xs={12} md={6}>
             <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.patient} titleText="Patient Distribution" />
           </Grid>
@@ -113,10 +99,25 @@ const SummaryDataTypePage = () => {
           <Grid item xs={12} md={6}>
             {renderGroupedBarChart(summaryData, summaryData.averageDuration, 'Average Duration Distribution by Data Types and Studies')}
           </Grid>
-          {/* <Grid item xs={12} md={6}>
-            {renderStackedAreaChart(summaryData, summaryData.session, 'Session Distribution by Data Types and Studies')}
-          </Grid> */}
-          
+          <Grid item xs={12}>
+            <Accordion>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="summary-table-content"
+                id="summary-table-header"
+                sx={{
+                  backgroundColor: '#e1f5fe',
+                  borderBottom: '2px solid #0288d1',
+                  fontWeight: 'bold',
+                }}
+              >
+                <Typography>Summary Table</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <SummaryTable summaryData={summaryData} />
+              </AccordionDetails>
+            </Accordion>
+          </Grid>
         </Grid>
       )}
       <Footer />

@@ -4,7 +4,8 @@ import { renderSummaryCards } from '../components/cards/SummaryDevicePage/Summar
 import SummaryTable from '../components/tables/SummaryDevicePage/SummaryTable';
 import { renderBarChart } from '../components/charts/SummaryDevicePage/BarChart';
 import TransitionPlot from '../components/charts/SummaryDevicePage/TransitionPlot';
-import { Box, Grid, Typography, CircularProgress, Divider } from '@mui/material';
+import { Box, Grid, Typography, CircularProgress, Divider, Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Footer from '../components/toolbars/Footer';
 
 const SummaryDevicePage = () => {
@@ -91,9 +92,7 @@ const SummaryDevicePage = () => {
         <CircularProgress />
       ) : (
         <Grid container spacing={3}>
-          <Grid item xs={12}>
-            <SummaryTable summaryData={summaryData} />
-          </Grid>
+          
           <Grid item xs={6} md={12}>
             {renderSummaryCards(summaryData, uniquePatientData)}
           </Grid>
@@ -108,6 +107,25 @@ const SummaryDevicePage = () => {
           </Grid>
           <Grid item xs={12} md={6}>
             {renderBarChart(summaryData, summaryData.durationPerSession, 'Duration Per Session Distribution by Devices')}
+          </Grid>
+          <Grid item xs={12}>
+            <Accordion>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="summary-table-content"
+                id="summary-table-header"
+                sx={{
+                  backgroundColor: '#e1f5fe',
+                  borderBottom: '2px solid #0288d1',
+                  fontWeight: 'bold',
+                }}
+              >
+                <Typography>Summary Table</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <SummaryTable summaryData={summaryData} />
+              </AccordionDetails>
+            </Accordion>
           </Grid>
         </Grid>
       )}
