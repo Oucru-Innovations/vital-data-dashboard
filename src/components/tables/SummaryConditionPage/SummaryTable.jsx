@@ -6,6 +6,7 @@ const SummaryTable = ({ summaryData }) => {
   const apiRef = useGridApiRef();
 
   const columns = [
+    { field: 'category', headerName: 'Category', flex: 1 },
     { field: 'condition', headerName: 'Condition', flex: 1 },
     { field: 'patient', headerName: 'Patient', flex: 1, type: 'number' },
     { field: 'session', headerName: 'Session', flex: 1, type: 'number' },
@@ -14,6 +15,7 @@ const SummaryTable = ({ summaryData }) => {
   const rows = summaryData.condition.map((condition, index) => ({
     id: index,
     condition,
+    category: summaryData.category[index],
     patient: summaryData.patient[index],
     session: summaryData.session[index],
   }));

@@ -6,6 +6,7 @@ import TransitionPlot from '../components/charts/SummaryConditionPage/Transition
 import { Box, Grid, Typography, CircularProgress, Divider, Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Footer from '../components/toolbars/Footer';
+import TransitionPlotByCondition from '../components/charts/SummaryConditionPage/TransitionPlotByCondition';
 
 const SummaryConditionPage = () => {
   const [summaryData, setSummaryData] = useState(null);
@@ -48,6 +49,7 @@ const SummaryConditionPage = () => {
         condition: data.condition?.filter((d) => d?.trim()) || [],
         patient: data.patient?.filter((p) => p?.trim()) || [],
         session: data.session?.filter((s) => s?.trim()) || [],
+        category: data.category?.filter((c) => c?.trim()) || [],
       });
     } catch (error) {
       console.error('Error fetching summary data:', error);
@@ -89,6 +91,22 @@ const SummaryConditionPage = () => {
               titleText="Patient Day Distribution"
             />
           </Grid>
+          <Grid item xs={12} md={6}>
+            <TransitionPlotByCondition
+              summaryData={summaryData}
+              summaryDataValues={summaryData.patient}
+              titleText="Patient Distribution by Condition"
+              />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TransitionPlotByCondition
+              summaryData={summaryData}
+              summaryDataValues={summaryData.session}
+              titleText="Patient Day Distribution by Condition"
+            />
+          </Grid>
+
+
           <Grid item xs={12}>
             <Accordion>
               <AccordionSummary
