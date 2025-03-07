@@ -1,4 +1,8 @@
-FROM base-ui as build
+FROM node:20.6.1 as build
+WORKDIR /vital-data-dashboard
+COPY package.json /vital-data-dashboard/package.json
+RUN npm install
+
 COPY public /vital-data-dashboard/public
 COPY src /vital-data-dashboard/src
 COPY .env /vital-data-dashboard/.env

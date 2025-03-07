@@ -70,6 +70,18 @@ const TransitionPlotByCondition = ({ summaryData, summaryDataValues, titleText }
       },
     ],
   };
+// Sort the data array to put 'Others' last
+const sortedData = dataCondition.sort((a, b) => {
+  if (a.name === 'Others') return 1;
+  if (b.name === 'Others') return -1;
+  return a.name.localeCompare(b.name);
+});
+
+const customSort = (a, b) => {
+  if (a.name === 'Others') return 1;
+  if (b.name === 'Others') return -1;
+  return 0;
+};
 
   const sunburstOption = {
     title: {
@@ -90,7 +102,12 @@ const TransitionPlotByCondition = ({ summaryData, summaryDataValues, titleText }
         type: 'sunburst',
         radius: ['20%', '90%'],
         animationDurationUpdate: 1000,
-        data: dataCondition,
+        data: sortedData.sort(customSort),
+        sort: function(a, b) {
+          if (a.name === 'Others') return 1;
+          if (b.name === 'Others') return -1;
+          return 0;
+        },
         universalTransition: true,
         label: {
           show: true,
