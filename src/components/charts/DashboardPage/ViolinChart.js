@@ -34,7 +34,7 @@ export const ViolinChartPlotly = ({ data }) => {
     type: 'violin',
     box: { visible: true },
     meanline: { visible: true },
-    marker: { color: entry.type === 'PPG' ? 'blue' : entry.type === 'ECG' ? 'green' : entry.type === 'Gyro' ? 'orange' : 'purple' },
+    marker: { color: entry.type === 'PPG' ? 'blue' : entry.type === 'ECG' ? 'green' : entry.type === 'Accelerometry' ? 'orange' : 'purple' },
   }));
 
   return (

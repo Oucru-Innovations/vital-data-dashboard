@@ -19,7 +19,7 @@ export const BubbleChartPlotly = ({ data }) => {
           marker: {
             size: bubbleChartData.fileCounts,
             color: bubbleChartData.fileTypes.map((type) =>
-              type === 'PPG' ? 'blue' : type === 'ECG' ? 'green' : type === 'Gyro' ? 'orange' : 'red'
+              type === 'PPG' ? 'blue' : type === 'ECG' ? 'green' : type === 'Accelerometry' ? 'orange' : 'red'
             ),
             opacity: 0.8,
           },

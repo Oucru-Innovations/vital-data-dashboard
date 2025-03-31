@@ -78,7 +78,7 @@ export const SunburstChartPlotly = ({ data }) => {
     const values = [0];  // Root has no value yet
 
     const studyMap = {};
-    const fileTypes = ['PPG', 'ECG', 'Gyro', 'Ultrasound'];  // All file types
+    const fileTypes = ['PPG', 'ECG', 'Accelerometry', 'Ultrasound'];  // All file types
 
     // Process summary data to aggregate file count or file size
     mockData.study.forEach((study, index) => {

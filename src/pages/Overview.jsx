@@ -5,13 +5,13 @@ import { SunburstChart, HeatmapChart } from '../components/charts/OverviewPage/c
 const Overview = () => {
   // Sample data for Sunburst and Heatmap (replace with real data)
   const sunburstData = {
-    labels: ['All Studies', '24EI', '24EIa', '24EIb', 'PPG', 'ECG', 'Gyro'],
+    labels: ['All Studies', '24EI', '24EIa', '24EIb', 'PPG', 'ECG', 'Accelerometry'],
     parents: ['', 'All Studies', 'All Studies', 'All Studies', '24EI', '24EI', '24EIa'],
     values: [1000, 400, 300, 300, 200, 200, 300],
   };
 
   const heatmapData = {
-    x: ['PPG', 'ECG', 'Gyro', 'Ultrasound'],
+    x: ['PPG', 'ECG', 'Accelerometry', 'Ultrasound'],
     y: ['24EI', '24EIa', '24EIb', '05EI', '06EI'],
     z: [
       [5, 8, 10, 4],
