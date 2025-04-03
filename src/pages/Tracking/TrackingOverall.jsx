@@ -59,7 +59,8 @@ const TrackingOverallPage = () => {
   const fetchRecruitmentData = async () => {
     try {
       const response = await getStudyTracking();
-      const monthlyTable = transposeData(response).slice(-10);
+      const monthlyTable = transposeData(response);
+      // console.log('Recruitment Data:', monthlyTable);
       setRecruitmentData(prev => ({
         ...prev,
         studyData: monthlyTable,
@@ -107,7 +108,7 @@ const TrackingOverallPage = () => {
         ))}
       </Box>
 
-      <RecruitmentTable data={recruitmentData.studyData.slice(-10)} />
+      <RecruitmentTable data={recruitmentData.studyData} />
 
       <StudyTimeline studies={recruitmentData.timelineData} />
 

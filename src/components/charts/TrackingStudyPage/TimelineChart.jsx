@@ -8,11 +8,13 @@ const COLORS = ['#4caf50', '#2196f3', '#9c27b0', '#ff9800', '#f44336'];
 export const renderRecruitmentChart = (stages) => {
   const today = new Date(); // This will be our “today” line.
   const chartData = stages
-  .filter(study => study.date < today.toISOString() )
+  .filter(study => study.month < today.toISOString() )
   .map(study => ({
     ...study,
-    target: study.target || 10 // Set default target or get from API
+    // month: new Date(study.month).toLocaleString('default', { month: 'long' }),
+    // target: study.target || 10 // Set default target or get from API
   }));
+
   const option = {
     title: {
       text: 'Monthly Recruitment Progress',
@@ -35,7 +37,7 @@ export const renderRecruitmentChart = (stages) => {
     },
     xAxis: {
       type: 'category',
-      data: chartData.map(d => d.date),
+      data: chartData.map(d => d.month),
       axisLabel: {
         rotate: 45,
         formatter: (value) => value.substring(0, 7) // Format to YYYY-MM
