@@ -3,16 +3,18 @@ import { Box, Typography, CircularProgress, Grid, Divider } from '@mui/material'
 import ProtectedRoute from '../config/ProtectedRoute';
 
 // Lazy-load pages
-const Dashboard = lazy(() => import('../pages/Dashboard'));
-const Overview = lazy(() => import('../pages/Overview'));
-const Wearables = lazy(() => import('../pages/Wearables'));
-const Ultrasound = lazy(() => import('../pages/Ultrasound'));
-const Images = lazy(() => import('../pages/Images'));
+const Dashboard = lazy(() => import('../pages/deprecated/Dashboard'));
+const Overview = lazy(() => import('../pages/deprecated/Overview'));
+const Wearables = lazy(() => import('../pages/deprecated/Wearables'));
+const Ultrasound = lazy(() => import('../pages/deprecated/Ultrasound'));
+const Images = lazy(() => import('../pages/deprecated/Images'));
 const Login = lazy(() => import('../pages/Login'));
-const SummaryDataTypePage = lazy(() => import('../pages/SummaryDataType'));
-const SummaryConditionPage = lazy(() => import('../pages/SummaryCondition'));
-const SummaryDevicePage = lazy(() => import('../pages/SummaryDevice'));
-const SummaryStudyPage = lazy(() => import('../pages/SummaryStudy'));
+const SummaryDataTypePage = lazy(() => import('../pages/Summary/SummaryDataType'));
+const SummaryConditionPage = lazy(() => import('../pages/Summary/SummaryCondition'));
+const SummaryDevicePage = lazy(() => import('../pages/Summary/SummaryDevice'));
+const SummaryStudyPage = lazy(() => import('../pages/Summary/SummaryStudy'));
+const TrackingOverallPage = lazy(() => import('../pages/Tracking/TrackingOverall'));
+const TrackingStudyPage = lazy(() => import('../pages/Tracking/TrackingStudy'));
 
 // Fallback Component
 const Loading = () => (
@@ -37,7 +39,7 @@ const routes = (isAuthenticated, onLogin) => [
     element: (
       <ProtectedRoute isAuthenticated={isAuthenticated}>
         <Suspense fallback={<Loading />}>
-          <SummaryDataTypePage />
+          <Dashboard />
         </Suspense>
       </ProtectedRoute>
     ),
@@ -140,7 +142,29 @@ const routes = (isAuthenticated, onLogin) => [
         </Suspense>
       </ProtectedRoute>
     ),
-    title: 'Vital Device',
+    title: 'Vital Study',
+  },
+  {
+    path: '/tracking/overall',
+    element: (
+      <ProtectedRoute isAuthenticated={isAuthenticated}>
+        <Suspense fallback={<Loading />}>
+          <TrackingOverallPage />
+        </Suspense>
+      </ProtectedRoute>
+    ),
+    title: 'Vital Overall Recruitment',
+  },
+  {
+    path: '/tracking/study',
+    element: (
+      <ProtectedRoute isAuthenticated={isAuthenticated}>
+        <Suspense fallback={<Loading />}>
+          <TrackingStudyPage />
+        </Suspense>
+      </ProtectedRoute>
+    ),
+    title: 'Vital Study Recruitment',
   },
 ];
 

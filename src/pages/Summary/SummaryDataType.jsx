@@ -1,20 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import { getSummaryDataByCondition } from '../services/apiService';
-import { renderSummaryCards } from '../components/cards/SummaryConditionPage/SummaryCards';
-import SummaryTable from '../components/tables/SummaryConditionPage/SummaryTable';
-import TransitionPlot from '../components/charts/SummaryConditionPage/TransitionPlot';
+import { getSummaryDataByDataType } from '../../services/apiService';
+import { renderSummaryCards } from '../../components/cards/SummaryDataTypePage/SummaryCards';
+import SummaryTable from '../../components/tables/SummaryDataTypePage/SummaryTable';
+import { renderGroupedBarChart } from '../../components/charts/SummaryDataTypePage/GroupedBarChart';
+import TransitionPlot from '../../components/charts/SummaryDataTypePage/TransitionPlot';
 import { Box, Grid, Typography, CircularProgress, Divider, Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import Footer from '../components/toolbars/Footer';
-import TransitionPlotByCondition from '../components/charts/SummaryConditionPage/TransitionPlotByCondition';
+import Footer from '../../components/toolbars/Footer';
 
-const SummaryConditionPage = () => {
+const SummaryDataTypePage = () => {
   const [summaryData, setSummaryData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const defaultParams = [
-    { key: 'conditions', value: 'Covid-19,Mpox', enabled: false },
-    { key: 'others', value: "s.name<>'01NVe'", equals: true, enabled: true }
+    { key: 'studies', value: '', equals: true, enabled: false },
+    { key: 'datatypes', value: '', equals: true, enabled: false },
+    { key: 'conditions', value: '', enabled: false },
+    { key: 'devices', value: '', enabled: false },
+    { key: 'study', value: '', enabled: false },
+    { key: 'others', value: "s.name<>'01NVe'", equals: true, enabled: false },
   ];
 
   const constructParams = (params) => {
@@ -42,18 +46,24 @@ const SummaryConditionPage = () => {
 
   const fetchSummaryData = async (queryParams) => {
     try {
-      const response = await getSummaryDataByCondition(queryParams);
+      const response = await getSummaryDataByDataType(queryParams);
       const data = typeof response === 'string' ? cleanAndParseJSON(response) : response;
 
       setSummaryData({
-        condition: data.condition?.filter((d) => d?.trim()) || [],
-        patient: data.patient?.filter((p) => p?.trim()) || [],
-        session: data.session?.filter((s) => s?.trim()) || [],
-        category: data.category?.filter((c) => c?.trim()) || [],
+        datatype: data.datatype?.map((d) => d?.trim() || '') || [],
+        study: data.study?.map((s) => s?.trim() || '') || [],
+        patient: data.patient?.map((p) => p?.trim() || '0') || [],
+        duration: data.duration?.map((d) => d?.trim() || '0') || [],
+        session: data.session?.map((s) => s?.trim() || '0') || [],
+        averageDuration: data.duration?.map((dur, index) => {
+          const sessionCount = parseFloat(data.session[index]) || 1;
+          const durationValue = parseFloat(dur) || 0;
+          return sessionCount > 0 ? (durationValue / sessionCount).toFixed(2) : 'N/A';
+        }) || [],
       });
     } catch (error) {
       console.error('Error fetching summary data:', error);
-      setSummaryData({ condition: [], patient: [], session: [] });
+      setSummaryData({ datatype: [], study: [], patient: [], duration: [], session: [], averageDuration: [] });
     } finally {
       setLoading(false);
     }
@@ -67,7 +77,7 @@ const SummaryConditionPage = () => {
   return (
     <Box sx={{ padding: '16px' }}>
       <Typography variant="h4" align="center" sx={{ fontWeight: 'bold', marginBottom: '16px' }}>
-        Summary by Condition
+        Summary by Data Type
       </Typography>
       <Divider sx={{ marginBottom: '24px' }} />
       {loading ? (
@@ -78,35 +88,17 @@ const SummaryConditionPage = () => {
             {renderSummaryCards(summaryData)}
           </Grid>
           <Grid item xs={12} md={6}>
-            <TransitionPlot
-              summaryData={summaryData}
-              summaryDataValues={summaryData.patient}
-              titleText="Patient Distribution"
-            />
+            <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.patient} titleText="Patient Distribution" />
           </Grid>
           <Grid item xs={12} md={6}>
-            <TransitionPlot
-              summaryData={summaryData}
-              summaryDataValues={summaryData.session}
-              titleText="Patient Day Distribution"
-            />
+            <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.session} titleText="Session Distribution" />
           </Grid>
           <Grid item xs={12} md={6}>
-            <TransitionPlotByCondition
-              summaryData={summaryData}
-              summaryDataValues={summaryData.patient}
-              titleText="Patient Distribution by Condition"
-              />
+            {renderGroupedBarChart(summaryData, summaryData.duration, 'Duration Distribution by Data Types and Studies')}
           </Grid>
           <Grid item xs={12} md={6}>
-            <TransitionPlotByCondition
-              summaryData={summaryData}
-              summaryDataValues={summaryData.session}
-              titleText="Patient Day Distribution by Condition"
-            />
+            {renderGroupedBarChart(summaryData, summaryData.averageDuration, 'Average Duration Distribution by Data Types and Studies')}
           </Grid>
-
-
           <Grid item xs={12}>
             <Accordion>
               <AccordionSummary
@@ -133,4 +125,4 @@ const SummaryConditionPage = () => {
   );
 };
 
-export default SummaryConditionPage;
+export default SummaryDataTypePage;

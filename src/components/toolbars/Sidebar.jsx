@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Drawer,
@@ -13,35 +13,141 @@ import {
   IconButton,
   Box,
 } from '@mui/material';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import WatchIcon from '@mui/icons-material/Watch';
-import MedicalServicesIcon from '@mui/icons-material/MedicalServices';
-import ImageIcon from '@mui/icons-material/Image';
+import Collapse from '@mui/material/Collapse';
+import ExpandLess from "@mui/icons-material/ExpandLess";
+import ExpandMore from "@mui/icons-material/ExpandMore";
+import SummarizeIcon from '@mui/icons-material/Summarize';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import SignalCellularAltIcon from '@mui/icons-material/SignalCellularAlt';
 import DataUsageIcon from '@mui/icons-material/DataUsage';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import MedicalInformationIcon from '@mui/icons-material/MedicalInformation';
 import DevicesOtherIcon from '@mui/icons-material/DevicesOther';
 import SourceIcon from '@mui/icons-material/Source';
 
-const Sidebar = () => {
-  const [isCollapsed, setIsCollapsed] = React.useState(false);
+const ListItemBody = ({ item, isCollapsed, onClick, level = 0, isOpen }) => {
+  const hasChildren = item.children && item.children.length > 0;
+
+  return (
+    <Tooltip
+      title={isCollapsed ? item.text : ''}
+      placement="right"
+      arrow
+    >
+      <ListItem
+        onClick={onClick}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          cursor: 'pointer',
+          '&:hover': {
+            backgroundColor: '#f5f5f5',
+            borderRadius: '8px',
+          },
+          margin: isCollapsed ? '6px auto' : level === 0 ? '4px 12px' : '2px 12px',
+          padding: isCollapsed ? '8px' : level === 0 ? '10px' : '6px',
+          paddingRight: hasChildren && level === 0 ? '16px' : '10px',
+          transition: 'all 0.3s',
+        }}
+      >
+        <ListItemIcon
+          sx={{
+            color: '#1976d2',
+            justifyContent: 'center',
+            minWidth: isCollapsed ? '40px' : 'auto',
+            marginRight: isCollapsed ? 0 : '12px',
+          }}
+        >
+          {item.icon}
+        </ListItemIcon>
+        {!isCollapsed && (
+          <>
+            <ListItemText
+              primary={item.text}
+              primaryTypographyProps={{
+                fontSize: level === 0 ? '14px' : '13px',
+                fontWeight: level === 0 ? '500' : '400',
+                color: level === 0 ? '#424242' : '#666666',
+              }}
+            />
+            {level === 0 && hasChildren && (
+              <Box component="span" sx={{ ml: 'auto' }}>
+                {isOpen ? <ExpandLess /> : <ExpandMore />}
+              </Box>
+            )}
+          </>
+        )}
+      </ListItem>
+    </Tooltip>
+  );
+};
+
+const MenuItem = ({ item, isCollapsed, level = 0 }) => {
   const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const hasChildren = item.children && item.children.length > 0;
 
-  const menuItems = [
-    // { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-    // { text: 'Wearables', icon: <WatchIcon />, path: '/wearables' },
-    // { text: 'Ultrasound', icon: <MedicalServicesIcon />, path: '/ultrasound' },
-    // { text: 'Images', icon: <ImageIcon />, path: '/images' },
-    { text: 'Summary by DataType', icon: <DataUsageIcon />, path: '/summary/datatype' },
-    { text: 'Summary by Study', icon: <SourceIcon />, path: '/summary/study' },
-    { text: 'Summary by Condition', icon: <MedicalInformationIcon />, path: '/summary/condition' },
-    { text: 'Summary by Device', icon: <DevicesOtherIcon />, path: '/summary/device' },
-  ];
-
-  const handleNavigation = (path) => {
-    navigate(path);
+  const handleClick = () => {
+    if (hasChildren) {
+      setOpen(!open);
+    } else if (item.path) {
+      navigate(item.path);
+    }
   };
 
+  return (
+    <>
+      <ListItemBody
+        item={item}
+        isCollapsed={isCollapsed}
+        onClick={handleClick}
+        level={level}
+        isOpen={open}
+      />
+      {hasChildren && !isCollapsed && (
+        <Collapse in={open} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding>
+            {item.children.map((child, index) => (
+              <Box key={index} sx={{ pl: (level + 1) * 1.5 }}>
+                <MenuItem
+                  item={child}
+                  isCollapsed={isCollapsed}
+                  level={level + 1}
+                />
+              </Box>
+            ))}
+          </List>
+        </Collapse>
+      )}
+    </>
+  );
+};
+
+const Sidebar = () => {
+  const [isCollapsed, setIsCollapsed] = React.useState(false);
+
+  const menuItems = [
+    {
+      text: 'Summary',
+      icon: <SummarizeIcon />,
+      // path: '/summary',
+      children: [
+        { text: 'DataType', icon: <DataUsageIcon />, path: '/summary/datatype' },
+        { text: 'Study', icon: <SourceIcon />, path: '/summary/study' },
+        { text: 'Condition', icon: <MedicalInformationIcon />, path: '/summary/condition' },
+        { text: 'Device', icon: <DevicesOtherIcon />, path: '/summary/device' },
+      ],
+    },
+    {
+      text: 'Tracking',
+      icon: <SignalCellularAltIcon />,
+      children: [
+        { text: 'Active Recruitment', icon: <CheckCircleIcon />, path: '/tracking/overall' },
+        { text: 'Study Recruitment', icon: <AssessmentIcon />, path: '/tracking/study' },
+      ],
+    },
+  ];
   return (
     <Drawer
       variant="permanent"
@@ -96,49 +202,8 @@ const Sidebar = () => {
 
       {/* Menu Items */}
       <List sx={{ mt: 1 }}>
-        {menuItems.map((item) => (
-          <Tooltip
-            key={item.text}
-            title={isCollapsed ? item.text : ''}
-            placement="right"
-            arrow
-          >
-            <ListItem
-              onClick={() => handleNavigation(item.path)}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                cursor: 'pointer',
-                '&:hover': {
-                  backgroundColor: '#f5f5f5',
-                  borderRadius: '8px',
-                },
-                margin: isCollapsed ? '6px auto' : '4px 12px',
-                padding: isCollapsed ? '8px' : '10px',
-                transition: 'all 0.3s',
-              }}
-            >
-              <ListItemIcon
-                sx={{
-                  color: '#1976d2',
-                  justifyContent: 'center',
-                  minWidth: isCollapsed ? '40px' : 'auto',
-                }}
-              >
-                {item.icon}
-              </ListItemIcon>
-              {!isCollapsed && (
-                <ListItemText
-                  primary={item.text}
-                  primaryTypographyProps={{
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: '#424242',
-                  }}
-                />
-              )}
-            </ListItem>
-          </Tooltip>
+        {menuItems.map((item, index) => (
+          <MenuItem key={index} item={item} isCollapsed={isCollapsed} />
         ))}
       </List>
 

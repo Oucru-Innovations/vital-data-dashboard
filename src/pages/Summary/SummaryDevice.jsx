@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { getSummaryDataByDevice, getUniquePatients } from '../services/apiService';
-import { renderSummaryCards } from '../components/cards/SummaryDevicePage/SummaryCards';
-import SummaryTable from '../components/tables/SummaryDevicePage/SummaryTable';
-import { renderBarChart } from '../components/charts/SummaryDevicePage/BarChart';
-import TransitionPlot from '../components/charts/SummaryDevicePage/TransitionPlot';
+import { getSummaryDataByDevice, getUniquePatients } from '../../services/apiService';
+import { renderSummaryCards } from '../../components/cards/SummaryDevicePage/SummaryCards';
+import SummaryTable from '../../components/tables/SummaryDevicePage/SummaryTable';
+import { renderBarChart } from '../../components/charts/SummaryDevicePage/BarChart';
+import TransitionPlot from '../../components/charts/SummaryDevicePage/TransitionPlot';
 import { Box, Grid, Typography, CircularProgress, Divider, Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import Footer from '../components/toolbars/Footer';
+import Footer from '../../components/toolbars/Footer';
 
 const SummaryDevicePage = () => {
   const [summaryData, setSummaryData] = useState({ device: [], patient: [], duration: [], session: [], durationPerSession: [] });

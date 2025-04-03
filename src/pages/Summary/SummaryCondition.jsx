@@ -1,18 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { getSummaryDataByStudy } from '../services/apiService';
-import { renderSummaryCards } from '../components/cards/SummaryStudyPage/SummaryCards';
-import SummaryTable from '../components/tables/SummaryStudyPage/SummaryTable';
-import TransitionPlot from '../components/charts/SummaryStudyPage/TransitionPlot';
+import { getSummaryDataByCondition } from '../../services/apiService';
+import { renderSummaryCards } from '../../components/cards/SummaryConditionPage/SummaryCards';
+import SummaryTable from '../../components/tables/SummaryConditionPage/SummaryTable';
+import TransitionPlot from '../../components/charts/SummaryConditionPage/TransitionPlot';
 import { Box, Grid, Typography, CircularProgress, Divider, Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import Footer from '../components/toolbars/Footer';
+import Footer from '../../components/toolbars/Footer';
+import TransitionPlotByCondition from '../../components/charts/SummaryConditionPage/TransitionPlotByCondition';
 
-const SummaryStudyPage = () => {
+const SummaryConditionPage = () => {
   const [summaryData, setSummaryData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const defaultParams = [
-    { key: 'study', value: '01NVa_Dengue', enabled: false },
+    { key: 'conditions', value: 'Covid-19,Mpox', enabled: false },
     { key: 'others', value: "s.name<>'01NVe'", equals: true, enabled: true }
   ];
 
@@ -27,11 +28,11 @@ const SummaryStudyPage = () => {
 
   const cleanAndParseJSON = (rawString) => {
     try {
-      let cleanedString = rawString
+      const cleanedString = rawString
         .replace(/\r|\n/g, '')
-        .replace(/}(\s*)"/g, '},$1"')
-        .replace(/](\s*)"/g, '],$1"')
-        .replace(/,\s*([}\]])/g, '$1');
+        .replace(/,\s*,/g, ',')
+        .replace(/,\s*\]/g, ']')
+        .replace(/,\s*\}/g, '}');
       return JSON.parse(cleanedString);
     } catch (error) {
       console.error('Error cleaning/parsing JSON:', error);
@@ -41,26 +42,18 @@ const SummaryStudyPage = () => {
 
   const fetchSummaryData = async (queryParams) => {
     try {
-      const response = await getSummaryDataByStudy(queryParams);
-      let data = typeof response === 'string' ? cleanAndParseJSON(response) : response;
+      const response = await getSummaryDataByCondition(queryParams);
+      const data = typeof response === 'string' ? cleanAndParseJSON(response) : response;
 
-      data = {
-        study: data.study.filter((d) => d?.trim() || ""),
-        patient: data.patient.filter((p) => p?.trim() || "0"),
-        title: data.title.filter((t) => t?.trim() || ""),
-        description: data.description.filter((d) => d?.trim() || ""),
-        site: data.site.map((siteArray) =>
-          siteArray.filter((s) => s?.trim() || "").join(', ')
-        ),
-        session: data.session.filter((s) => s?.trim() || "0"),
-      };
-
-      setSummaryData(
-        data || { study: [], patient: [], title: [], description: [], site: [], session: [] }
-      );
+      setSummaryData({
+        condition: data.condition?.filter((d) => d?.trim()) || [],
+        patient: data.patient?.filter((p) => p?.trim()) || [],
+        session: data.session?.filter((s) => s?.trim()) || [],
+        category: data.category?.filter((c) => c?.trim()) || [],
+      });
     } catch (error) {
       console.error('Error fetching summary data:', error);
-      setSummaryData({ study: [], patient: [], title: [], description: [], site: [], session: [] });
+      setSummaryData({ condition: [], patient: [], session: [] });
     } finally {
       setLoading(false);
     }
@@ -74,22 +67,46 @@ const SummaryStudyPage = () => {
   return (
     <Box sx={{ padding: '16px' }}>
       <Typography variant="h4" align="center" sx={{ fontWeight: 'bold', marginBottom: '16px' }}>
-        Summary by Study
+        Summary by Condition
       </Typography>
       <Divider sx={{ marginBottom: '24px' }} />
       {loading ? (
         <CircularProgress />
       ) : (
         <Grid container spacing={3}>
-          <Grid item xs={12} md={12}>
+          <Grid item xs={12}>
             {renderSummaryCards(summaryData)}
           </Grid>
           <Grid item xs={12} md={6}>
-            <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.patient} titleText="Patient Distribution" />
+            <TransitionPlot
+              summaryData={summaryData}
+              summaryDataValues={summaryData.patient}
+              titleText="Patient Distribution"
+            />
           </Grid>
           <Grid item xs={12} md={6}>
-            <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.session} titleText="Patient Day Distribution" />
+            <TransitionPlot
+              summaryData={summaryData}
+              summaryDataValues={summaryData.session}
+              titleText="Patient Day Distribution"
+            />
           </Grid>
+          <Grid item xs={12} md={6}>
+            <TransitionPlotByCondition
+              summaryData={summaryData}
+              summaryDataValues={summaryData.patient}
+              titleText="Patient Distribution by Condition"
+              />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TransitionPlotByCondition
+              summaryData={summaryData}
+              summaryDataValues={summaryData.session}
+              titleText="Patient Day Distribution by Condition"
+            />
+          </Grid>
+
+
           <Grid item xs={12}>
             <Accordion>
               <AccordionSummary
@@ -116,4 +133,4 @@ const SummaryStudyPage = () => {
   );
 };
 
-export default SummaryStudyPage;
+export default SummaryConditionPage;
