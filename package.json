@@ -14,8 +14,10 @@
     "axios": "^1.7.8",
     "d3-scale": "^4.0.2",
     "d3-scale-chromatic": "^3.1.0",
+    "date-fns": "^4.1.0",
     "echarts": "^5.5.1",
     "echarts-for-react": "^3.0.2",
+    "env-cmd": "^10.1.0",
     "plotly.js": "^2.35.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -29,7 +31,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "yarn build --base=./",
+    "build": "env-cmd -f .env react-scripts  build --base=./",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
