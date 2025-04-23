@@ -8,7 +8,7 @@ const COLORS = ['#4caf50', '#2196f3', '#9c27b0', '#ff9800', '#f44336'];
 export const renderRecruitmentChart = (stages) => {
   const today = new Date(); // This will be our “today” line.
   const chartData = stages
-  .filter(study => study.month < today.toISOString() )
+  .filter(study => study.date < today.toISOString() )
   .map(study => ({
     ...study,
     // month: new Date(study.month).toLocaleString('default', { month: 'long' }),
@@ -37,7 +37,7 @@ export const renderRecruitmentChart = (stages) => {
     },
     xAxis: {
       type: 'category',
-      data: chartData.map(d => d.month),
+      data: chartData.map(d => d.date),
       axisLabel: {
         rotate: 45,
         formatter: (value) => value.substring(0, 7) // Format to YYYY-MM
@@ -85,7 +85,7 @@ export const renderRecruitmentChart = (stages) => {
         name: 'Monthly Recruitment',
         type: 'line',
         data: chartData.map(d => ({
-          value: d.recruitednumber,
+          value: d.recruited_number,
           label: {
             show: true,
             position: 'top'
@@ -103,7 +103,7 @@ export const renderRecruitmentChart = (stages) => {
         symbol: 'circle',
         symbolSize: 8,
         data: chartData.map(d => ({
-          value: d.cumulativerecruited,
+          value: d.cumulative_recruited,
           label: {
             show: true,
             position: 'top'

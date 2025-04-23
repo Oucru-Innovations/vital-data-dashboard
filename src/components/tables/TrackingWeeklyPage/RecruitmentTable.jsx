@@ -1,11 +1,12 @@
 import React from 'react';
 import { DataGrid, useGridApiRef } from '@mui/x-data-grid';
 import { Box, Typography, Paper } from '@mui/material';
+import { getCurrentWeek } from '../../../pages/Tracking/utils/recruitmentProcessing';
 
-const RecruitmentTable = ({ data }) => {
+const RecruitmentTable = ({ data, endDate }) => {
   const apiRef = useGridApiRef();
-  const currentMonth = new Date().toLocaleString('default', { month: 'long' });
-  console.log('RecruitmentTable data nhó', data);
+  // const currentWeek = getCurrentWeek();
+  console.log('data', data)
   const columns = [
     {
       field: 'study',
@@ -13,18 +14,18 @@ const RecruitmentTable = ({ data }) => {
       width: 150,
     },
     {
-      field: 'month',
-      headerName: 'Month',
+      field: 'date',
+      headerName: 'Week',
       width: 120,
     },
     {
-      field: 'recruitednumber',
+      field: 'recruited_number',
       headerName: 'Recruited',
       width: 120,
       type: 'number',
     },
     {
-      field: 'cumulativerecruited',
+      field: 'cumulative_recruited',
       headerName: 'Total Recruited',
       width: 150,
       type: 'number',
@@ -39,17 +40,20 @@ const RecruitmentTable = ({ data }) => {
       }
     },
     {
-      field: 'monthremain',
-      headerName: 'Months Left',
+      field: 'remaining_days',
+      headerName: 'Weeks Left',
       width: 150,
       type: 'number',
+      valueGetter: (value) => {
+        return value//7
+      }
     },
   ];
 
   const rows = data.map((row, index) => ({
     id: index,
     ...row,
-    percentage: row.target?(row.cumulativerecruited/row.target).toPrecision(2)*100:0,
+    percentage: row.target ? (row.cumulativerecruited/row.target).toPrecision(2)*100 : 0,
   }));
 
   return (
@@ -63,7 +67,7 @@ const RecruitmentTable = ({ data }) => {
           bgcolor: 'background.paper',
         }}
       >
-        Recruitment Details ({currentMonth})
+        Recruitment Details (date: - {endDate.toLocaleDateString()})
       </Typography>
       <Box sx={{ height: 400, width: '100%' }}>
         <DataGrid
@@ -101,12 +105,6 @@ const RecruitmentTable = ({ data }) => {
               borderTop: '1px solid rgba(201, 205, 216, 0.9)',
               backgroundColor: '#f9f9f9',
             },
-            '& .MuiDataGrid-virtualScroller': {
-              backgroundColor: '#f9f9f9',
-            },
-            '& .MuiDataGrid-row': {
-              cursor: 'default',
-            },
           }}
         />
       </Box>
@@ -114,4 +112,4 @@ const RecruitmentTable = ({ data }) => {
   );
 };
 
-export default RecruitmentTable;
+export default RecruitmentTable; 

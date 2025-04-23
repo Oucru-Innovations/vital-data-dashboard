@@ -87,46 +87,39 @@ export const getUniquePatients = async (params) => {
   }
 };
 
-// Function to get all study recuitment data this month
-export const getStudyTracking = async (params) => {
+// Function to get recruitment data with customizable period
+export const getRecruitmentData = async (params = {}) => {
   try {
-    const response = await apiClient.get('/tracking/monthly/study', { params });
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching study tracking data", error);
-    return {};
-  }
-};
-
-// Function to get study timeline data
-export const getStudyTimeline = async (params) => {
-  try {
-    const response = await apiClient.get('/tracking/timeline', { params });
+    const response = await apiClient.get('/tracking/recruitment', { params });
     return {
-      data:response.data || []
+      data: response.data || []
     };
   } catch (error) {
-    console.error("Error fetching study timeline data", error);
-    return {};
+    console.error("Error fetching recruitment data", error);
+    return {
+      data: []
+    };
   }
 };
 
-// Function to get overall recruitment data for latest 3 months
-export const getOverallRecruitment = async (params = {}) => {
+// Function to get all study recruitment data this month
+export const getStudyTracking = async (params) => {
+  
   try {
     // Add default parameters for getting the last 3 months
     const defaultParams = {
+      period: 'weekly',
       limit: 3,
-      sort: 'month DESC'
+      sort: 'date DESC',
+      end_date: new Date().toISOString().split('T')[0]
     };
     
     // Merge default params with any provided params
     const finalParams = { ...defaultParams, ...params };
-    
-    const response = await apiClient.get('/tracking/monthly/overall', { params: finalParams });
-    // Ensure we return an array of monthly data
+    console.log('finalParams', finalParams)
+    const response = await apiClient.get('/tracking/recruitment', { params: finalParams });
     return {
-      data:response.data || []
+      data: response.data || []
     };
   } catch (error) {
     console.error("Error fetching overall recruitment data", error);
@@ -136,12 +129,51 @@ export const getOverallRecruitment = async (params = {}) => {
   }
 };
 
-// Function to get a study lifetime recruitment data
-export const getStudyLifetimeRecruitment = async (study,params={}) => {
+// Function to get study timeline data
+export const getStudyTimeline = async (params) => {
   try {
-    const response = await apiClient.get(`/tracking/study/${study}`, { params });
+    const response = await apiClient.get('/tracking/timeline', { params });
     return {
-      data:response.data || []
+      data: response.data || []
+    };
+  } catch (error) {
+    console.error("Error fetching study timeline data", error);
+    return {};
+  }
+};
+
+// Function to get overall recruitment data for latest 3 months
+export const getPeriodTotalRecruitment = async (params = {}) => {
+  try {
+    // Add default parameters for getting the last 3 months
+    const defaultParams = {
+      period: 'weekly',
+      limit: 3,
+      sort: 'date DESC',
+      end_date: new Date().toISOString().split('T')[0]
+    };
+    
+    // Merge default params with any provided params
+    const finalParams = { ...defaultParams, ...params };
+    
+    const response = await apiClient.get('/tracking/periodically', { params: finalParams });
+    return {
+      data: response.data || []
+    };
+  } catch (error) {
+    console.error("Error fetching overall recruitment data", error);
+    return {
+      data: []
+    };
+  }
+};
+
+// Function to get a study's lifetime recruitment data
+export const getStudyLifetimeRecruitment = async (study, params = {}) => {
+  try {
+    const response = await apiClient.get(`/tracking/recruitment/${study}`, { params });
+    return {
+      data: response.data || []
     };
   } catch (error) {
     console.error("Error fetching study lifetime recruitment data", error);
@@ -161,5 +193,7 @@ export default {
   getUniquePatients,
   getStudyTracking,
   getStudyTimeline,
-  getOverallRecruitment,
+  getPeriodTotalRecruitment,
+  getStudyLifetimeRecruitment,
+  getRecruitmentData,
 };

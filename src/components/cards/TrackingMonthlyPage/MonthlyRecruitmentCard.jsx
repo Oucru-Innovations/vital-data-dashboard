@@ -2,11 +2,11 @@ import React from 'react';
 import { Box, Paper, Typography, Chip, CircularProgress } from '@mui/material';
 import { ArrowUpward, ArrowDownward } from '@mui/icons-material';
 
-const MonthlyRecruitmentCard = ({ month, totalRecruited, change, loading }) => {
-  const calculateChange = (current, previous) => {
-    if (previous === 0) return 0;
-    return ((current - previous) / previous * 100).toFixed(1);
-  };
+const MonthlyRecruitmentCard = ({ date, totalRecruited, change, loading }) => {
+  // const calculateChange = (current, previous) => {
+  //   if (previous === 0) return 0;
+  //   return ((current - previous) / previous * 100).toFixed(1);
+  // };
 
   return (
     <Paper
@@ -26,7 +26,7 @@ const MonthlyRecruitmentCard = ({ month, totalRecruited, change, loading }) => {
       }}
     >
       <Typography variant="h6" color="primary" sx={{ mb: 1 }}>
-        {month || 'Loading...'}
+        {new Date(date).toLocaleString('default', { month: 'long' }) || 'Loading...'}
       </Typography>
       {loading ? (
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -63,4 +63,4 @@ const MonthlyRecruitmentCard = ({ month, totalRecruited, change, loading }) => {
   );
 };
 
-export default MonthlyRecruitmentCard;
+export default MonthlyRecruitmentCard; 

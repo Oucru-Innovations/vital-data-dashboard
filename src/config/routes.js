@@ -13,8 +13,8 @@ const SummaryDataTypePage = lazy(() => import('../pages/Summary/SummaryDataType'
 const SummaryConditionPage = lazy(() => import('../pages/Summary/SummaryCondition'));
 const SummaryDevicePage = lazy(() => import('../pages/Summary/SummaryDevice'));
 const SummaryStudyPage = lazy(() => import('../pages/Summary/SummaryStudy'));
-const TrackingOverallPage = lazy(() => import('../pages/Tracking/TrackingOverall'));
-const TrackingStudyPage = lazy(() => import('../pages/Tracking/TrackingStudy'));
+const TrackingWeekly = lazy(() => import('../pages/Tracking/TrackingWeekly'));
+const TrackingStudyPage = lazy(() => import('../pages/Tracking/MonthlyReport'));
 
 // Fallback Component
 const Loading = () => (
@@ -145,15 +145,15 @@ const routes = (isAuthenticated, onLogin) => [
     title: 'Vital Study',
   },
   {
-    path: '/tracking/overall',
+    path: '/tracking/weekly',
     element: (
       <ProtectedRoute isAuthenticated={isAuthenticated}>
         <Suspense fallback={<Loading />}>
-          <TrackingOverallPage />
+          <TrackingWeekly />
         </Suspense>
       </ProtectedRoute>
     ),
-    title: 'Vital Overall Recruitment',
+    title: 'Weekly Tracking',
   },
   {
     path: '/tracking/study',

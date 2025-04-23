@@ -1,21 +1,23 @@
-import { format, addMonths, subMonths } from 'date-fns';
+import { format, addMonths, subMonths, addWeeks, subWeeks, startOfWeek, endOfWeek, getWeek } from 'date-fns';
 
 // Set universal current date for all calculations
 export const CURRENT_DATE = new Date();
 
-// Get current month name
+// Monthly functions
 export const getCurrentMonth = () => CURRENT_DATE.toLocaleString('default', { month: 'long' });
-
-// Get current month in YYYY-MM-DD format
 export const getCurrentMonthDate = () => format(CURRENT_DATE, 'yyyy-MM-dd');
-
-// Get previous month's date
 export const getPreviousMonthDate = () => format(subMonths(CURRENT_DATE, 1), 'yyyy-MM-dd');
 
-// Convert column based to row based data
+// Weekly functions
+export const getCurrentWeek = () => {
+  const monday = startOfWeek(CURRENT_DATE, { weekStartsOn: 1 });
+  return format(monday, 'MMM dd, yyyy');
+};
+export const getCurrentWeekDate = () => format(startOfWeek(CURRENT_DATE, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+export const getPreviousWeekDate = () => format(startOfWeek(subWeeks(CURRENT_DATE, 1), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+
+// Common functions
 export const transposeData = (data) => {
-    // convert from {'a':[], 'b':[]} to [{a:1,b:2},{a:3,b:4}]
-    console.log('data', data);
     const keys = Object.keys(data);
     const length = data[keys[0]].length;
     const result = [];
@@ -31,37 +33,63 @@ export const transposeData = (data) => {
 
 export const inferMonthlyChanges = (data) => {
   const monthlyChanges = [];
-  // sort the data by month
-  const sortedData = data.sort((a, b) => new Date(a.month) - new Date(b.month));
+  const sortedData = data.sort((a, b) => new Date(a.date) - new Date(b.date));
 
   for (let i = 0; i < sortedData.length; i++) {
     const currentMonth = sortedData[i];
-    const previousMonth = sortedData[i - 1] || { totalrecruited: 0 };
-    const change = calculatePercentageChange(currentMonth.totalrecruited, previousMonth.totalrecruited);
+    const previousMonth = sortedData[i - 1] || { recruited_number: 0 };
+    const change = calculatePercentageChange(currentMonth.recruited_number, previousMonth.recruited_number);
     
     monthlyChanges.push({
-      // format month to text of year MMMM yyyy
-      month: format(new Date(currentMonth.month), 'MMMM yyyy'),
-      // month: currentMonth.month,
-      totalrecruited: currentMonth.totalrecruited,
+      date: currentMonth.date,
+      totalrecruited: currentMonth.recruited_number,
       change
     });
   }
   return monthlyChanges.slice(-3); // return last 3 months
 }
 
+export const inferWeeklyChanges = (data) => {
+  const weeklyChanges = [];
+  const sortedData = data.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-// Calculate percentage change between two values
+  for (let i = 0; i < sortedData.length; i++) {
+    const currentWeek = sortedData[i];
+    const previousWeek = sortedData[i - 1] || { totalrecruited: 0 };
+    const change = calculatePercentageChange(currentWeek.totalrecruited, previousWeek.totalrecruited);
+    
+    // Create a proper date object from the week date
+    const weekDate = new Date(currentWeek.date);
+    
+    // Only format the date if it's valid
+    let weekLabel;
+    if (isNaN(weekDate.getTime())) {
+      // Fallback to index-based week number if date is invalid
+      weekLabel = `Week ${i + 1}`;
+    } else {
+      // Get the Monday of the week
+      const monday = startOfWeek(weekDate, { weekStartsOn: 1 });
+      weekLabel = format(monday, 'MMM dd, yyyy');
+    }
+    
+    weeklyChanges.push({
+      week: weekLabel,
+      totalrecruited: currentWeek.totalrecruited,
+      change
+    });
+  }
+  return weeklyChanges.slice(-4); // return last 4 weeks
+}
+
 export const calculatePercentageChange = (current, previous) => {
   if (previous === 0) return 0;
   return ((current - previous) / previous * 100).toFixed(1);
 };
 
-// Process timeline data
 export const processTimelineData = (timelineData) => {
   return timelineData.map(study => ({
     ...study,
-    start: study.start? new Date(study.start): null ,
-    end: study.end? new Date(study.end): null,
+    start: study.start ? new Date(study.start) : null,
+    end: study.end ? new Date(study.end) : null,
   }));
 };
