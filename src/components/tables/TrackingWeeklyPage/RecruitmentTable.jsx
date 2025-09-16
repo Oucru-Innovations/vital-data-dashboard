@@ -19,6 +19,18 @@ const RecruitmentTable = ({ data, endDate }) => {
       width: 120,
     },
     {
+      field: 'screened_number',
+      headerName: 'Screened',
+      width: 120,
+      type: 'number',
+    },
+    {
+      field: 'cumulative_screened',
+      headerName: 'Total Screened',
+      width: 150,
+      type: 'number',
+    },
+    {
       field: 'recruited_number',
       headerName: 'Recruited',
       width: 120,

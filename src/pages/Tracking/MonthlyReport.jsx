@@ -18,13 +18,14 @@ import Footer from '../../components/toolbars/Footer';
 import MonthlyRecruitmentCard from '../../components/cards/TrackingMonthlyPage/MonthlyRecruitmentCard';
 import RecruitmentTable from '../../components/tables/TrackingMonthlyPage/RecruitmentTable';
 import StudyTimeline from '../../components/charts/TrackingMonthlyPage/StudyTimeline';
-import { getPeriodTotalRecruitment, getStudyTimeline, getStudyTracking, getStudyLifetimeRecruitment } from '../../services/apiService';
+import { getPeriodTotalRecruitment, getStudyTimeline, getStudyTracking, getStudyLifetimeRecruitment, getPeriodTotalScreening } from '../../services/apiService';
 import {
   inferMonthlyChanges,
   transposeData,
   processTimelineData,
 } from './utils/recruitmentProcessing';
 import { renderRecruitmentChart } from '../../components/charts/TrackingStudyPage/TimelineChart';
+import ScreeningTable from '../../components/tables/TrackingMonthlyPage/ScreeningTable';
 
 const MonthlyReport = () => {
   const [recruitmentData, setRecruitmentData] = useState({
@@ -81,6 +82,30 @@ const MonthlyReport = () => {
     }
   };
 
+  const fetchScreeningData = async () => {
+    try {
+      const response = await getPeriodTotalScreening({
+        period: selectedTimepoint,
+        limit: 1,
+        sort: 'date DESC',
+        end_date: endDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
+        study: selectedStudy
+      });
+      const screeningTable = transposeData(response.data);
+      console.log('screeningTable', screeningTable)
+      setRecruitmentData(prev => ({
+        ...prev,
+        screeningData: screeningTable
+      }))
+    } catch (error) {
+      console.error('Error fetching screening data:', error);
+      setRecruitmentData(prev => ({
+        ...prev,
+        screeningData: []
+      }));
+    }
+  };
+
   // const fetchRecruitmentData = async () => {
   //   try {
   //     const response = await getStudyTracking();
@@ -113,6 +138,7 @@ const MonthlyReport = () => {
       await Promise.all([
         fetchTimelineData(),
         fetchMonthlyData(),
+        fetchScreeningData(),
         // fetchRecruitmentData(),
         // fetchStudyProgressData()
       ]);
@@ -230,7 +256,10 @@ console.log('recruitmentData', recruitmentData)
       <Box sx={{ mt: 4 }}>
         {renderRecruitmentChart(recruitmentData.studyData)}
       </Box>
-      <RecruitmentTable data={recruitmentData.studyData} endDate = {endDate} />
+
+      <ScreeningTable data={recruitmentData.screeningData?.[0]} endDate={endDate} />
+
+      <RecruitmentTable data={recruitmentData.studyData} endDate={endDate} />
 
       <StudyTimeline studies={recruitmentData.timelineData.filter(study => study.name === selectedStudy)} />
 

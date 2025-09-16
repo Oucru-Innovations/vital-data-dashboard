@@ -3,7 +3,7 @@ import axios from 'axios';
 
 // const API_URL = 'https://e2f74625-eb0f-41fd-8375-fa0fa15b0654.mock.pstmn.io'; // mock API base URL
 // const API_URL=process.env.REACT_APP_MODE === 'deploy' ? process.env.REACT_APP_API_URL_DEPLOY:process.env.REACT_APP_API_URL_MOCK ;
-const API_URL='/api';
+const API_URL='http://localhost:3001'; // Local development API base URL
 // console.log('API_URL:', API_URL);
 // Create an axios instance
 const apiClient = axios.create({
@@ -14,7 +14,7 @@ const apiClient = axios.create({
 // Function to get summary data
 export const getSummaryData = async () => {
   try {
-    const response = await apiClient.get('/summary');
+    const response = await apiClient.get('/summary/all');
     return response.data;
   } catch (error) {
     console.error("Error fetching summary data", error);
@@ -25,7 +25,7 @@ export const getSummaryData = async () => {
 // Function to get detail data
 export const getDetailData = async () => {
   try {
-    const response = await apiClient.get('/detail');
+    const response = await apiClient.get('/files/detail');
     return response.data;
   } catch (error) {
     console.error("Error fetching detail data", error);
@@ -79,10 +79,10 @@ export const getSummaryDataByCondition = async (params) => {
 
 export const getUniquePatients = async (params) => {
   try {
-    const response = await apiClient.get('/summary/patient/count', { params });
+    const response = await apiClient.get('/summary/patient/unique', { params });
     return response.data;
   } catch (error) {
-    console.error("Error fetching summary data by condition", error);
+    console.error("Error fetching unique patients", error);
     return {};
   }
 };
@@ -109,7 +109,7 @@ export const getStudyTracking = async (params) => {
     // Add default parameters for getting the last 3 months
     const defaultParams = {
       period: 'weekly',
-      limit: 3,
+      limit: 1,
       sort: 'date DESC',
       end_date: new Date().toISOString().split('T')[0]
     };
@@ -117,7 +117,7 @@ export const getStudyTracking = async (params) => {
     // Merge default params with any provided params
     const finalParams = { ...defaultParams, ...params };
     console.log('finalParams', finalParams)
-    const response = await apiClient.get('/tracking/recruitment', { params: finalParams });
+    const response = await apiClient.get('/tracking/recruitment/project', { params: finalParams });
     return {
       data: response.data || []
     };
@@ -148,7 +148,7 @@ export const getPeriodTotalRecruitment = async (params = {}) => {
     // Add default parameters for getting the last 3 months
     const defaultParams = {
       period: 'weekly',
-      limit: 3,
+      limit: 1,
       sort: 'date DESC',
       end_date: new Date().toISOString().split('T')[0]
     };
@@ -156,7 +156,7 @@ export const getPeriodTotalRecruitment = async (params = {}) => {
     // Merge default params with any provided params
     const finalParams = { ...defaultParams, ...params };
     
-    const response = await apiClient.get('/tracking/periodically', { params: finalParams });
+    const response = await apiClient.get('/tracking/recruitment/study', { params: finalParams });
     return {
       data: response.data || []
     };
@@ -182,6 +182,59 @@ export const getStudyLifetimeRecruitment = async (study, params = {}) => {
     };
   }
 };
+
+export const getPeriodTotalScreening = async (params = {}) => {
+  try {
+    // Add default parameters for getting the last 3 months
+    const defaultParams = {
+      period: 'monthly',
+      limit: 1,
+      sort: 'date DESC',
+      end_date: new Date().toISOString().split('T')[0],
+      study:'55EI,39EIa,54EI'
+    };
+    
+    // Merge default params with any provided params
+    const finalParams = { ...defaultParams, ...params };
+    
+    const response = await apiClient.get('/tracking/screening/project', { params: finalParams });
+    return {
+      data: response.data || []
+    };
+  } catch (error) {
+    console.error("Error fetching period total screening data", error);
+    return {
+      data: []
+    };
+  }
+};
+export const getStudyMonthlyScreening = async (params = {}) => {
+  try {
+    // Add default parameters for getting the last 3 months
+    const defaultParams = {
+      period: 'monthly',
+      limit: 1,
+      sort: 'date DESC',
+      end_date: new Date().toISOString().split('T')[0]
+    };
+    
+    // Merge default params with any provided params
+    const finalParams = { ...defaultParams, ...params };
+    
+    const response = await apiClient.get('/tracking/screening/study', { params: finalParams });
+    return {
+      data: response.data || []
+    };
+  } catch (error) {
+    console.error("Error fetching study monthly screening data", error);
+    return {
+      data: []
+    };
+  }
+};
+
+
+
 
 export default {
   getSummaryData,

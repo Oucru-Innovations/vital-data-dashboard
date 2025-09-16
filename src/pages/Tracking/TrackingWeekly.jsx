@@ -17,12 +17,13 @@ import Footer from '../../components/toolbars/Footer';
 import WeeklyRecruitmentCard from '../../components/cards/TrackingWeeklyPage/WeeklyRecruitmentCard';
 import RecruitmentTable from '../../components/tables/TrackingWeeklyPage/RecruitmentTable';
 import StudyTimeline from '../../components/charts/TrackingWeeklyPage/StudyTimeline';
-import { getPeriodTotalRecruitment, getStudyTimeline, getStudyTracking } from '../../services/apiService';
+import { getPeriodTotalRecruitment, getPeriodTotalScreening, getStudyTimeline, getStudyTracking } from '../../services/apiService';
 import {
   inferWeeklyChanges,
   transposeData,
   processTimelineData,
 } from './utils/recruitmentProcessing';
+import { set } from 'date-fns';
 
 const TrackingWeeklyPage = () => {
   const [recruitmentData, setRecruitmentData] = useState({
@@ -49,6 +50,8 @@ const TrackingWeeklyPage = () => {
       const weeklyTable = transposeData(response.data);
       const weeklyChange = inferWeeklyChanges(weeklyTable);
       
+
+
       setRecruitmentData(prev => ({
         ...prev,
         totalWeekly: weeklyChange,
@@ -63,6 +66,7 @@ const TrackingWeeklyPage = () => {
       }));
     }
   };
+
 
   const fetchTimelineData = async () => {
     try {
@@ -80,9 +84,31 @@ const TrackingWeeklyPage = () => {
 
   const fetchRecruitmentData = async () => {
     try {
-      const response = await getStudyTracking();
-      
-      const weeklyTable = transposeData(response.data);
+      const recruitment = await getStudyTracking();
+
+      const recruitmentTable = transposeData(recruitment.data);
+
+      const screening = await getPeriodTotalScreening();
+      console.log('screening', screening.data.screening_summary);
+
+      const weeklyTable = recruitmentTable.map((entry) => {
+        // TODO match with dates
+        const screeningIndex = screening.data.study.indexOf(entry.study);
+        if (screeningIndex !== -1) {
+          return {
+            ...entry,
+            screened_number: screening.data.screening_summary[screeningIndex].screened[1]||0,
+            cumulative_screened: screening.data.screening_summary[screeningIndex].cummulative_screened[1]||0,
+          };
+        }
+        return {
+          ...entry,
+          screening_summary: null
+        };
+      });
+
+
+      console.log('weeklyTable', weeklyTable)
       setRecruitmentData(prev => ({
         ...prev,
         studyData: weeklyTable,
