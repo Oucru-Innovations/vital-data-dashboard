@@ -15,7 +15,6 @@
  */
 
 import axios from 'axios';
-import FHIR from 'fhirclient';
 import {
   format,
   startOfDay,
@@ -28,11 +27,24 @@ import {
   endOfQuarter,
   startOfYear,
   endOfYear,
+  // eslint-disable-next-line no-unused-vars
   getWeek,
   parseISO
 } from 'date-fns';
+// eslint-disable-next-line no-unused-vars
 import { store } from '../store/store';
+// eslint-disable-next-line no-unused-vars
 import { selectAlias } from '../store/studySlice';
+
+// ============ EDIT START: Conditional FHIR import (2026-01-28) ============
+// Make fhirclient import conditional to prevent crash if package not installed
+let FHIR = null;
+try {
+  FHIR = require('fhirclient');
+} catch (e) {
+  console.warn('[fhirService] fhirclient package not installed. Run: npm install fhirclient');
+}
+// ============ EDIT END: Conditional FHIR import ============
 
 
 /**
@@ -48,14 +60,21 @@ import { selectAlias } from '../store/studySlice';
  */
 const FHIR_API_URL = process.env.REACT_APP_FHIR_URL || 'http://localhost:8080/fhir';
 const TOKEN = 'eyMockToken';
-const client = FHIR.client({
-  serverUrl: FHIR_API_URL,
-  tokenResponse: {
-    access_token: TOKEN,
-    token_type: "Bearer",
-    expires_in: 3600
-  }
-});
+
+// ============ EDIT START: Safe FHIR client initialization (2026-01-28) ============
+// Only create FHIR client if the package is available
+let client = null;
+if (FHIR) {
+  client = FHIR.client({
+    serverUrl: FHIR_API_URL,
+    tokenResponse: {
+      access_token: TOKEN,
+      token_type: "Bearer",
+      expires_in: 3600
+    }
+  });
+}
+// ============ EDIT END: Safe FHIR client initialization ============
 /**
  * Determine if we should use mock data
  *
@@ -1292,3 +1311,135 @@ export const getFhirConfig = () => ({
   useMockData: shouldUseMockData(),
   mode: shouldUseMockData() ? 'DEVELOPMENT' : 'PRODUCTION',
 });
+
+// ============ EDIT START: Added missing export functions (2026-01-28) ============
+// These functions are required by TrackingCurrent.jsx, TrackingWeekly.jsx, and MonthlyReport.jsx
+
+/**
+ * Get Processed Recruitment Detail
+ *
+ * Wrapper function that fetches recruitment detail and processes it.
+ * Used by TrackingWeekly.jsx and MonthlyReport.jsx
+ *
+ * @param {Object} filters - Filter options (study, site, ward, condition, dateRange)
+ * @returns {Promise<Array>} Processed recruitment detail records
+ */
+export const getProcessedRecruitmentDetail = async (filters = {}) => {
+  try {
+    console.log('[fhirService] getProcessedRecruitmentDetail called with filters:', filters);
+
+    // Get raw recruitment detail
+    const bundle = await getRecruitmentDetail(filters);
+
+    if (!bundle || !bundle.entry) {
+      console.log('[fhirService] No recruitment data found');
+      return [];
+    }
+
+    // Process the bundle entries into a flat array
+    const processedData = bundle.entry.map((entry, index) => {
+      const resource = entry.resource;
+      const subject = resource.subject;
+      const linkedPatient = subject?.link?.[0]?.other;
+
+      // Extract condition from extension
+      const conditionExt = resource.extension?.find(
+        ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/condition'
+      );
+      const condition = conditionExt?.valueCodeableConcept?.text || 'Unknown';
+
+      // Extract progress dates
+      const getProgressDate = (stateCode) => {
+        const progressItem = resource.progress?.find(
+          p => p.subjectState?.coding?.[0]?.code === stateCode
+        );
+        return progressItem?.startDate || null;
+      };
+
+      // Extract ward from managingOrganization
+      const orgRef = subject?.managingOrganization?.reference || '';
+      const wardMatch = orgRef.match(/Organization\/Ward(.+)/);
+      const ward = wardMatch ? wardMatch[1] : 'Unknown';
+
+      return {
+        id: index,
+        subjectId: resource.id,
+        studyId: linkedPatient?.name?.[0]?.given?.[0] || 'N/A',
+        screeningName: subject?.name?.[0]?.given?.[0] || 'N/A',
+        condition,
+        status: resource.status || 'Unknown',
+        ward,
+        screeningDate: getProgressDate('screening'),
+        enrolledDate: getProgressDate('on-study'),
+        eligibleDate: getProgressDate('eligible'),
+        birthYear: subject?.birthDate || 'N/A',
+      };
+    });
+
+    console.log(`[fhirService] Processed ${processedData.length} recruitment records`);
+    return processedData;
+
+  } catch (error) {
+    console.error('[fhirService] Error in getProcessedRecruitmentDetail:', error);
+    return [];
+  }
+};
+
+/**
+ * Get Current Recruitment Data
+ *
+ * Fetches current/active recruitment data with patient-level details.
+ * Used by TrackingCurrent.jsx for the Current Recruitment Tracking page.
+ *
+ * DEVELOPMENT MODE:
+ * - Loads data from: src/mockData/fhir/mockLabel.json
+ *
+ * PRODUCTION MODE:
+ * - API Endpoint: GET /ResearchSubject with params
+ *
+ * @param {Object} options - Options for filtering
+ * @param {string} options.studyCode - Optional study code to filter by
+ * @returns {Promise<Object>} FHIR Bundle with ResearchSubject resources
+ */
+export const getCurrentRecruitmentData = async (options = {}) => {
+  const { studyCode } = options;
+
+  try {
+    if (shouldUseMockData()) {
+      // DEVELOPMENT MODE: Load from mock JSON file
+      console.log('[fhirService] DEVELOPMENT MODE: Loading mockLabel.json for current recruitment');
+
+      try {
+        const mockModule = await import('../mockData/fhir/mockLabel.json');
+        const data = mockModule.default || mockModule;
+        console.log(`[fhirService] Loaded ${data.total || 0} subjects from mockLabel.json`);
+        return data;
+      } catch (importError) {
+        console.warn('[fhirService] mockLabel.json not found, returning empty bundle');
+        return { resourceType: 'Bundle', type: 'searchset', total: 0, entry: [] };
+      }
+
+    } else {
+      // PRODUCTION MODE: Call FHIR API
+      console.log('[fhirService] PRODUCTION MODE: Fetching current recruitment from FHIR API');
+
+      const params = new URLSearchParams({
+        '_count': '2000',
+        'status:not': 'retired',
+      });
+
+      if (studyCode) {
+        params.append('study', `ResearchStudy/Study${studyCode}`);
+      }
+
+      const response = await fhirClient.get(`/ResearchSubject?${params.toString()}`);
+      console.log(`[fhirService] Loaded ${response.data?.total || 0} subjects from FHIR API`);
+      return response.data;
+    }
+
+  } catch (error) {
+    console.error('[fhirService] Error in getCurrentRecruitmentData:', error);
+    return { resourceType: 'Bundle', type: 'searchset', total: 0, entry: [] };
+  }
+};
+// ============ EDIT END: Added missing export functions ============

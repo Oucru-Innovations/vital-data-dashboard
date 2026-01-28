@@ -143,7 +143,7 @@ const Sidebar = () => {
       text: 'Tracking',
       icon: <SignalCellularAltIcon />,
       children: [
-        { text: 'Weekly', icon: <CheckCircleIcon />, path: '/tracking/weekly' },
+        { text: 'Current', icon: <CheckCircleIcon />, path: '/tracking/current' },
         { text: 'Study', icon: <AssessmentIcon />, path: '/tracking/study' },
       ],
     },

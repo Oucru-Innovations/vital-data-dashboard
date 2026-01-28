@@ -14,6 +14,7 @@ const SummaryConditionPage = lazy(() => import('../pages/Summary/SummaryConditio
 const SummaryDevicePage = lazy(() => import('../pages/Summary/SummaryDevice'));
 const SummaryStudyPage = lazy(() => import('../pages/Summary/SummaryStudy'));
 const TrackingWeekly = lazy(() => import('../pages/Tracking/TrackingWeekly'));
+const TrackingCurrent = lazy(() => import('../pages/Tracking/TrackingCurrent'));
 const TrackingStudyPage = lazy(() => import('../pages/Tracking/MonthlyReport'));
 
 // Fallback Component
@@ -154,6 +155,17 @@ const routes = (isAuthenticated, onLogin) => [
       </ProtectedRoute>
     ),
     title: 'Weekly Tracking',
+  },
+  {
+    path: '/tracking/current',
+    element: (
+      <ProtectedRoute isAuthenticated={isAuthenticated}>
+        <Suspense fallback={<Loading />}>
+          <TrackingCurrent />
+        </Suspense>
+      </ProtectedRoute>
+    ),
+    title: 'Current Recruitment',
   },
   {
     path: '/tracking/study',
