@@ -799,7 +799,7 @@ export const preprocessScreeningDetail = (bundle) => {
  * });
  */
 export const getProcessedScreeningDetail = async (filters) => {
-  const bundle = await getScreeningDetail(filters);
+  const bundle = await getRecruitmentDetail(filters);
   return preprocessScreeningDetail(bundle);
 };
 
