@@ -15,6 +15,25 @@
  */
 
 import axios from 'axios';
+import FHIR from 'fhirclient';
+import {
+  format,
+  startOfDay,
+  endOfDay,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  startOfQuarter,
+  endOfQuarter,
+  startOfYear,
+  endOfYear,
+  getWeek,
+  parseISO
+} from 'date-fns';
+import { store } from '../store/store';
+import { selectAlias } from '../store/studySlice';
+
 
 /**
  * FHIR API Base URL Configuration
@@ -28,7 +47,15 @@ import axios from 'axios';
  * - Other URLs → Make real FHIR API calls (production)
  */
 const FHIR_API_URL = process.env.REACT_APP_FHIR_URL || 'http://localhost:8080/fhir';
-
+const TOKEN = 'eyMockToken';
+const client = FHIR.client({
+  serverUrl: FHIR_API_URL,
+  tokenResponse: {
+    access_token: TOKEN,
+    token_type: "Bearer",
+    expires_in: 3600
+  }
+});
 /**
  * Determine if we should use mock data
  *
@@ -57,6 +84,7 @@ const fhirClient = axios.create({
   headers: {
     'Accept': 'application/fhir+json',
     'Content-Type': 'application/fhir+json',
+    'Authorization': 'Bearer ' + TOKEN
   },
 });
 
@@ -405,9 +433,11 @@ export const preprocessStudies = (bundle) => {
         status: study.status || 'unknown',
         site: study.site || [],
         period: study.period || {},
+        recruitment: study.recruitment || {},
+        group: study.comparisonGroup || [],
       };
     })
-    .filter((study) => study.id && study.name); // Only include valid studies
+    .filter((study) => study.id && study.name).filter((study) => study.status !== 'retired'); // Only include valid studies
 };
 
 /**
@@ -487,7 +517,10 @@ export const getProcessedStudies = async () => {
  * });
  */
 export const getRecruitmentDetail = async (filters) => {
-  const { studyCode, siteCode, wardCode, condition } = filters;
+  const { studyCode, siteCode, wardCode, condition, organization, alias, group } = filters;
+  // console.log('organization', organization);
+  console.log('[FHIR Service] getScreeningDetail filters:', filters);
+
 
   try {
     if (shouldUseMockData()) {
@@ -512,7 +545,6 @@ export const getRecruitmentDetail = async (filters) => {
       console.log(`[FHIR Service] Loading recruitment detail from MOCK file: ${filename}`);
       console.log(`[FHIR Service] Filters:`, { studyCode, siteCode, wardCode, condition });
 
-      // Try to load the mock file
       try {
         const mockData = await import(`../mockData/tracking/${filename}`);
         console.log(`[FHIR Service] Successfully loaded ${mockData.default.total} patients from mock data`);
@@ -521,7 +553,6 @@ export const getRecruitmentDetail = async (filters) => {
         console.warn(`[FHIR Service] Mock file not found: ${filename}`);
         console.warn(`[FHIR Service] Returning empty bundle`);
 
-        // Return empty bundle if file doesn't exist
         return Promise.resolve({
           resourceType: 'Bundle',
           type: 'searchset',
@@ -532,54 +563,91 @@ export const getRecruitmentDetail = async (filters) => {
     }
 
     // PRODUCTION MODE: Call FHIR API
-    // TODO REPLACE with BACKEND API: Update this section when backend API is ready
-    // Expected API endpoint: GET /api/recruitment-detail
-    // Expected parameters:
-    //   - studyCode: string (required) - e.g., "13NV"
-    //   - siteCode: string (optional) - e.g., "003"
-    //   - wardCode: string (optional) - e.g., "4"
-    //   - condition: string (optional) - e.g., "CAP" or "VAP"
-    // Expected response: FHIR Bundle with ResearchSubject resources
-    console.log('[FHIR Service] Fetching recruitment detail from FHIR API');
+    // Logic adapted from fhirApi.js
 
-    const params = {
-      _count: 2000,
-      'status:not': 'retired',
-      study: `ResearchStudy/Study${studyCode}`,
-    };
+    let queryParams = [];
 
-    // TODO REPLACE with BACKEND API: Add site filter parameter
-    // Currently site filtering is not implemented in FHIR query
-    // Backend should support: site={siteCode} parameter
-    if (siteCode) {
-      console.log(`[FHIR Service] Site filter requested: ${siteCode} (not yet implemented in FHIR query)`);
-      // params['site'] = siteCode; // Uncomment when backend supports this
+    // 1. Organization Filter (Ward or Site)
+    if (wardCode && organization?.id) {
+      // If ward is selected, filter by ward organization
+      queryParams.push(`subject:Patient.organization=Organization/${organization.id}`);
+    } else if (siteCode && organization?.id) {
+      // If only site is selected
+      // Check if there are wards (departments) using alias check
+      let hasWards = false;
+      if (alias) {
+        try {
+          // Check if there are departments matching the alias
+          const aliasQuery = alias.replace('-', ',');
+          const checkWards = await fhirClient.get(`/Organization?type=dept&_content:contains=${aliasQuery}`);
+          if (checkWards.data && checkWards.data.total > 0) {
+            hasWards = true;
+          }
+        } catch (e) {
+          console.warn('[FHIR Service] Failed to check for wards via alias, defaulting to direct organization filter', e);
+        }
+      }
+
+      if (hasWards) {
+        queryParams.push(`subject:Patient.organization.partof=Organization/${organization.id}`);
+      } else {
+        queryParams.push(`subject:Patient.organization=Organization/${organization.id}`);
+      }
     }
 
-    // Add ward filter if provided
-    // TODO REPLACE with BACKEND API: Verify ward filter parameter name with backend team
-    if (wardCode) {
-      // Note: This assumes wardCode maps to organization ID
-      // May need adjustment based on actual FHIR structure
-      params['subject:Patient.organization'] = `Organization/Ward${wardCode}`;
-    }
+    // 2. Study Filter
+    // Using `Study${studyCode}` as fallback for ID pattern
+    const studyId = filters.studyId || `Study${studyCode}`;
+    queryParams.push(`study=ResearchStudy/${studyId}`);
 
-    // Add condition filter if provided
-    // TODO REPLACE with BACKEND API: Verify condition filter parameter and codes with backend team
+    // 3. Condition Filter
     if (condition) {
-      // Map condition names to SNOMED codes
+      // Map condition names to SNOMED codes if needed, or use directly
       const conditionCodes = {
         CAP: '385093006', // Community Acquired Pneumonia
         VAP: '87828008',  // Ventilator-Associated Pneumonia (example)
       };
+      const code = conditionCodes[condition] || condition;
+      queryParams.push(`condition-extension=${code}`);
+    }
 
-      if (conditionCodes[condition]) {
-        params['condition-extension'] = conditionCodes[condition];
+    // 4. Group Filter
+    if (group) {
+      queryParams.push(`group-extension=${encodeURIComponent(group)}`);
+    }
+
+    queryParams.push("status:not=retired");
+    queryParams.push("_count=2000");
+
+
+    const queryString = queryParams.join('&');
+    const url = `/ResearchSubject?${queryString}`;
+    console.log('[FHIR Service] Fetching recruitment detail URL:', url);
+
+    // Call API with reference resolution
+    const bundle = await client.request(url);
+
+    if (bundle.entry) {
+      for (const entry of bundle.entry) {
+        const subject = entry.resource?.subject;
+        if (subject?.link && Array.isArray(subject.link)) {
+          for (const link of subject.link) {
+            if (link.other?.reference && typeof link.other.reference === 'string') {
+              try {
+                // Fetch the linked resource
+                const resolved = await client.request(link.other.reference);
+                link.other = resolved;
+              } catch (error) {
+                console.error(`Failed to resolve reference: ${link.other.reference}`, error);
+              }
+            }
+          }
+        }
       }
     }
 
-    const response = await fhirClient.get('/ResearchSubject', { params });
-    return response.data;
+    return bundle;
+
   } catch (error) {
     console.error('[FHIR Service] Error fetching recruitment detail:', error);
     throw new Error(`Failed to fetch recruitment detail: ${error.message}`);
@@ -620,7 +688,7 @@ export const getRecruitmentDetail = async (filters) => {
  *   raw: {...}
  * }]
  */
-export const preprocessRecruitmentDetail = (bundle) => {
+export const preprocessScreeningDetail = (bundle) => {
   if (!bundle || bundle.resourceType !== 'Bundle' || !bundle.entry) {
     console.warn('[FHIR Service] Invalid ResearchSubject bundle:', bundle);
     return [];
@@ -649,7 +717,15 @@ export const preprocessRecruitmentDetail = (bundle) => {
 
       // EXTRACT LATEST STATUS
       // Progress array shows journey: screening → eligible → enrolled
-      const latestProgress = progress[progress.length - 1];
+      const STATUS_ORDER = ['screening', 'eligible', 'ineligible', 'on-study', 'not-registered', 'withdrawn', 'off-study'].reverse();
+      let latestProgress = null;
+      for (const status of STATUS_ORDER) {
+        latestProgress = progress.find((p) => p.subjectState?.coding?.[0]?.code === status);
+        if (latestProgress) {
+          // console.log('[FHIR Service] patient', researchSubject, ' Latest progress:', latestProgress);
+          break;
+        }
+      }
       const currentStatusCode = latestProgress?.subjectState?.coding?.[0]?.code || 'unknown';
       const reason = latestProgress?.reason?.text || '';
       const lastUpdate = latestProgress?.startDate;
@@ -722,9 +798,9 @@ export const preprocessRecruitmentDetail = (bundle) => {
  *   condition: "CAP"
  * });
  */
-export const getProcessedRecruitmentDetail = async (filters) => {
-  const bundle = await getRecruitmentDetail(filters);
-  return preprocessRecruitmentDetail(bundle);
+export const getProcessedScreeningDetail = async (filters) => {
+  const bundle = await getScreeningDetail(filters);
+  return preprocessScreeningDetail(bundle);
 };
 
 /**
@@ -850,12 +926,15 @@ export const groupPatientsByStatus = (patients) => {
  *   }
  * }
  */
-export const generateScreeningSummary = (patients, studyCode, endDate) => {
-  // Get unique conditions from patients
-  const conditions = [...new Set(patients.map(p => p.condition))].filter(Boolean);
+export const generateScreeningSummary = (patients, study, endDate) => {
+  const studyCode = typeof study === 'object' ? study.studyCode : study;
+  const studyGroups = typeof study === 'object' ? (study.group || study.comparisonGroup || []) : [];
+  const groups = studyGroups.map(g => typeof g === 'string' ? g : g.name).filter(Boolean);
 
-  // Add "Total" group
-  const groups = [...conditions, 'Total'];
+  // Always include Total
+  if (!groups.includes('Total')) {
+    groups.push('Total');
+  }
 
   // Initialize counters for each group
   const counters = {};
@@ -868,27 +947,48 @@ export const generateScreeningSummary = (patients, studyCode, endDate) => {
       other_reasons: 0,
     };
   });
-
   // Count patients by condition and status
   patients.forEach(patient => {
-    const condition = patient.condition || 'Unknown';
+    // Check if patient should be included based on date filter
+    if (endDate && patient.startDate) {
+      const patientDate = new Date(patient.startDate);
+      const filterDate = new Date(endDate);
+      // Set hours to end of day for filter date to include patients on that day
+      filterDate.setHours(23, 59, 59);
+
+      if (patientDate > filterDate) {
+        return; // Skip patients after the end date
+      }
+    }
+    const patientGroups = patient.groups || [];
 
     // Count for specific condition
-    if (counters[condition]) {
-      counters[condition].screened++;
+    for (const group of patientGroups) {
+      if (counters[group]) {
+        counters[group].screened++;
 
-      if (patient.currentStatus === 'on-study') {
-        counters[condition].enrolled++;
-      } else if (patient.currentStatus === 'not-registered') {
-        // Check reason to categorize
-        const reason = patient.reason?.toLowerCase() || '';
-        if (reason.includes('ineligible') || reason.includes('inc') || reason.includes('exc')) {
-          counters[condition].ineligible++;
-        } else if (reason.includes('decline') || reason.includes('refused')) {
-          counters[condition].declined++;
-        } else {
-          counters[condition].other_reasons++;
+        if (patient.currentStatus === 'on-study') {
+          counters[group].enrolled++;
         }
+        else if (patient.currentStatus === 'not-registered' || patient.currentStatus === 'ineligible') {
+
+          // if (!patient.progress.some((pr) => pr.reason?.text === 'enrolled'))
+          //   console.log('patient', patient.progress);
+          // Check reason to categorize
+          const reason = patient.reason?.toLowerCase() || '';
+          if (reason.includes('ineligible') || reason.includes('no inc') || reason.includes('exc')) {
+            counters[group].ineligible++;
+          } else if (reason.includes('decline') || reason.includes('refuse')) {
+            counters[group].declined++;
+          } else {
+            counters[group].other_reasons++;
+          }
+        }
+        else {
+          console.log('required check', patient);
+        }
+      }
+      else {
       }
     }
 
@@ -896,11 +996,11 @@ export const generateScreeningSummary = (patients, studyCode, endDate) => {
     counters.Total.screened++;
     if (patient.currentStatus === 'on-study') {
       counters.Total.enrolled++;
-    } else if (patient.currentStatus === 'not-registered') {
+    } else if (patient.currentStatus === 'not-registered' || patient.currentStatus === 'ineligible') {
       const reason = patient.reason?.toLowerCase() || '';
-      if (reason.includes('ineligible') || reason.includes('inc') || reason.includes('exc')) {
+      if (reason.includes('ineligible') || reason.includes('no inc') || reason.includes('exc')) {
         counters.Total.ineligible++;
-      } else if (reason.includes('decline') || reason.includes('refused')) {
+      } else if (reason.includes('decline') || reason.includes('refuse')) {
         counters.Total.declined++;
       } else {
         counters.Total.other_reasons++;
@@ -942,35 +1042,68 @@ export const generateScreeningSummary = (patients, studyCode, endDate) => {
  * @returns {string} Formatted date key for grouping
  */
 const formatDateByTimepoint = (dateStr, timepoint) => {
-  const date = new Date(dateStr);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
+  const date = typeof dateStr === 'string' ? parseISO(dateStr) : dateStr;
 
   switch (timepoint) {
     case 'daily':
-      return `${year}-${month}-${day}`; // "2026-01-15"
+      return format(date, 'yyyy-MM-dd');
 
     case 'weekly':
-      // Get week number (ISO week)
-      const startOfYear = new Date(year, 0, 1);
-      const dayOfYear = Math.floor((date - startOfYear) / (24 * 60 * 60 * 1000));
-      const weekNumber = Math.ceil((dayOfYear + startOfYear.getDay() + 1) / 7);
-      return `${year}-W${String(weekNumber).padStart(2, '0')}`; // "2026-W03"
+      // Using ISO week
+      return format(date, "yyyy-'W'II");
 
     case 'monthly':
-      return `${year}-${month}`; // "2026-01"
+      return format(date, 'yyyy-MM');
 
     case 'quarterly':
-      const quarter = Math.ceil((date.getMonth() + 1) / 3);
-      return `${year}-Q${quarter}`; // "2026-Q1"
+      return format(date, "yyyy-'Q'q");
 
     case 'yearly':
-      return `${year}`; // "2026"
+      return format(date, 'yyyy');
 
     default:
-      return `${year}-${month}`; // Default to monthly
+      return format(date, 'yyyy-MM');
   }
+};
+
+/**
+ * Get date range for a given period based on timepoint
+ * 
+ * @param {string} dateStr - Seed date in period
+ * @param {string} timepoint - period type
+ * @returns {Object} { start: 'YYYY-MM-DD', end: 'YYYY-MM-DD' }
+ */
+const getPeriodDateRange = (dateStr, timepoint) => {
+  const date = typeof dateStr === 'string' ? parseISO(dateStr) : dateStr;
+  let start, end;
+
+  switch (timepoint) {
+    case 'daily':
+      start = format(startOfDay(date), 'yyyy-MM-dd');
+      end = format(endOfDay(date), 'yyyy-MM-dd');
+      break;
+    case 'weekly':
+      // Week starts on Monday
+      start = format(startOfWeek(date, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+      end = format(endOfWeek(date, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+      break;
+    case 'monthly':
+      start = format(startOfMonth(date), 'yyyy-MM-dd');
+      end = format(endOfMonth(date), 'yyyy-MM-dd');
+      break;
+    case 'quarterly':
+      start = format(startOfQuarter(date), 'yyyy-MM-dd');
+      end = format(endOfQuarter(date), 'yyyy-MM-dd');
+      break;
+    case 'yearly':
+      start = format(startOfYear(date), 'yyyy-MM-dd');
+      end = format(endOfYear(date), 'yyyy-MM-dd');
+      break;
+    default:
+      start = end = format(date, 'yyyy-MM-dd');
+  }
+
+  return { start, end };
 };
 
 /**
@@ -1005,79 +1138,152 @@ const formatDateByTimepoint = (dateStr, timepoint) => {
  *   }
  * ]
  */
-export const generateRecruitmentDetails = (patients, studyCode, options = {}) => {
-  const { targetRecruitment = null, endDate = null, limit = 12, timepoint = 'monthly' } = options;
+export const generateRecruitmentDetails = (patients, study, options = {}) => {
+  const {
+    targetRecruitment = null,
+    startDate = null,
+    endDate = null,
+    studyEndDate = null,
+    limit = 12,
+    timepoint = 'monthly',
+    byCategory = false
+  } = options;
+
+  const studyCode = typeof study === 'object' ? study.studyCode : study;
+  const studyGroups = typeof study === 'object' ? (study.group || study.comparisonGroup || []) : [];
+  const groups = studyGroups.map(g => typeof g === 'string' ? g : g.name).filter(Boolean).concat(['Total']);
+
+  // If we want groups but none defined, fallback to no groups
+  // const groups = byCategory && groups.length > 0 ? groups : [null];
+  // if (byCategory && !groups.includes('Total')) {
+  //   groups.push('Total');
+  // }
 
   console.log(`[generateRecruitmentDetails] Processing ${patients.length} patients for study ${studyCode}`);
-  console.log('[generateRecruitmentDetails] Options:', { endDate: endDate?.toISOString(), limit, timepoint });
 
-  // Group enrolled patients by period (based on timepoint)
-  const enrolledByPeriod = {};
   const endDateStr = endDate ? endDate.toISOString().split('T')[0] : null;
+  const startDateStr = startDate ? startDate.toISOString().split('T')[0] : null;
+
+  // Structure to store stats: periods[periodKey][group] = { enrolled, screened }
+  const periods = {};
 
   patients.forEach(patient => {
-    // Check if patient was EVER enrolled (not just currently enrolled)
-    // Look for 'on-study' entry in progress array
+    // 1. Process Enrollment
     const enrollmentProgress = patient.progress?.find(
       p => p.subjectState?.coding?.[0]?.code === 'on-study'
     );
 
-    if (enrollmentProgress) {
-      const enrollmentDate = enrollmentProgress.startDate;
+    const enrollmentDate = enrollmentProgress?.startDate;
+    const screeningDate = patient.startDate;
 
-      if (enrollmentDate) {
-        // Filter by end date if provided
-        if (endDateStr && enrollmentDate > endDateStr) {
-          return; // Skip patients enrolled after end date
-        }
+    const patientGroups = patient.groups || [];
 
-        // Format date based on selected timepoint
-        const periodKey = formatDateByTimepoint(enrollmentDate, timepoint);
-        enrolledByPeriod[periodKey] = (enrolledByPeriod[periodKey] || 0) + 1;
-      } else {
-        console.warn(`[generateRecruitmentDetails] Patient ${patient.id} has on-study progress but no startDate`);
+    // Helper to add stats
+    const addStats = (date, type, groups) => {
+      if (!date) return;
+      if (startDateStr && date < startDateStr) return;
+      if (endDateStr && date > endDateStr) return;
+
+      const periodKey = formatDateByTimepoint(date, timepoint);
+      if (!periods[periodKey]) {
+        const { start, end } = getPeriodDateRange(date, timepoint);
+        periods[periodKey] = {
+          periodStart: start,
+          periodEnd: end,
+          stats: {}
+        };
       }
-    }
+
+      // Add to specific groups
+      groups.forEach(group => {
+        if (!periods[periodKey].stats[group]) {
+          periods[periodKey].stats[group] = { enrolled: 0, screened: 0 };
+        }
+        periods[periodKey].stats[group][type]++;
+      });
+
+      // Add to Total
+      if (!periods[periodKey].stats.Total) {
+        periods[periodKey].stats.Total = { enrolled: 0, screened: 0 };
+      }
+      periods[periodKey].stats.Total[type]++;
+    };
+
+    if (enrollmentDate) addStats(enrollmentDate, 'enrolled', patientGroups);
+    if (screeningDate) addStats(screeningDate, 'screened', patientGroups);
   });
 
-  // Sort periods chronologically
-  const periods = Object.keys(enrolledByPeriod).sort();
+  const allPeriodKeys = Object.keys(periods).sort();
 
-  console.log('[generateRecruitmentDetails] Enrolled by period:', enrolledByPeriod);
-  console.log('[generateRecruitmentDetails] Periods found:', periods);
-
-  // If no periods found, return empty array
-  if (periods.length === 0) {
-    console.warn('[generateRecruitmentDetails] No enrolled patients with dates found');
+  if (allPeriodKeys.length === 0) {
+    console.warn('[generateRecruitmentDetails] No data found for periods');
     return [];
   }
 
-  // If no target provided, estimate as enrolled * 2 (assuming 50% enrollment rate)
-  // Count patients who were EVER enrolled (have 'on-study' in their progress)
-  const totalEnrolled = patients.filter(p =>
-    p.progress?.some(prog => prog.subjectState?.coding?.[0]?.code === 'on-study')
-  ).length;
-  const target = targetRecruitment || Math.max(totalEnrolled * 2, 50);
-
-  // Limit to most recent N periods if specified
-  const recentPeriods = limit > 0 ? periods.slice(-limit) : periods;
-
-  // Calculate cumulative and build result
-  let cumulative = 0;
-  return recentPeriods.map(period => {
-    const recruited = enrolledByPeriod[period];
-    cumulative += recruited;
-
-    return {
-      study: studyCode,
-      date: period,
-      recruited_number: recruited,
-      cumulative_recruited: cumulative,
-      cumulativerecruited: cumulative, // Alternative field name used in component
-      target: target,
-      remaining_days: 180, // Placeholder - could calculate from study end date
-    };
+  // Calculate cumulative stats per group
+  const cumulatives = {};
+  groups.forEach(cat => {
+    cumulatives[cat || 'Total'] = { enrolled: 0, screened: 0 };
   });
+
+  const results = [];
+
+  allPeriodKeys.forEach(periodKey => {
+    const periodData = periods[periodKey];
+
+    // For each group we want to report on
+    groups.forEach(group => {
+      const groupKey = group || 'Total';
+      const stats = periodData.stats[groupKey] || { enrolled: 0, screened: 0 };
+
+      cumulatives[groupKey].enrolled += stats.enrolled;
+      cumulatives[groupKey].screened += stats.screened;
+
+      // Calculate remaining days
+      const periodDate = new Date(periodData.periodStart);
+      let remainingDays = 0;
+      if (studyEndDate && periodDate) {
+        const diffTime = studyEndDate - periodDate;
+        remainingDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (remainingDays < 0) remainingDays = 0;
+      } else {
+        remainingDays = 180; // Fallback
+      }
+
+      // Target recruitment (only for Total or if distributed?)
+      // For now, use global target for Total, and null for others unless we have logic
+      const target = groupKey === 'Total' ? (targetRecruitment || 50) : null;
+
+      results.push({
+        study: studyCode,
+        date: periodKey,
+        periodStart: periodData.periodStart,
+        periodEnd: periodData.periodEnd,
+        category: group, // Will be null if not using groups
+        recruited_number: stats.enrolled,
+        cumulative_recruited: cumulatives[groupKey].enrolled,
+        screened_number: stats.screened,
+        cumulative_screened: cumulatives[groupKey].screened,
+        target: target,
+        remaining_days: remainingDays,
+      });
+    });
+  });
+
+  // Filter out null groups if byCategory is false
+  let finalResults = results;
+  if (!byCategory) {
+    finalResults = finalResults.filter(r => r.group === null);
+  }
+
+  // Return only the requested number of recent periods
+  // Note: if byCategory is true, limit applies to the number of unique periods, not total rows
+  if (limit > 0) {
+    const uniquePeriods = Array.from(new Set(finalResults.map(r => r.date))).slice(-limit);
+    finalResults = finalResults.filter(r => uniquePeriods.includes(r.date));
+  }
+
+  return finalResults;
 };
 
 // Export configuration for testing/debugging

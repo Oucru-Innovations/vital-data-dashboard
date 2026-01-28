@@ -1,4 +1,4 @@
-import { format, addMonths, subMonths, addWeeks, subWeeks, startOfWeek, endOfWeek, getWeek } from 'date-fns';
+import { format, addMonths, subMonths, addWeeks, subWeeks, startOfWeek, endOfWeek, getWeek, parseISO } from 'date-fns';
 
 // Set universal current date for all calculations
 export const CURRENT_DATE = new Date();
@@ -18,17 +18,17 @@ export const getPreviousWeekDate = () => format(startOfWeek(subWeeks(CURRENT_DAT
 
 // Common functions
 export const transposeData = (data) => {
-    const keys = Object.keys(data);
-    const length = data[keys[0]].length;
-    const result = [];
-    for (let i = 0; i < length; i++) {
-        const obj = {};
-        for (const key in data) {
-            obj[key] = data[key][i];
-        }
-        result.push(obj);
+  const keys = Object.keys(data);
+  const length = data[keys[0]].length;
+  const result = [];
+  for (let i = 0; i < length; i++) {
+    const obj = {};
+    for (const key in data) {
+      obj[key] = data[key][i];
     }
-    return result;
+    result.push(obj);
+  }
+  return result;
 }
 
 export const inferMonthlyChanges = (data) => {
@@ -39,7 +39,7 @@ export const inferMonthlyChanges = (data) => {
     const currentMonth = sortedData[i];
     const previousMonth = sortedData[i - 1] || { recruited_number: 0 };
     const change = calculatePercentageChange(currentMonth.recruited_number, previousMonth.recruited_number);
-    
+
     monthlyChanges.push({
       date: currentMonth.date,
       totalrecruited: currentMonth.recruited_number,
@@ -55,26 +55,38 @@ export const inferWeeklyChanges = (data) => {
 
   for (let i = 0; i < sortedData.length; i++) {
     const currentWeek = sortedData[i];
-    const previousWeek = sortedData[i - 1] || { totalrecruited: 0 };
-    const change = calculatePercentageChange(currentWeek.totalrecruited, previousWeek.totalrecruited);
-    
+    const previousWeek = sortedData[i - 1] || { totalrecruited: 0, screened_number: 0 };
+
+    // Check if we found recruited_number or totalrecruited
+    // The API might return totalrecruited, generated data has recruited_number
+    const currentRecruited = currentWeek.totalrecruited ?? currentWeek.recruited_number ?? 0;
+    const previousRecruited = previousWeek.totalrecruited ?? previousWeek.recruited_number ?? 0;
+
+    const change = calculatePercentageChange(currentRecruited, previousRecruited);
+
     // Create a proper date object from the week date
     const weekDate = new Date(currentWeek.date);
-    
+
     // Only format the date if it's valid
     let weekLabel;
     if (isNaN(weekDate.getTime())) {
       // Fallback to index-based week number if date is invalid
-      weekLabel = `Week ${i + 1}`;
+      // Or check if it's ISO week string like "2026-W01"
+      if (typeof currentWeek.date === 'string' && currentWeek.date.includes('-W')) {
+        weekLabel = currentWeek.date; // Keep strict ISO week if that's what we have
+      } else {
+        weekLabel = `Week ${i + 1}`;
+      }
     } else {
       // Get the Monday of the week
       const monday = startOfWeek(weekDate, { weekStartsOn: 1 });
       weekLabel = format(monday, 'MMM dd, yyyy');
     }
-    
+
     weeklyChanges.push({
       week: weekLabel,
-      totalrecruited: currentWeek.totalrecruited,
+      totalRecruited: currentRecruited,
+      totalScreened: currentWeek.screened_number, // Pass through if available
       change
     });
   }
@@ -89,7 +101,9 @@ export const calculatePercentageChange = (current, previous) => {
 export const processTimelineData = (timelineData) => {
   return timelineData.map(study => ({
     ...study,
-    start: study.start ? new Date(study.start) : null,
-    end: study.end ? new Date(study.end) : null,
+    // studyCode: study.studyCode,
+    name: study.studyCode,
+    start: study.start ? new Date(study.period.start) : null,
+    end: study.end ? new Date(study.period.end) : null,
   }));
 };

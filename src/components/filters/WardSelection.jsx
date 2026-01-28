@@ -271,7 +271,7 @@ const WardSelection = ({
      * we need to verify the ward is still valid for the new combination.
      * If not, clear the selection.
      */
-    if (currentWard) {
+    if (currentWard && allWards.length > 0) {
       const isWardStillValid = wardsToShow.some((ward) => ward.id === currentWard.id);
 
       if (!isWardStillValid) {

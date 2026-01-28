@@ -16,3 +16,4 @@
 export { default as SiteSelection } from './SiteSelection';
 export { default as WardSelection } from './WardSelection';
 export { default as ConditionFilter } from './ConditionFilter';
+export { default as GroupFilter } from './GroupFilter';

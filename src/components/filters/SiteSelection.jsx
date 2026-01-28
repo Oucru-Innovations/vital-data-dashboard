@@ -283,7 +283,7 @@ const SiteSelection = ({
      * we need to verify the site is still valid for the new study.
      * If the site doesn't have an alias for the new study, clear the selection.
      */
-    if (currentSite) {
+    if (currentSite && allSites.length > 0) {
       const isSiteStillValid = sitesToShow.some((site) => site.id === currentSite.id);
 
       if (!isSiteStillValid) {
@@ -376,7 +376,7 @@ const SiteSelection = ({
             return <em style={{ color: '#999' }}>Select Site</em>;
           }
           const site = filteredSites.find((s) => s.id === selected);
-          return site ? `${site.name} (${site.code})` : selected;
+          return site ? `${site.code}` : selected;
         }}
       >
         {/* Loading indicator */}
