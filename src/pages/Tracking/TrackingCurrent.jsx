@@ -7,8 +7,8 @@
  * KEY FEATURES:
  * =============
  * - Patient-level recruitment details table with label information
- * - Summary statistics cards (total enrolled, by condition, by label)
- * - Hierarchical filtering: Study → Site → Ward → Condition
+ * - Summary statistics cards (total enrolled, by group, by label)
+ * - Hierarchical filtering: Study → Site → Ward → Group
  * - Live filter updates - table refreshes when any filter changes
  *
  * DATA SOURCES:
@@ -64,7 +64,7 @@ import ReactECharts from 'echarts-for-react';
 import Footer from '../../components/toolbars/Footer';
 
 // Shared filter components
-import { SiteSelection, WardSelection, ConditionFilter } from '../../components/filters';
+import { SiteSelection, WardSelection, ConditionFilter, GroupFilter } from '../../components/filters';
 
 // Redux state management
 import {
@@ -72,6 +72,8 @@ import {
   selectCurrentSite,
   selectCurrentWard,
   selectCurrentCondition,
+  selectCurrentStudy,
+  selectCurrentGroup,
 } from '../../store/studySlice';
 
 // FHIR service for studies list and API calls
@@ -79,6 +81,7 @@ import {
   getProcessedStudies,
   isDevelopmentMode,
   getCurrentRecruitmentData,
+  getRecruitmentDetail,
 } from '../../services/fhirService';
 
 /**
@@ -106,18 +109,35 @@ const extractLabel = (vitalPatient) => {
 };
 
 /**
+ * Extract group from VitalPatient extension
+ * @param {Object} vitalPatient - The linked VitalPatient resource
+ * @returns {string} The group value (e.g., "CAP", "VAP") or null
+ */
+const extractGroup = (resource) => {
+  if (!resource?.extension) return [];
+
+  const groupExt = resource.extension.filter(
+    ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/comparisonGroup' ||
+      ext.url?.includes('/comparisonGroup')
+  );
+
+  return groupExt?.map(ext => ext.valueId) || [];
+};
+
+/**
  * Extract condition from ResearchSubject extension
  * @param {Object} resource - The ResearchSubject resource
  * @returns {string} The condition (CAP/VAP) or "Unknown"
  */
 const extractCondition = (resource) => {
-  if (!resource?.extension) return 'Unknown';
+  if (!resource?.extension) return [];
 
-  const conditionExt = resource.extension.find(
-    ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/condition'
+  const conditionExt = resource.extension.filter(
+    ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/condition' ||
+      ext.url?.includes('/condition')
   );
 
-  return conditionExt?.valueCodeableConcept?.text || 'Unknown';
+  return conditionExt?.map(ext => ext.valueCodeableConcept?.text) || [];
 };
 
 /**
@@ -143,9 +163,9 @@ const extractProgressDate = (progress, stateCode) => {
  */
 const extractWard = (subject) => {
   const orgRef = subject?.managingOrganization?.reference || '';
-  // Extract ward code from "Organization/WardHTDED" format
-  const match = orgRef.match(/Organization\/Ward(.+)/);
-  return match ? match[1] : 'Unknown';
+  // Extract ward code from "Organization/WardHTDED" or "Organization/HTDED" format
+  const match = orgRef.match(/Organization\/(?:Ward)?(.+)/);
+  return match ? match[1] : null;
 };
 
 /**
@@ -161,27 +181,27 @@ const extractWard = (subject) => {
  */
 const extractSite = (resource, subject) => {
   const orgRef = subject?.managingOrganization?.reference || '';
-  
+
   // Extract from "Organization/WardXXXYY" format
   // The site code is typically the first 3 characters after "Ward"
   const wardMatch = orgRef.match(/Organization\/Ward([A-Z]{3})/i);
   if (wardMatch) {
     return wardMatch[1]; // Returns site code like "HTD"
   }
-  
+
   // Fallback: Try to get from "Organization/SiteXXX" format
   const siteMatch = orgRef.match(/Organization\/Site([A-Z0-9]+)/i);
   if (siteMatch) {
     return siteMatch[1];
   }
-  
+
   // Last fallback: Try organization display name if available
   const orgDisplay = subject?.managingOrganization?.display;
   if (orgDisplay) {
     return orgDisplay;
   }
-  
-  return 'Unknown';
+
+  return null;
 };
 
 /**
@@ -189,23 +209,29 @@ const extractSite = (resource, subject) => {
  * @param {Object} bundle - The FHIR Bundle from mockLabel.json
  * @returns {Array} Processed rows for DataGrid
  */
-const processMockLabelData = (bundle) => {
+const processLabelData = (bundle) => {
   if (!bundle?.entry) return [];
 
   return bundle.entry.map((entry, index) => {
     const resource = entry.resource;
     const subject = resource.subject;
     const linkedPatient = subject?.link?.[0]?.other;
+    const studyId = linkedPatient?.name?.[0]?.given?.[0] || 'N/A';
+
+    // Extract site code from studyId (e.g., "13NV-003-0001-C" -> "003")
+    const siteCodeMatch = studyId.match(/^[^-]+-([^-]+)/);
+    const siteCode = siteCodeMatch ? siteCodeMatch[1] : null;
 
     return {
       id: index,
       subjectId: resource.id,
-      studyId: linkedPatient?.name?.[0]?.given?.[0] || 'N/A',
+      studyId: studyId,
+      siteCode: siteCode,
       screeningName: subject?.name?.[0]?.given?.[0] || 'N/A',
       condition: extractCondition(resource),
+      group: extractGroup(resource),
       label: extractLabel(linkedPatient),
       status: resource.status || 'Unknown',
-      site: extractSite(resource, subject),
       ward: extractWard(subject),
       screeningDate: extractProgressDate(resource.progress, 'screening'),
       enrolledDate: extractProgressDate(resource.progress, 'on-study'),
@@ -245,14 +271,24 @@ const filterMockData = (bundle, filters = {}) => {
 
   let filteredEntries = [...bundle.entry];
 
-  // Filter by group (condition)
   if (group) {
     filteredEntries = filteredEntries.filter(entry => {
+      // Check comparisonGroup extension list (handles multiple groups)
+      const groupExts = entry.resource?.extension?.filter(
+        ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/comparisonGroup' ||
+          ext.url?.includes('/comparisonGroup')
+      );
+
+      const patientGroups = groupExts?.map(ext => ext.valueId) || [];
+
+      // Also check condition extension as fallback
       const conditionExt = entry.resource?.extension?.find(
-        ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/condition'
+        ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/condition' ||
+          ext.url?.includes('/condition')
       );
       const conditionText = conditionExt?.valueCodeableConcept?.text;
-      return conditionText === group;
+
+      return patientGroups.includes(group) || conditionText === group;
     });
     console.log(`[TrackingCurrent] Filtered by group "${group}": ${filteredEntries.length} entries`);
   }
@@ -321,13 +357,15 @@ const TrackingCurrentPage = () => {
   const dispatch = useDispatch();
 
   // Redux state for filters
+  const currentStudy = useSelector(selectCurrentStudy);
   const currentSite = useSelector(selectCurrentSite);
   const currentWard = useSelector(selectCurrentWard);
   const currentCondition = useSelector(selectCurrentCondition);
+  const currentGroup = useSelector(selectCurrentGroup);
 
   // Local state
   const [loading, setLoading] = useState(true);
-  const [mockData, setMockData] = useState(null);
+  const [data, setData] = useState(null);
   const [tableData, setTableData] = useState([]);
   const [studies, setStudies] = useState([]);
   const [selectedStudy, setSelectedStudy] = useState(() => {
@@ -335,15 +373,15 @@ const TrackingCurrentPage = () => {
   });
 
   // Summary statistics
-  // ============ EDIT START: Dynamic initial state - no hard-coded conditions (2026-01-28) ============
+  // ============ EDIT START: Dynamic initial state - no hard-coded groups (2026-01-28) ============
   const [stats, setStats] = useState({
     total: 0,
-    byCondition: {},      // Will be populated dynamically with any groups from data
+    byGroup: {},      // Will be populated dynamically with any groups from data
     byLabel: {},
     byStatus: {},
     bySite: {},           // Site totals
     byWard: {},
-    byLabelCondition: {}, // Will be populated dynamically with any groups from data
+    byLabelGroup: {}, // Will be populated dynamically with any groups from data
     byWardCondition: {},  // Ward → Group breakdown for stacked bar chart
     bySiteCondition: {},  // Site → Group breakdown for stacked bar chart
   });
@@ -394,7 +432,7 @@ const TrackingCurrentPage = () => {
       console.log('[TrackingCurrent] API filters:', filters);
 
       // Call FHIR service to get current recruitment data
-      const data = await getCurrentRecruitmentData({
+      const data = await getRecruitmentDetail({
         studyCode: selectedStudy || undefined,
         ...filters, // Pass filters to API
       });
@@ -418,13 +456,39 @@ const TrackingCurrentPage = () => {
       setLoading(true);
 
       // Build filters from current selections
-      // Pass full objects for proper matching in mock data
+      // Pass full objects for proper matching in mock data AND API
       const filters = {
-        siteObj: currentSite || null,  // Full site object with alias array
-        site: currentSite?.code || null,  // Site code for API calls
-        wardObj: currentWard || null,  // Full ward object with id for matching
-        ward: currentWard?.code || null,  // Ward code for API calls
-        group: currentCondition || null,
+        // Common filters
+        studyCode: selectedStudy || null,
+
+        // Site filtering
+        siteCode: currentSite?.code || null,
+        alias: currentSite?.alias?.join(',') || null, // Join aliases for API query
+
+        // Ward filtering
+        wardCode: currentWard?.code || null,
+
+        // Organization Context (for API filter logic)
+        // If ward is selected, use ward as organization. If only site, use site.
+        organization: currentWard || currentSite || null,
+
+        // Condition/Group
+        // Note: 'group' in inferRecruitmentQuery maps to 'group-extension'
+        // 'condition' maps to 'condition-extension'
+        // In TrackingCurrent, the dropdown is called "Condition" but acts as a group/condition filter
+        // Condition/Group
+        // Note: 'group' in inferRecruitmentQuery maps to 'group-extension'
+        // 'condition' maps to 'condition-extension'
+        // In TrackingCurrent, the dropdown is called "Condition" but acts as a group/condition filter
+        // We prioritize passing 'group' logic since patients can have multiple groups
+        condition: null,
+        group: currentCondition || null, // Map currentCondition to group parameter
+
+        // Legacy/Mock compatibility
+        siteObj: currentSite || null,
+        wardObj: currentWard || null,
+        site: currentSite?.code || null,
+        ward: currentWard?.code || null,
       };
 
       console.log('[TrackingCurrent] Loading data with filters:', {
@@ -445,62 +509,60 @@ const TrackingCurrentPage = () => {
         data = await loadFromAPI(filters);
       }
 
-      setMockData(data);
+      setData(data);
 
     } catch (error) {
       console.error('[TrackingCurrent] Error loading recruitment data:', error);
-      setMockData(null);
+      setData(null);
     } finally {
       setLoading(false);
     }
-  }, [loadMockData, loadFromAPI, currentSite, currentWard, currentCondition]);
+  }, [loadMockData, loadFromAPI, currentSite, currentWard, currentGroup]);
 
   /**
    * Load studies list for dropdown
    */
   const loadStudies = useCallback(async () => {
     try {
-      if (isDevelopmentMode()) {
-        const studyList = await getProcessedStudies();
-        setStudies(studyList);
-      }
+      // if (isDevelopmentMode()) {
+      const studyList = await getProcessedStudies();
+      setStudies(studyList);
+      // }
     } catch (error) {
       console.error('[TrackingCurrent] Error loading studies:', error);
     }
   }, []);
 
   /**
-   * Process data when mockData changes
-   * Note: Filtering is now done at the data loading level (simulating API behavior)
-   * This useEffect only processes the already-filtered data into table format and calculates stats
+   * Process and filter data when mockData or filters change
    */
   useEffect(() => {
-    if (!mockData) return;
+    if (!data) return;
 
     // Process the pre-filtered data into table rows
-    const processed = processMockLabelData(mockData);
+    const processed = processLabelData(data);
     setTableData(processed);
-    
+
     console.log(`[TrackingCurrent] Processed ${processed.length} rows for display`);
 
     // ============ EDIT START: Fully dynamic stats calculation (2026-01-28) ============
-    // Calculate statistics - no hard-coded conditions, all dynamic from data
+    // Calculate statistics - no hard-coded groups, all dynamic from data
     const newStats = {
       total: processed.length,
-      byCondition: {},        // Dynamically populated (now called "Group")
+      byGroup: {},        // Dynamically populated (now called "Group")
       byLabel: {},
       byStatus: {},
       bySite: {},             // Site totals
       byWard: {},
-      byLabelCondition: {},   // Dynamically populated
-      byWardCondition: {},    // Ward → Group breakdown for stacked bar chart
-      bySiteCondition: {},    // Site → Group breakdown for stacked bar chart
+      byLabelGroup: {},   // Dynamically populated
+      byWardGroup: {},    // Ward → Group breakdown for stacked bar chart
+      bySiteGroup: {},    // Site → Group breakdown for stacked bar chart
     };
 
     processed.forEach(row => {
-      // Count by condition/group (dynamic - any condition from data)
-      const condition = row.condition || 'Unknown';
-      newStats.byCondition[condition] = (newStats.byCondition[condition] || 0) + 1;
+      // Count by group (dynamic - any group from data)
+      const group = row.group || [];
+      newStats.byGroup[group] = (newStats.byGroup[group] || 0) + 1;
 
       // Count by label
       newStats.byLabel[row.label] = (newStats.byLabel[row.label] || 0) + 1;
@@ -512,36 +574,36 @@ const TrackingCurrentPage = () => {
       const site = row.site || 'Unknown';
       newStats.bySite[site] = (newStats.bySite[site] || 0) + 1;
 
-      // Count by site AND condition (for stacked bar chart)
-      if (!newStats.bySiteCondition[site]) {
-        newStats.bySiteCondition[site] = {};
+      // Count by site AND group (for stacked bar chart)
+      if (!newStats.bySiteGroup[site]) {
+        newStats.bySiteGroup[site] = {};
       }
-      newStats.bySiteCondition[site][condition] = 
-        (newStats.bySiteCondition[site][condition] || 0) + 1;
+      newStats.bySiteGroup[site][group] =
+        (newStats.bySiteGroup[site][group] || 0) + 1;
 
       // Count by ward (total)
       const ward = row.ward || 'Unknown';
       newStats.byWard[ward] = (newStats.byWard[ward] || 0) + 1;
 
-      // Count by ward AND condition (for stacked bar chart)
-      if (!newStats.byWardCondition[ward]) {
-        newStats.byWardCondition[ward] = {};
+      // Count by ward AND group (for stacked bar chart)
+      if (!newStats.byWardGroup[ward]) {
+        newStats.byWardGroup[ward] = {};
       }
-      newStats.byWardCondition[ward][condition] = 
-        (newStats.byWardCondition[ward][condition] || 0) + 1;
+      newStats.byWardGroup[ward][group] =
+        (newStats.byWardGroup[ward][group] || 0) + 1;
 
-      // Count labels grouped by condition (dynamic - for label-condition chart)
-      if (!newStats.byLabelCondition[condition]) {
-        newStats.byLabelCondition[condition] = {};
+      // Count labels grouped by group (dynamic - for label-group chart)
+      if (!newStats.byLabelGroup[group]) {
+        newStats.byLabelGroup[group] = {};
       }
-      newStats.byLabelCondition[condition][row.label] =
-        (newStats.byLabelCondition[condition][row.label] || 0) + 1;
+      newStats.byLabelGroup[group][row.label] =
+        (newStats.byLabelGroup[group][row.label] || 0) + 1;
     });
 
     setStats(newStats);
     // ============ EDIT END: Fully dynamic stats calculation ============
 
-  }, [mockData]); // Only re-process when mockData changes (filtering is done at load time)
+  }, [data]); // Only re-process when data changes (filtering is done at load time)
 
   // Initial data load
   // Uses loadRecruitmentData which automatically chooses between mock (dev) and API (prod)
@@ -603,9 +665,9 @@ const TrackingCurrentPage = () => {
   /**
    * Get chip color based on group (dynamic - based on group index)
    */
-  const getConditionColor = (condition) => {
-    const conditionList = Object.keys(stats.byCondition || {});
-    const index = conditionList.indexOf(condition);
+  const getGroupColor = (group) => {
+    const groupList = Object.keys(stats.byGroup || {});
+    const index = groupList.indexOf(group);
     return index >= 0 ? chipColorMap[index % chipColorMap.length] : 'default';
   };
   // ============ EDIT END: Unified color palette for all charts ============
@@ -613,12 +675,12 @@ const TrackingCurrentPage = () => {
   // ============================================
   // CHART CONFIGURATIONS
   // ============================================
-  
+
   /**
    * Pie Chart - Group Distribution (dynamic from data)
    * Shows the percentage breakdown of all groups
    */
-  const conditionPieChartOption = {
+  const groupPieChartOption = {
     title: {
       text: 'Group Distribution',
       left: 'center',
@@ -663,7 +725,7 @@ const TrackingCurrentPage = () => {
           show: true,
         },
         // Dynamically generate data from all groups
-        data: Object.entries(stats.byCondition || {}).map(([group, count], index) => ({
+        data: Object.entries(stats.byGroup || {}).map(([group, count], index) => ({
           value: count,
           name: group,
           itemStyle: { color: getChartColor(index) },
@@ -671,7 +733,7 @@ const TrackingCurrentPage = () => {
       },
     ],
   };
-  // ============ EDIT END: Dynamic condition pie chart ============
+  // ============ EDIT END: Dynamic group pie chart ============
 
   /**
    * Bar Chart - Label Distribution
@@ -739,9 +801,9 @@ const TrackingCurrentPage = () => {
   // Get sorted wards by total count (descending)
   const sortedWards = Object.keys(stats.byWard || {})
     .sort((a, b) => (stats.byWard?.[b] || 0) - (stats.byWard?.[a] || 0));
-  
+
   // Get all unique groups for the ward chart
-  const allGroups = Object.keys(stats.byCondition || {});
+  const allGroups = Object.keys(stats.byGroup || {});
 
   /**
    * Horizontal Stacked Bar Chart - Ward Distribution by Group
@@ -837,21 +899,21 @@ const TrackingCurrentPage = () => {
   };
   // ============ EDIT END: Stacked bar chart by ward and group ============
 
-  // ============ EDIT START: Dynamic conditions from data (2026-01-28) ============
-  // Get all unique conditions/groups dynamically from the data
-  const allConditions = Object.keys(stats.byCondition || {});
-  
-  // Get all unique labels across all conditions
+  // ============ EDIT START: Dynamic groups from data (2026-01-28) ============
+  // Get all unique groups dynamically from the data
+  // const allGroups = Object.keys(stats.byGroup || {});
+
+  // Get all unique labels across all groups
   const allLabels = [...new Set(
-    allConditions.flatMap(condition => 
-      Object.keys(stats.byLabelCondition?.[condition] || {})
+    allGroups.flatMap(group =>
+      Object.keys(stats.byLabelGroup?.[group] || {})
     )
   )].sort();
 
   // Get sorted sites by total count (descending)
-  const sortedSites = Object.keys(stats.bySite || {})
-    .sort((a, b) => (stats.bySite?.[b] || 0) - (stats.bySite?.[a] || 0));
-  // ============ EDIT END: Dynamic conditions from data ============
+  const sortedSites = Object.keys(stats.bySiteGroup || {})
+    .sort((a, b) => (stats.bySiteGroup?.[b] || 0) - (stats.bySiteGroup?.[a] || 0));
+  // ============ EDIT END: Dynamic groups from data ============
 
   /**
    * Horizontal Stacked Bar Chart - Recruitment by Site & Group
@@ -885,7 +947,7 @@ const TrackingCurrentPage = () => {
       },
     },
     legend: {
-      data: allConditions,
+      data: allGroups,
       bottom: '0%',
     },
     grid: {
@@ -908,14 +970,14 @@ const TrackingCurrentPage = () => {
     },
     series: [
       // One series per group (stacked)
-      ...allConditions.map((group, index) => ({
+      ...allGroups.map((group, index) => ({
         name: group,
         type: 'bar',
         stack: 'total',
         emphasis: {
           focus: 'series',
         },
-        data: sortedSites.map(site => stats.bySiteCondition?.[site]?.[group] || 0),
+        data: sortedSites.map(site => stats.bySiteGroup?.[site]?.[group] || 0),
         itemStyle: {
           color: getChartColor(index),
         },
@@ -938,7 +1000,7 @@ const TrackingCurrentPage = () => {
           fontWeight: 'bold',
           formatter: (params) => {
             const site = sortedSites[params.dataIndex];
-            return stats.bySite?.[site] || 0;
+            return stats.bySiteGroup?.[site] || 0;
           },
         },
         data: sortedSites.map(() => 0), // Zero values, just for label
@@ -948,22 +1010,22 @@ const TrackingCurrentPage = () => {
 
   /**
    * Radar Chart - Recruitment Overview
-   * Shows a multi-dimensional view of recruitment metrics (dynamic conditions)
+   * Shows a multi-dimensional view of recruitment metrics (dynamic groups)
    */
   // ============ EDIT START: Dynamic radar chart (2026-01-28) ============
-  // Build radar indicators dynamically based on conditions and labels
+  // Build radar indicators dynamically based on groups and labels
   const radarIndicators = [
-    { 
-      name: 'Total Count', 
-      max: Math.max(...allConditions.map(c => stats.byCondition?.[c] || 0)) * 1.2 || 10 
+    {
+      name: 'Total Count',
+      max: Math.max(...allGroups.map(c => stats.byGroup?.[c] || 0)) * 1.2 || 10
     },
     ...allLabels.slice(0, 3).map((label, idx) => ({
       name: `Label: ${label}`,
-      max: Math.max(...allConditions.map(c => stats.byLabelCondition?.[c]?.[label] || 0)) * 1.5 || 10,
+      max: Math.max(...allGroups.map(c => stats.byLabelGroup?.[c]?.[label] || 0)) * 1.5 || 10,
     })),
-    { 
-      name: 'Active Wards', 
-      max: Object.keys(stats.byWard || {}).length || 5 
+    {
+      name: 'Active Wards',
+      max: Object.keys(stats.byWard || {}).length || 5
     },
   ];
 
@@ -980,7 +1042,7 @@ const TrackingCurrentPage = () => {
       trigger: 'item',
     },
     legend: {
-      data: allConditions,
+      data: allGroups,
       bottom: '5%',
     },
     radar: {
@@ -991,15 +1053,15 @@ const TrackingCurrentPage = () => {
     series: [
       {
         type: 'radar',
-        data: allConditions.map((condition, index) => ({
+        data: allGroups.map((group, index) => ({
           value: [
-            stats.byCondition?.[condition] || 0,
-            ...allLabels.slice(0, 3).map(label => stats.byLabelCondition?.[condition]?.[label] || 0),
+            stats.byGroup?.[group] || 0,
+            ...allLabels.slice(0, 3).map(label => stats.byLabelGroup?.[group]?.[label] || 0),
             Object.keys(stats.byWard || {}).filter(w =>
-              tableData.some(r => r.ward === w && r.condition === condition)
+              tableData.some(r => r.ward === w && r.group === group)
             ).length,
           ],
-          name: condition,
+          name: group,
           itemStyle: { color: getChartColor(index) },
           areaStyle: { opacity: 0.3 },
         })),
@@ -1031,15 +1093,15 @@ const TrackingCurrentPage = () => {
       ),
     },
     {
-      field: 'condition',
+      field: 'group',
       headerName: 'Group',
       width: 100,
-      description: 'CAP (Community Acquired Pneumonia) or VAP (Ventilator Associated Pneumonia)',
+      description: 'Group',
       renderCell: (params) => (
         <Chip
           label={params.value}
           size="small"
-          color={getConditionColor(params.value)}
+          color={getGroupColor(params.value)}
         />
       ),
     },
@@ -1130,7 +1192,7 @@ const TrackingCurrentPage = () => {
                 </MenuItem>
                 {studies.map((study) => (
                   <MenuItem key={study.id || study.studyCode} value={study.studyCode}>
-                    {study.studyCode} - {study.name}
+                    {study.studyCode}
                   </MenuItem>
                 ))}
               </Select>
@@ -1151,7 +1213,7 @@ const TrackingCurrentPage = () => {
 
           {selectedStudy && (
             <Grid item xs={12} md={2}>
-              <ConditionFilter />
+              <GroupFilter />
             </Grid>
           )}
         </Grid>
@@ -1230,7 +1292,7 @@ const TrackingCurrentPage = () => {
           <Paper elevation={2} sx={{ p: 2 }}>
             {stats.total > 0 ? (
               <ReactECharts
-                option={conditionPieChartOption}
+                option={groupPieChartOption}
                 style={{ height: '300px', width: '100%' }}
                 opts={{ renderer: 'canvas' }}
                 notMerge={true}
@@ -1426,8 +1488,8 @@ const TrackingCurrentPage = () => {
       {/* Data Source Info */}
       <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
         <Typography variant="caption" color="text.secondary">
-          Data source: mockLabel.json | Total records: {mockData?.total || 0} |
-          Last updated: {mockData?.meta?.lastUpdated || 'N/A'}
+          Total records: {data?.total || 0} |
+          Last updated: {data?.meta?.lastUpdated || 'N/A'}
         </Typography>
       </Box>
 
