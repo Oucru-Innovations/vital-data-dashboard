@@ -1,22 +1,22 @@
 /**
- * ConditionFilter Component
+ * ConditionFilter Component (displays as "Group" filter)
  *
- * Dropdown filter for selecting patient condition in recruitment tracking.
- * Allows filtering patients by medical condition (e.g., CAP, VAP).
+ * Dropdown filter for selecting patient group in recruitment tracking.
+ * Allows filtering patients by group (e.g., CAP, VAP, or any study-specific groups).
  *
- * This component integrates with Redux to manage condition selection state,
+ * This component integrates with Redux to manage group selection state,
  * ensuring coordinated filtering across the application.
  *
- * CONDITIONS:
- * ===========
+ * GROUPS (examples):
+ * ==================
  * - CAP: Community Acquired Pneumonia (SNOMED: 385093006)
  * - VAP: Ventilator-Associated Pneumonia (SNOMED: 87828008)
- * - ALL: Show all patients regardless of condition
+ * - ALL: Show all patients regardless of group
  *
  * STATE MANAGEMENT:
  * =================
- * Uses Redux store (studySlice) to persist condition selection.
- * When condition changes, triggers data refresh in parent components.
+ * Uses Redux store (studySlice) to persist group selection.
+ * When group changes, triggers data refresh in parent components.
  *
  * USAGE:
  * ======
@@ -70,14 +70,14 @@ const ConditionFilter = ({
   // ===== CONDITION OPTIONS =====
 
   /**
-   * Available condition options
+   * Available group options
    * Each option includes display text, value, description, and color coding
    */
   const conditionOptions = [
     {
       value: null,
-      label: 'All Conditions',
-      description: 'Show all patients regardless of condition',
+      label: 'All Groups',
+      description: 'Show all patients regardless of group',
       color: 'default',
     },
     {
@@ -143,7 +143,7 @@ const ConditionFilter = ({
       {/* Label */}
       {showLabel && (
         <InputLabel id="condition-filter-label">
-          Condition
+          Group
         </InputLabel>
       )}
 
@@ -152,13 +152,13 @@ const ConditionFilter = ({
         labelId="condition-filter-label"
         id="condition-filter"
         value={selectValue}
-        label={showLabel ? 'Condition' : undefined}
+        label={showLabel ? 'Group' : undefined}
         onChange={handleConditionChange}
         displayEmpty={!showLabel}
         renderValue={(selected) => {
           // Custom render for the selected value
           if (!selected) {
-            return <em style={{ color: '#999' }}>All Conditions</em>;
+            return <em style={{ color: '#999' }}>All Groups</em>;
           }
 
           const option = conditionOptions.find((opt) => opt.value === selected);

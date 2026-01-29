@@ -1,0 +1,2269 @@
+{
+    "resourceType": "Bundle",
+    "id": "4c5c6c5e-f2c2-48e5-9fbd-f1a2db27e9ea",
+    "meta": {
+        "lastUpdated": "2026-01-11T16:06:39.772+07:00"
+    },
+    "type": "searchset",
+    "total": 15,
+    "link": [
+        {
+            "relation": "self",
+            "url": "http://localhost:8080/fhir/ResearchSubject?_count=2000&status%3Anot=retired&study=ResearchStudy%2FStudy13NV&subject%3APatient.organization=Organization%2FWardHTDNhiemD"
+        }
+    ],
+    "entry": [
+        {
+            "fullUrl": "http://localhost:8080/fhir/ResearchSubject/3364",
+            "resource": {
+                "resourceType": "ResearchSubject",
+                "id": "3364",
+                "meta": {
+                    "versionId": "1",
+                    "lastUpdated": "2026-01-11T15:21:33.108+07:00",
+                    "profile": [
+                        "https://vital-fhir.oucru.org/StructureDefinition/ScreeningResearchSubject"
+                    ]
+                },
+                "extension": [
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/condition",
+                        "valueCodeableConcept": {
+                            "coding": [
+                                {
+                                    "system": "http://snomed.info/sct",
+                                    "code": "385093006",
+                                    "display": "Community acquired pneumonia"
+                                }
+                            ],
+                            "text": "CAP"
+                        }
+                    },
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/comparisonGroup",
+                        "valueId": "CAP"
+                    }
+                ],
+                "identifier": [
+                    {
+                        "use": "usual",
+                        "type": {
+                            "coding": [
+                                {
+                                    "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                    "code": "FILL",
+                                    "display": "Filler Identifier"
+                                }
+                            ]
+                        },
+                        "system": "https://vital-fhir.oucru.org/ResearchSubjectIdentifier"
+                    }
+                ],
+                "status": "draft",
+                "progress": [
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "screening"
+                                }
+                            ],
+                            "text": "screening"
+                        },
+                        "startDate": "2026-01-07"
+                    },
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "not-registered"
+                                }
+                            ]
+                        },
+                        "reason": {
+                            "coding": [
+                                {
+                                    "code": "eligiblebutno",
+                                    "display": "eligibleButNo"
+                                }
+                            ],
+                            "text": "No INC #1"
+                        },
+                        "startDate": "2026-01-07"
+                    }
+                ],
+                "study": {
+                    "reference": "ResearchStudy/Study13NV"
+                },
+                "subject": {
+                    "resourceType": "Patient",
+                    "id": "3362",
+                    "meta": {
+                        "versionId": "1",
+                        "lastUpdated": "2026-01-11T15:21:32.544+07:00",
+                        "profile": [
+                            "https://vital-fhir.oucru.org/StructureDefinition/VitalScreeningPatient"
+                        ]
+                    },
+                    "identifier": [
+                        {
+                            "use": "secondary",
+                            "type": {
+                                "coding": [
+                                    {
+                                        "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                        "code": "FILL",
+                                        "display": "Filler Identifier"
+                                    }
+                                ]
+                            },
+                            "system": "https://vital-fhir.oucru.org/VitalScreeningPatientIdentifier",
+                            "value": "1"
+                        }
+                    ],
+                    "active": true,
+                    "name": [
+                        {
+                            "given": [
+                                "P0"
+                            ]
+                        }
+                    ],
+                    "gender": "unknown",
+                    "birthDate": "2000",
+                    "managingOrganization": {
+                        "reference": "Organization/WardHTDNhiemD"
+                    }
+                }
+            },
+            "search": {
+                "mode": "match"
+            }
+        },
+        {
+            "fullUrl": "http://localhost:8080/fhir/ResearchSubject/3368",
+            "resource": {
+                "resourceType": "ResearchSubject",
+                "id": "3368",
+                "meta": {
+                    "versionId": "1",
+                    "lastUpdated": "2026-01-11T15:21:34.450+07:00",
+                    "profile": [
+                        "https://vital-fhir.oucru.org/StructureDefinition/ScreeningResearchSubject"
+                    ]
+                },
+                "extension": [
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/condition",
+                        "valueCodeableConcept": {
+                            "coding": [
+                                {
+                                    "system": "http://snomed.info/sct",
+                                    "code": "385093006",
+                                    "display": "Community acquired pneumonia"
+                                }
+                            ],
+                            "text": "CAP"
+                        }
+                    },
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/comparisonGroup",
+                        "valueId": "CAP"
+                    }
+                ],
+                "identifier": [
+                    {
+                        "use": "usual",
+                        "type": {
+                            "coding": [
+                                {
+                                    "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                    "code": "FILL",
+                                    "display": "Filler Identifier"
+                                }
+                            ]
+                        },
+                        "system": "https://vital-fhir.oucru.org/ResearchSubjectIdentifier"
+                    }
+                ],
+                "status": "draft",
+                "progress": [
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "screening"
+                                }
+                            ],
+                            "text": "screening"
+                        },
+                        "startDate": "2026-01-07"
+                    },
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "ineligible"
+                                }
+                            ]
+                        },
+                        "reason": {
+                            "coding": [
+                                {
+                                    "code": "exclusion",
+                                    "display": "exclusion"
+                                }
+                            ],
+                            "text": "EXC #1"
+                        },
+                        "startDate": "2026-01-07"
+                    }
+                ],
+                "study": {
+                    "reference": "ResearchStudy/Study13NV"
+                },
+                "subject": {
+                    "resourceType": "Patient",
+                    "id": "3366",
+                    "meta": {
+                        "versionId": "1",
+                        "lastUpdated": "2026-01-11T15:21:33.977+07:00",
+                        "profile": [
+                            "https://vital-fhir.oucru.org/StructureDefinition/VitalScreeningPatient"
+                        ]
+                    },
+                    "identifier": [
+                        {
+                            "use": "secondary",
+                            "type": {
+                                "coding": [
+                                    {
+                                        "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                        "code": "FILL",
+                                        "display": "Filler Identifier"
+                                    }
+                                ]
+                            },
+                            "system": "https://vital-fhir.oucru.org/VitalScreeningPatientIdentifier",
+                            "value": "2"
+                        }
+                    ],
+                    "active": true,
+                    "name": [
+                        {
+                            "given": [
+                                "P1"
+                            ]
+                        }
+                    ],
+                    "gender": "unknown",
+                    "birthDate": "2001",
+                    "managingOrganization": {
+                        "reference": "Organization/WardHTDNhiemD"
+                    }
+                }
+            },
+            "search": {
+                "mode": "match"
+            }
+        },
+        {
+            "fullUrl": "http://localhost:8080/fhir/ResearchSubject/3418",
+            "resource": {
+                "resourceType": "ResearchSubject",
+                "id": "3418",
+                "meta": {
+                    "versionId": "1",
+                    "lastUpdated": "2026-01-11T15:24:24.394+07:00",
+                    "profile": [
+                        "https://vital-fhir.oucru.org/StructureDefinition/ScreeningResearchSubject"
+                    ]
+                },
+                "extension": [
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/condition",
+                        "valueCodeableConcept": {
+                            "coding": [
+                                {
+                                    "system": "http://snomed.info/sct",
+                                    "code": "385093006",
+                                    "display": "Community acquired pneumonia"
+                                }
+                            ],
+                            "text": "CAP"
+                        }
+                    },
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/comparisonGroup",
+                        "valueId": "CAP"
+                    }
+                ],
+                "identifier": [
+                    {
+                        "use": "usual",
+                        "type": {
+                            "coding": [
+                                {
+                                    "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                    "code": "FILL",
+                                    "display": "Filler Identifier"
+                                }
+                            ]
+                        },
+                        "system": "https://vital-fhir.oucru.org/ResearchSubjectIdentifier"
+                    }
+                ],
+                "status": "draft",
+                "progress": [
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "screening"
+                                }
+                            ],
+                            "text": "screening"
+                        },
+                        "startDate": "2026-01-09"
+                    },
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "not-registered"
+                                }
+                            ]
+                        },
+                        "reason": {
+                            "coding": [
+                                {
+                                    "code": "eligiblebutno",
+                                    "display": "eligibleButNo"
+                                }
+                            ],
+                            "text": "No INC #2"
+                        },
+                        "startDate": "2026-01-09"
+                    }
+                ],
+                "study": {
+                    "reference": "ResearchStudy/Study13NV"
+                },
+                "subject": {
+                    "resourceType": "Patient",
+                    "id": "3416",
+                    "meta": {
+                        "versionId": "1",
+                        "lastUpdated": "2026-01-11T15:24:23.761+07:00",
+                        "profile": [
+                            "https://vital-fhir.oucru.org/StructureDefinition/VitalScreeningPatient"
+                        ]
+                    },
+                    "identifier": [
+                        {
+                            "use": "secondary",
+                            "type": {
+                                "coding": [
+                                    {
+                                        "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                        "code": "FILL",
+                                        "display": "Filler Identifier"
+                                    }
+                                ]
+                            },
+                            "system": "https://vital-fhir.oucru.org/VitalScreeningPatientIdentifier",
+                            "value": "5"
+                        }
+                    ],
+                    "active": true,
+                    "name": [
+                        {
+                            "given": [
+                                "P4"
+                            ]
+                        }
+                    ],
+                    "gender": "unknown",
+                    "birthDate": "2004",
+                    "managingOrganization": {
+                        "reference": "Organization/WardHTDNhiemD"
+                    }
+                }
+            },
+            "search": {
+                "mode": "match"
+            }
+        },
+        {
+            "fullUrl": "http://localhost:8080/fhir/ResearchSubject/3376",
+            "resource": {
+                "resourceType": "ResearchSubject",
+                "id": "3376",
+                "meta": {
+                    "versionId": "2",
+                    "lastUpdated": "2026-01-11T15:24:25.163+07:00",
+                    "profile": [
+                        "https://vital-fhir.oucru.org/StructureDefinition/ScreeningResearchSubject"
+                    ]
+                },
+                "extension": [
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/condition",
+                        "valueCodeableConcept": {
+                            "coding": [
+                                {
+                                    "system": "http://snomed.info/sct",
+                                    "code": "385093006",
+                                    "display": "Community acquired pneumonia"
+                                }
+                            ],
+                            "text": "CAP"
+                        }
+                    },
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/comparisonGroup",
+                        "valueId": "CAP"
+                    }
+                ],
+                "identifier": [
+                    {
+                        "use": "usual",
+                        "type": {
+                            "coding": [
+                                {
+                                    "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                    "code": "FILL",
+                                    "display": "Filler Identifier"
+                                }
+                            ]
+                        },
+                        "system": "https://vital-fhir.oucru.org/ResearchSubjectIdentifier"
+                    }
+                ],
+                "status": "draft",
+                "progress": [
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "screening"
+                                }
+                            ],
+                            "text": "screening"
+                        },
+                        "startDate": "2026-01-09"
+                    },
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "eligible"
+                                }
+                            ]
+                        },
+                        "reason": {
+                            "coding": [
+                                {
+                                    "code": "inclusion",
+                                    "display": "inclusion"
+                                }
+                            ],
+                            "text": "No exclusion reason"
+                        },
+                        "startDate": "2026-01-11"
+                    }
+                ],
+                "study": {
+                    "reference": "ResearchStudy/Study13NV"
+                },
+                "subject": {
+                    "resourceType": "Patient",
+                    "id": "3374",
+                    "meta": {
+                        "versionId": "1",
+                        "lastUpdated": "2026-01-11T15:21:35.957+07:00",
+                        "profile": [
+                            "https://vital-fhir.oucru.org/StructureDefinition/VitalScreeningPatient"
+                        ]
+                    },
+                    "identifier": [
+                        {
+                            "use": "secondary",
+                            "type": {
+                                "coding": [
+                                    {
+                                        "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                        "code": "FILL",
+                                        "display": "Filler Identifier"
+                                    }
+                                ]
+                            },
+                            "system": "https://vital-fhir.oucru.org/VitalScreeningPatientIdentifier",
+                            "value": "4"
+                        }
+                    ],
+                    "active": true,
+                    "name": [
+                        {
+                            "given": [
+                                "P3"
+                            ]
+                        }
+                    ],
+                    "gender": "unknown",
+                    "birthDate": "2003",
+                    "managingOrganization": {
+                        "reference": "Organization/WardHTDNhiemD"
+                    }
+                }
+            },
+            "search": {
+                "mode": "match"
+            }
+        },
+        {
+            "fullUrl": "http://localhost:8080/fhir/ResearchSubject/3424",
+            "resource": {
+                "resourceType": "ResearchSubject",
+                "id": "3424",
+                "meta": {
+                    "versionId": "1",
+                    "lastUpdated": "2026-01-11T15:24:26.347+07:00",
+                    "profile": [
+                        "https://vital-fhir.oucru.org/StructureDefinition/ScreeningResearchSubject"
+                    ]
+                },
+                "extension": [
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/condition",
+                        "valueCodeableConcept": {
+                            "coding": [
+                                {
+                                    "system": "http://snomed.info/sct",
+                                    "code": "385093006",
+                                    "display": "Community acquired pneumonia"
+                                }
+                            ],
+                            "text": "CAP"
+                        }
+                    },
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/comparisonGroup",
+                        "valueId": "CAP"
+                    }
+                ],
+                "identifier": [
+                    {
+                        "use": "usual",
+                        "type": {
+                            "coding": [
+                                {
+                                    "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                    "code": "FILL",
+                                    "display": "Filler Identifier"
+                                }
+                            ]
+                        },
+                        "system": "https://vital-fhir.oucru.org/ResearchSubjectIdentifier"
+                    }
+                ],
+                "status": "draft",
+                "progress": [
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "screening"
+                                }
+                            ],
+                            "text": "screening"
+                        },
+                        "startDate": "2026-01-11"
+                    },
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "ineligible"
+                                }
+                            ]
+                        },
+                        "reason": {
+                            "coding": [
+                                {
+                                    "code": "exclusion",
+                                    "display": "exclusion"
+                                }
+                            ],
+                            "text": "EXC #3"
+                        },
+                        "startDate": "2026-01-11"
+                    }
+                ],
+                "study": {
+                    "reference": "ResearchStudy/Study13NV"
+                },
+                "subject": {
+                    "resourceType": "Patient",
+                    "id": "3422",
+                    "meta": {
+                        "versionId": "1",
+                        "lastUpdated": "2026-01-11T15:24:25.771+07:00",
+                        "profile": [
+                            "https://vital-fhir.oucru.org/StructureDefinition/VitalScreeningPatient"
+                        ]
+                    },
+                    "identifier": [
+                        {
+                            "use": "secondary",
+                            "type": {
+                                "coding": [
+                                    {
+                                        "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                        "code": "FILL",
+                                        "display": "Filler Identifier"
+                                    }
+                                ]
+                            },
+                            "system": "https://vital-fhir.oucru.org/VitalScreeningPatientIdentifier",
+                            "value": "7"
+                        }
+                    ],
+                    "active": true,
+                    "name": [
+                        {
+                            "given": [
+                                "P6"
+                            ]
+                        }
+                    ],
+                    "gender": "unknown",
+                    "birthDate": "2006",
+                    "managingOrganization": {
+                        "reference": "Organization/WardHTDNhiemD"
+                    }
+                }
+            },
+            "search": {
+                "mode": "match"
+            }
+        },
+        {
+            "fullUrl": "http://localhost:8080/fhir/ResearchSubject/3372",
+            "resource": {
+                "resourceType": "ResearchSubject",
+                "id": "3372",
+                "meta": {
+                    "versionId": "2",
+                    "lastUpdated": "2026-01-11T15:42:19.167+07:00",
+                    "profile": [
+                        "https://vital-fhir.oucru.org/StructureDefinition/ScreeningResearchSubject"
+                    ]
+                },
+                "extension": [
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/condition",
+                        "valueCodeableConcept": {
+                            "coding": [
+                                {
+                                    "system": "http://snomed.info/sct",
+                                    "code": "385093006",
+                                    "display": "Community acquired pneumonia"
+                                }
+                            ],
+                            "text": "CAP"
+                        }
+                    },
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/comparisonGroup",
+                        "valueId": "CAP"
+                    }
+                ],
+                "identifier": [
+                    {
+                        "use": "usual",
+                        "type": {
+                            "coding": [
+                                {
+                                    "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                    "code": "FILL",
+                                    "display": "Filler Identifier"
+                                }
+                            ]
+                        },
+                        "system": "https://vital-fhir.oucru.org/ResearchSubjectIdentifier"
+                    }
+                ],
+                "status": "draft",
+                "progress": [
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "screening"
+                                }
+                            ],
+                            "text": "screening"
+                        },
+                        "startDate": "2026-01-08"
+                    },
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "on-study"
+                                }
+                            ]
+                        },
+                        "reason": {
+                            "coding": [
+                                {
+                                    "code": "enrolled",
+                                    "display": "enrolled"
+                                }
+                            ],
+                            "text": "enrolled"
+                        },
+                        "startDate": "2026-01-08"
+                    },
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "eligible"
+                                }
+                            ]
+                        },
+                        "reason": {
+                            "coding": [
+                                {
+                                    "code": "inclusion",
+                                    "display": "inclusion"
+                                }
+                            ],
+                            "text": "No exclusion reason"
+                        },
+                        "startDate": "2026-01-08"
+                    }
+                ],
+                "study": {
+                    "reference": "ResearchStudy/Study13NV"
+                },
+                "subject": {
+                    "resourceType": "Patient",
+                    "id": "3370",
+                    "meta": {
+                        "versionId": "2",
+                        "lastUpdated": "2026-01-11T15:42:18.089+07:00",
+                        "profile": [
+                            "https://vital-fhir.oucru.org/StructureDefinition/VitalScreeningPatient"
+                        ]
+                    },
+                    "identifier": [
+                        {
+                            "use": "secondary",
+                            "type": {
+                                "coding": [
+                                    {
+                                        "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                        "code": "FILL",
+                                        "display": "Filler Identifier"
+                                    }
+                                ]
+                            },
+                            "system": "https://vital-fhir.oucru.org/VitalScreeningPatientIdentifier",
+                            "value": "3"
+                        }
+                    ],
+                    "active": true,
+                    "name": [
+                        {
+                            "given": [
+                                "P2"
+                            ]
+                        }
+                    ],
+                    "gender": "unknown",
+                    "managingOrganization": {
+                        "reference": "Organization/WardHTDNhiemD"
+                    },
+                    "link": [
+                        {
+                            "other": {
+                                "resourceType": "Patient",
+                                "id": "3481",
+                                "meta": {
+                                    "versionId": "1",
+                                    "lastUpdated": "2026-01-11T15:40:10.981+07:00",
+                                    "profile": [
+                                        "https://vital-fhir.oucru.org/StructureDefinition/VitalPatient"
+                                    ]
+                                },
+                                "identifier": [
+                                    {
+                                        "use": "official",
+                                        "type": {
+                                            "coding": [
+                                                {
+                                                    "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                                    "code": "FILL",
+                                                    "display": "Filler Identifier"
+                                                }
+                                            ]
+                                        },
+                                        "system": "https://vital-fhir.oucru.org/PatientIdentifier"
+                                    }
+                                ],
+                                "active": true,
+                                "name": [
+                                    {
+                                        "given": [
+                                            "13NV-003-4001-C"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "type": "replaced-by"
+                        }
+                    ]
+                }
+            },
+            "search": {
+                "mode": "match"
+            }
+        },
+        {
+            "fullUrl": "http://localhost:8080/fhir/ResearchSubject/3428",
+            "resource": {
+                "resourceType": "ResearchSubject",
+                "id": "3428",
+                "meta": {
+                    "versionId": "2",
+                    "lastUpdated": "2026-01-11T15:42:21.388+07:00",
+                    "profile": [
+                        "https://vital-fhir.oucru.org/StructureDefinition/ScreeningResearchSubject"
+                    ]
+                },
+                "extension": [
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/condition",
+                        "valueCodeableConcept": {
+                            "coding": [
+                                {
+                                    "system": "http://snomed.info/sct",
+                                    "code": "385093006",
+                                    "display": "Community acquired pneumonia"
+                                }
+                            ],
+                            "text": "CAP"
+                        }
+                    },
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/comparisonGroup",
+                        "valueId": "CAP"
+                    }
+                ],
+                "identifier": [
+                    {
+                        "use": "usual",
+                        "type": {
+                            "coding": [
+                                {
+                                    "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                    "code": "FILL",
+                                    "display": "Filler Identifier"
+                                }
+                            ]
+                        },
+                        "system": "https://vital-fhir.oucru.org/ResearchSubjectIdentifier"
+                    }
+                ],
+                "status": "draft",
+                "progress": [
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "screening"
+                                }
+                            ],
+                            "text": "screening"
+                        },
+                        "startDate": "2026-01-11"
+                    },
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "on-study"
+                                }
+                            ]
+                        },
+                        "reason": {
+                            "coding": [
+                                {
+                                    "code": "enrolled",
+                                    "display": "enrolled"
+                                }
+                            ],
+                            "text": "enrolled"
+                        },
+                        "startDate": "2026-01-11"
+                    },
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "eligible"
+                                }
+                            ]
+                        },
+                        "reason": {
+                            "coding": [
+                                {
+                                    "code": "inclusion",
+                                    "display": "inclusion"
+                                }
+                            ],
+                            "text": "No exclusion reason"
+                        },
+                        "startDate": "2026-01-11"
+                    }
+                ],
+                "study": {
+                    "reference": "ResearchStudy/Study13NV"
+                },
+                "subject": {
+                    "resourceType": "Patient",
+                    "id": "3426",
+                    "meta": {
+                        "versionId": "2",
+                        "lastUpdated": "2026-01-11T15:42:19.941+07:00",
+                        "profile": [
+                            "https://vital-fhir.oucru.org/StructureDefinition/VitalScreeningPatient"
+                        ]
+                    },
+                    "identifier": [
+                        {
+                            "use": "secondary",
+                            "type": {
+                                "coding": [
+                                    {
+                                        "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                        "code": "FILL",
+                                        "display": "Filler Identifier"
+                                    }
+                                ]
+                            },
+                            "system": "https://vital-fhir.oucru.org/VitalScreeningPatientIdentifier",
+                            "value": "6"
+                        }
+                    ],
+                    "active": true,
+                    "name": [
+                        {
+                            "given": [
+                                "P5"
+                            ]
+                        }
+                    ],
+                    "gender": "unknown",
+                    "birthDate": "2005",
+                    "managingOrganization": {
+                        "reference": "Organization/WardHTDNhiemD"
+                    },
+                    "link": [
+                        {
+                            "other": {
+                                "resourceType": "Patient",
+                                "id": "3507",
+                                "meta": {
+                                    "versionId": "1",
+                                    "lastUpdated": "2026-01-11T15:41:31.922+07:00",
+                                    "profile": [
+                                        "https://vital-fhir.oucru.org/StructureDefinition/VitalPatient"
+                                    ]
+                                },
+                                "identifier": [
+                                    {
+                                        "use": "official",
+                                        "type": {
+                                            "coding": [
+                                                {
+                                                    "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                                    "code": "FILL",
+                                                    "display": "Filler Identifier"
+                                                }
+                                            ]
+                                        },
+                                        "system": "https://vital-fhir.oucru.org/PatientIdentifier"
+                                    }
+                                ],
+                                "active": true,
+                                "name": [
+                                    {
+                                        "given": [
+                                            "13NV-003-4003-C"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "type": "replaced-by"
+                        }
+                    ]
+                }
+            },
+            "search": {
+                "mode": "match"
+            }
+        },
+        {
+            "fullUrl": "http://localhost:8080/fhir/ResearchSubject/3432",
+            "resource": {
+                "resourceType": "ResearchSubject",
+                "id": "3432",
+                "meta": {
+                    "versionId": "2",
+                    "lastUpdated": "2026-01-11T15:42:23.218+07:00",
+                    "profile": [
+                        "https://vital-fhir.oucru.org/StructureDefinition/ScreeningResearchSubject"
+                    ]
+                },
+                "extension": [
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/condition",
+                        "valueCodeableConcept": {
+                            "coding": [
+                                {
+                                    "system": "http://snomed.info/sct",
+                                    "code": "385093006",
+                                    "display": "Community acquired pneumonia"
+                                }
+                            ],
+                            "text": "CAP"
+                        }
+                    },
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/comparisonGroup",
+                        "valueId": "CAP"
+                    }
+                ],
+                "identifier": [
+                    {
+                        "use": "usual",
+                        "type": {
+                            "coding": [
+                                {
+                                    "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                    "code": "FILL",
+                                    "display": "Filler Identifier"
+                                }
+                            ]
+                        },
+                        "system": "https://vital-fhir.oucru.org/ResearchSubjectIdentifier"
+                    }
+                ],
+                "status": "draft",
+                "progress": [
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "screening"
+                                }
+                            ],
+                            "text": "screening"
+                        },
+                        "startDate": "2026-01-11"
+                    },
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "on-study"
+                                }
+                            ]
+                        },
+                        "reason": {
+                            "coding": [
+                                {
+                                    "code": "enrolled",
+                                    "display": "enrolled"
+                                }
+                            ],
+                            "text": "enrolled"
+                        },
+                        "startDate": "2026-01-13"
+                    },
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "eligible"
+                                }
+                            ]
+                        },
+                        "reason": {
+                            "coding": [
+                                {
+                                    "code": "inclusion",
+                                    "display": "inclusion"
+                                }
+                            ],
+                            "text": "No exclusion reason"
+                        },
+                        "startDate": "2026-01-11"
+                    }
+                ],
+                "study": {
+                    "reference": "ResearchStudy/Study13NV"
+                },
+                "subject": {
+                    "resourceType": "Patient",
+                    "id": "3430",
+                    "meta": {
+                        "versionId": "2",
+                        "lastUpdated": "2026-01-11T15:42:21.987+07:00",
+                        "profile": [
+                            "https://vital-fhir.oucru.org/StructureDefinition/VitalScreeningPatient"
+                        ]
+                    },
+                    "identifier": [
+                        {
+                            "use": "secondary",
+                            "type": {
+                                "coding": [
+                                    {
+                                        "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                        "code": "FILL",
+                                        "display": "Filler Identifier"
+                                    }
+                                ]
+                            },
+                            "system": "https://vital-fhir.oucru.org/VitalScreeningPatientIdentifier",
+                            "value": "8"
+                        }
+                    ],
+                    "active": true,
+                    "name": [
+                        {
+                            "given": [
+                                "P7"
+                            ]
+                        }
+                    ],
+                    "gender": "unknown",
+                    "birthDate": "2007",
+                    "managingOrganization": {
+                        "reference": "Organization/WardHTDNhiemD"
+                    },
+                    "link": [
+                        {
+                            "other": {
+                                "resourceType": "Patient",
+                                "id": "3518",
+                                "meta": {
+                                    "versionId": "1",
+                                    "lastUpdated": "2026-01-11T15:41:47.845+07:00",
+                                    "profile": [
+                                        "https://vital-fhir.oucru.org/StructureDefinition/VitalPatient"
+                                    ]
+                                },
+                                "identifier": [
+                                    {
+                                        "use": "official",
+                                        "type": {
+                                            "coding": [
+                                                {
+                                                    "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                                    "code": "FILL",
+                                                    "display": "Filler Identifier"
+                                                }
+                                            ]
+                                        },
+                                        "system": "https://vital-fhir.oucru.org/PatientIdentifier"
+                                    }
+                                ],
+                                "active": true,
+                                "name": [
+                                    {
+                                        "given": [
+                                            "13NV-003-4004-C"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "type": "replaced-by"
+                        }
+                    ]
+                }
+            },
+            "search": {
+                "mode": "match"
+            }
+        },
+        {
+            "fullUrl": "http://localhost:8080/fhir/ResearchSubject/3549",
+            "resource": {
+                "resourceType": "ResearchSubject",
+                "id": "3549",
+                "meta": {
+                    "versionId": "1",
+                    "lastUpdated": "2026-01-11T15:43:40.589+07:00",
+                    "profile": [
+                        "https://vital-fhir.oucru.org/StructureDefinition/ScreeningResearchSubject"
+                    ]
+                },
+                "extension": [
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/condition",
+                        "valueCodeableConcept": {
+                            "coding": [
+                                {
+                                    "system": "http://snomed.info/sct",
+                                    "code": "385093006",
+                                    "display": "Community acquired pneumonia"
+                                }
+                            ],
+                            "text": "CAP"
+                        }
+                    },
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/comparisonGroup",
+                        "valueId": "CAP"
+                    }
+                ],
+                "identifier": [
+                    {
+                        "use": "usual",
+                        "type": {
+                            "coding": [
+                                {
+                                    "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                    "code": "FILL",
+                                    "display": "Filler Identifier"
+                                }
+                            ]
+                        },
+                        "system": "https://vital-fhir.oucru.org/ResearchSubjectIdentifier"
+                    }
+                ],
+                "status": "draft",
+                "progress": [
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "screening"
+                                }
+                            ],
+                            "text": "screening"
+                        },
+                        "startDate": "2026-01-12"
+                    },
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "not-registered"
+                                }
+                            ]
+                        },
+                        "reason": {
+                            "coding": [
+                                {
+                                    "code": "eligiblebutno",
+                                    "display": "eligibleButNo"
+                                }
+                            ],
+                            "text": "No INC #1"
+                        },
+                        "startDate": "2026-01-12"
+                    }
+                ],
+                "study": {
+                    "reference": "ResearchStudy/Study13NV"
+                },
+                "subject": {
+                    "resourceType": "Patient",
+                    "id": "3547",
+                    "meta": {
+                        "versionId": "1",
+                        "lastUpdated": "2026-01-11T15:43:39.903+07:00",
+                        "profile": [
+                            "https://vital-fhir.oucru.org/StructureDefinition/VitalScreeningPatient"
+                        ]
+                    },
+                    "identifier": [
+                        {
+                            "use": "secondary",
+                            "type": {
+                                "coding": [
+                                    {
+                                        "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                        "code": "FILL",
+                                        "display": "Filler Identifier"
+                                    }
+                                ]
+                            },
+                            "system": "https://vital-fhir.oucru.org/VitalScreeningPatientIdentifier",
+                            "value": "9"
+                        }
+                    ],
+                    "active": true,
+                    "name": [
+                        {
+                            "given": [
+                                "P8"
+                            ]
+                        }
+                    ],
+                    "gender": "unknown",
+                    "birthDate": "2008",
+                    "managingOrganization": {
+                        "reference": "Organization/WardHTDNhiemD"
+                    }
+                }
+            },
+            "search": {
+                "mode": "match"
+            }
+        },
+        {
+            "fullUrl": "http://localhost:8080/fhir/ResearchSubject/3553",
+            "resource": {
+                "resourceType": "ResearchSubject",
+                "id": "3553",
+                "meta": {
+                    "versionId": "1",
+                    "lastUpdated": "2026-01-11T15:43:42.538+07:00",
+                    "profile": [
+                        "https://vital-fhir.oucru.org/StructureDefinition/ScreeningResearchSubject"
+                    ]
+                },
+                "extension": [
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/condition",
+                        "valueCodeableConcept": {
+                            "coding": [
+                                {
+                                    "system": "http://snomed.info/sct",
+                                    "code": "385093006",
+                                    "display": "Community acquired pneumonia"
+                                }
+                            ],
+                            "text": "CAP"
+                        }
+                    },
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/comparisonGroup",
+                        "valueId": "CAP"
+                    }
+                ],
+                "identifier": [
+                    {
+                        "use": "usual",
+                        "type": {
+                            "coding": [
+                                {
+                                    "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                    "code": "FILL",
+                                    "display": "Filler Identifier"
+                                }
+                            ]
+                        },
+                        "system": "https://vital-fhir.oucru.org/ResearchSubjectIdentifier"
+                    }
+                ],
+                "status": "draft",
+                "progress": [
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "screening"
+                                }
+                            ],
+                            "text": "screening"
+                        },
+                        "startDate": "2026-01-13"
+                    },
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "not-registered"
+                                }
+                            ]
+                        },
+                        "reason": {
+                            "coding": [
+                                {
+                                    "code": "eligiblebutno",
+                                    "display": "eligibleButNo"
+                                }
+                            ],
+                            "text": "Others: refuse"
+                        },
+                        "startDate": "2026-01-13"
+                    }
+                ],
+                "study": {
+                    "reference": "ResearchStudy/Study13NV"
+                },
+                "subject": {
+                    "resourceType": "Patient",
+                    "id": "3551",
+                    "meta": {
+                        "versionId": "1",
+                        "lastUpdated": "2026-01-11T15:43:41.336+07:00",
+                        "profile": [
+                            "https://vital-fhir.oucru.org/StructureDefinition/VitalScreeningPatient"
+                        ]
+                    },
+                    "identifier": [
+                        {
+                            "use": "secondary",
+                            "type": {
+                                "coding": [
+                                    {
+                                        "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                        "code": "FILL",
+                                        "display": "Filler Identifier"
+                                    }
+                                ]
+                            },
+                            "system": "https://vital-fhir.oucru.org/VitalScreeningPatientIdentifier",
+                            "value": "10"
+                        }
+                    ],
+                    "active": true,
+                    "name": [
+                        {
+                            "given": [
+                                "P9"
+                            ]
+                        }
+                    ],
+                    "gender": "unknown",
+                    "birthDate": "2009",
+                    "managingOrganization": {
+                        "reference": "Organization/WardHTDNhiemD"
+                    }
+                }
+            },
+            "search": {
+                "mode": "match"
+            }
+        },
+        {
+            "fullUrl": "http://localhost:8080/fhir/ResearchSubject/3571",
+            "resource": {
+                "resourceType": "ResearchSubject",
+                "id": "3571",
+                "meta": {
+                    "versionId": "1",
+                    "lastUpdated": "2026-01-11T15:44:40.308+07:00",
+                    "profile": [
+                        "https://vital-fhir.oucru.org/StructureDefinition/ScreeningResearchSubject"
+                    ]
+                },
+                "extension": [
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/condition",
+                        "valueCodeableConcept": {
+                            "coding": [
+                                {
+                                    "system": "http://snomed.info/sct",
+                                    "code": "385093006",
+                                    "display": "Community acquired pneumonia"
+                                }
+                            ],
+                            "text": "CAP"
+                        }
+                    },
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/comparisonGroup",
+                        "valueId": "CAP"
+                    }
+                ],
+                "identifier": [
+                    {
+                        "use": "usual",
+                        "type": {
+                            "coding": [
+                                {
+                                    "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                    "code": "FILL",
+                                    "display": "Filler Identifier"
+                                }
+                            ]
+                        },
+                        "system": "https://vital-fhir.oucru.org/ResearchSubjectIdentifier"
+                    }
+                ],
+                "status": "draft",
+                "progress": [
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "screening"
+                                }
+                            ],
+                            "text": "screening"
+                        },
+                        "startDate": "2026-01-14"
+                    },
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "on-study"
+                                }
+                            ]
+                        },
+                        "reason": {
+                            "coding": [
+                                {
+                                    "code": "enrolled",
+                                    "display": "enrolled"
+                                }
+                            ],
+                            "text": "enrolled"
+                        },
+                        "startDate": "2026-01-14"
+                    },
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "eligible"
+                                }
+                            ]
+                        },
+                        "reason": {
+                            "coding": [
+                                {
+                                    "code": "inclusion",
+                                    "display": "inclusion"
+                                }
+                            ],
+                            "text": "No exclusion reason"
+                        },
+                        "startDate": "2026-01-14"
+                    }
+                ],
+                "study": {
+                    "reference": "ResearchStudy/Study13NV"
+                },
+                "subject": {
+                    "resourceType": "Patient",
+                    "id": "3568",
+                    "meta": {
+                        "versionId": "1",
+                        "lastUpdated": "2026-01-11T15:44:39.371+07:00",
+                        "profile": [
+                            "https://vital-fhir.oucru.org/StructureDefinition/VitalScreeningPatient"
+                        ]
+                    },
+                    "identifier": [
+                        {
+                            "use": "secondary",
+                            "type": {
+                                "coding": [
+                                    {
+                                        "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                        "code": "FILL",
+                                        "display": "Filler Identifier"
+                                    }
+                                ]
+                            },
+                            "system": "https://vital-fhir.oucru.org/VitalScreeningPatientIdentifier",
+                            "value": "11"
+                        }
+                    ],
+                    "active": true,
+                    "name": [
+                        {
+                            "given": [
+                                "P11"
+                            ]
+                        }
+                    ],
+                    "gender": "unknown",
+                    "birthDate": "2011",
+                    "managingOrganization": {
+                        "reference": "Organization/WardHTDNhiemD"
+                    },
+                    "link": [
+                        {
+                            "other": {
+                                "resourceType": "Patient",
+                                "id": "3564",
+                                "meta": {
+                                    "versionId": "1",
+                                    "lastUpdated": "2026-01-11T15:44:30.528+07:00",
+                                    "profile": [
+                                        "https://vital-fhir.oucru.org/StructureDefinition/VitalPatient"
+                                    ]
+                                },
+                                "identifier": [
+                                    {
+                                        "use": "official",
+                                        "type": {
+                                            "coding": [
+                                                {
+                                                    "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                                    "code": "FILL",
+                                                    "display": "Filler Identifier"
+                                                }
+                                            ]
+                                        },
+                                        "system": "https://vital-fhir.oucru.org/PatientIdentifier"
+                                    }
+                                ],
+                                "active": true,
+                                "name": [
+                                    {
+                                        "given": [
+                                            "13NV-003-4005-C"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "type": "replaced-by"
+                        }
+                    ]
+                }
+            },
+            "search": {
+                "mode": "match"
+            }
+        },
+        {
+            "fullUrl": "http://localhost:8080/fhir/ResearchSubject/3599",
+            "resource": {
+                "resourceType": "ResearchSubject",
+                "id": "3599",
+                "meta": {
+                    "versionId": "1",
+                    "lastUpdated": "2026-01-11T15:47:27.519+07:00",
+                    "profile": [
+                        "https://vital-fhir.oucru.org/StructureDefinition/ScreeningResearchSubject"
+                    ]
+                },
+                "extension": [
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/condition",
+                        "valueCodeableConcept": {
+                            "coding": [
+                                {
+                                    "system": "http://snomed.info/sct",
+                                    "code": "429271009",
+                                    "display": "Ventilator associated pneumonia"
+                                }
+                            ],
+                            "text": "VAP"
+                        }
+                    },
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/comparisonGroup",
+                        "valueId": "VAP"
+                    }
+                ],
+                "identifier": [
+                    {
+                        "use": "usual",
+                        "type": {
+                            "coding": [
+                                {
+                                    "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                    "code": "FILL",
+                                    "display": "Filler Identifier"
+                                }
+                            ]
+                        },
+                        "system": "https://vital-fhir.oucru.org/ResearchSubjectIdentifier"
+                    }
+                ],
+                "status": "draft",
+                "progress": [
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "screening"
+                                }
+                            ],
+                            "text": "screening"
+                        },
+                        "startDate": "2026-01-08"
+                    },
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "not-registered"
+                                }
+                            ]
+                        },
+                        "reason": {
+                            "coding": [
+                                {
+                                    "code": "eligiblebutno",
+                                    "display": "eligibleButNo"
+                                }
+                            ],
+                            "text": "No INC #2"
+                        },
+                        "startDate": "2026-01-08"
+                    }
+                ],
+                "study": {
+                    "reference": "ResearchStudy/Study13NV"
+                },
+                "subject": {
+                    "resourceType": "Patient",
+                    "id": "3597",
+                    "meta": {
+                        "versionId": "1",
+                        "lastUpdated": "2026-01-11T15:47:26.877+07:00",
+                        "profile": [
+                            "https://vital-fhir.oucru.org/StructureDefinition/VitalScreeningPatient"
+                        ]
+                    },
+                    "identifier": [
+                        {
+                            "use": "secondary",
+                            "type": {
+                                "coding": [
+                                    {
+                                        "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                        "code": "FILL",
+                                        "display": "Filler Identifier"
+                                    }
+                                ]
+                            },
+                            "system": "https://vital-fhir.oucru.org/VitalScreeningPatientIdentifier",
+                            "value": "1"
+                        }
+                    ],
+                    "active": true,
+                    "name": [
+                        {
+                            "given": [
+                                "V1"
+                            ]
+                        }
+                    ],
+                    "gender": "unknown",
+                    "birthDate": "2001",
+                    "managingOrganization": {
+                        "reference": "Organization/WardHTDNhiemD"
+                    }
+                }
+            },
+            "search": {
+                "mode": "match"
+            }
+        },
+        {
+            "fullUrl": "http://localhost:8080/fhir/ResearchSubject/3603",
+            "resource": {
+                "resourceType": "ResearchSubject",
+                "id": "3603",
+                "meta": {
+                    "versionId": "1",
+                    "lastUpdated": "2026-01-11T15:47:28.991+07:00",
+                    "profile": [
+                        "https://vital-fhir.oucru.org/StructureDefinition/ScreeningResearchSubject"
+                    ]
+                },
+                "extension": [
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/condition",
+                        "valueCodeableConcept": {
+                            "coding": [
+                                {
+                                    "system": "http://snomed.info/sct",
+                                    "code": "429271009",
+                                    "display": "Ventilator associated pneumonia"
+                                }
+                            ],
+                            "text": "VAP"
+                        }
+                    },
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/comparisonGroup",
+                        "valueId": "VAP"
+                    }
+                ],
+                "identifier": [
+                    {
+                        "use": "usual",
+                        "type": {
+                            "coding": [
+                                {
+                                    "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                    "code": "FILL",
+                                    "display": "Filler Identifier"
+                                }
+                            ]
+                        },
+                        "system": "https://vital-fhir.oucru.org/ResearchSubjectIdentifier"
+                    }
+                ],
+                "status": "draft",
+                "progress": [
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "screening"
+                                }
+                            ],
+                            "text": "screening"
+                        },
+                        "startDate": "2026-01-09"
+                    },
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "not-registered"
+                                }
+                            ]
+                        },
+                        "reason": {
+                            "coding": [
+                                {
+                                    "code": "eligiblebutno",
+                                    "display": "eligibleButNo"
+                                }
+                            ],
+                            "text": "Others: refuse"
+                        },
+                        "startDate": "2026-01-09"
+                    }
+                ],
+                "study": {
+                    "reference": "ResearchStudy/Study13NV"
+                },
+                "subject": {
+                    "resourceType": "Patient",
+                    "id": "3601",
+                    "meta": {
+                        "versionId": "1",
+                        "lastUpdated": "2026-01-11T15:47:28.397+07:00",
+                        "profile": [
+                            "https://vital-fhir.oucru.org/StructureDefinition/VitalScreeningPatient"
+                        ]
+                    },
+                    "identifier": [
+                        {
+                            "use": "secondary",
+                            "type": {
+                                "coding": [
+                                    {
+                                        "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                        "code": "FILL",
+                                        "display": "Filler Identifier"
+                                    }
+                                ]
+                            },
+                            "system": "https://vital-fhir.oucru.org/VitalScreeningPatientIdentifier",
+                            "value": "2"
+                        }
+                    ],
+                    "active": true,
+                    "name": [
+                        {
+                            "given": [
+                                "V2"
+                            ]
+                        }
+                    ],
+                    "gender": "unknown",
+                    "birthDate": "2002",
+                    "managingOrganization": {
+                        "reference": "Organization/WardHTDNhiemD"
+                    }
+                }
+            },
+            "search": {
+                "mode": "match"
+            }
+        },
+        {
+            "fullUrl": "http://localhost:8080/fhir/ResearchSubject/3608",
+            "resource": {
+                "resourceType": "ResearchSubject",
+                "id": "3608",
+                "meta": {
+                    "versionId": "1",
+                    "lastUpdated": "2026-01-11T15:47:30.393+07:00",
+                    "profile": [
+                        "https://vital-fhir.oucru.org/StructureDefinition/ScreeningResearchSubject"
+                    ]
+                },
+                "extension": [
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/condition",
+                        "valueCodeableConcept": {
+                            "coding": [
+                                {
+                                    "system": "http://snomed.info/sct",
+                                    "code": "429271009",
+                                    "display": "Ventilator associated pneumonia"
+                                }
+                            ],
+                            "text": "VAP"
+                        }
+                    },
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/comparisonGroup",
+                        "valueId": "VAP"
+                    }
+                ],
+                "identifier": [
+                    {
+                        "use": "usual",
+                        "type": {
+                            "coding": [
+                                {
+                                    "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                    "code": "FILL",
+                                    "display": "Filler Identifier"
+                                }
+                            ]
+                        },
+                        "system": "https://vital-fhir.oucru.org/ResearchSubjectIdentifier"
+                    }
+                ],
+                "status": "draft",
+                "progress": [
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "screening"
+                                }
+                            ],
+                            "text": "screening"
+                        },
+                        "startDate": "2026-01-11"
+                    },
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "on-study"
+                                }
+                            ]
+                        },
+                        "reason": {
+                            "coding": [
+                                {
+                                    "code": "enrolled",
+                                    "display": "enrolled"
+                                }
+                            ],
+                            "text": "enrolled"
+                        },
+                        "startDate": "2026-01-11"
+                    },
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "eligible"
+                                }
+                            ]
+                        },
+                        "reason": {
+                            "coding": [
+                                {
+                                    "code": "inclusion",
+                                    "display": "inclusion"
+                                }
+                            ],
+                            "text": "No exclusion reason"
+                        },
+                        "startDate": "2026-01-11"
+                    }
+                ],
+                "study": {
+                    "reference": "ResearchStudy/Study13NV"
+                },
+                "subject": {
+                    "resourceType": "Patient",
+                    "id": "3605",
+                    "meta": {
+                        "versionId": "1",
+                        "lastUpdated": "2026-01-11T15:47:29.530+07:00",
+                        "profile": [
+                            "https://vital-fhir.oucru.org/StructureDefinition/VitalScreeningPatient"
+                        ]
+                    },
+                    "identifier": [
+                        {
+                            "use": "secondary",
+                            "type": {
+                                "coding": [
+                                    {
+                                        "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                        "code": "FILL",
+                                        "display": "Filler Identifier"
+                                    }
+                                ]
+                            },
+                            "system": "https://vital-fhir.oucru.org/VitalScreeningPatientIdentifier",
+                            "value": "3"
+                        }
+                    ],
+                    "active": true,
+                    "name": [
+                        {
+                            "given": [
+                                "V3"
+                            ]
+                        }
+                    ],
+                    "gender": "unknown",
+                    "birthDate": "2003",
+                    "managingOrganization": {
+                        "reference": "Organization/WardHTDNhiemD"
+                    },
+                    "link": [
+                        {
+                            "other": {
+                                "resourceType": "Patient",
+                                "id": "3586",
+                                "meta": {
+                                    "versionId": "1",
+                                    "lastUpdated": "2026-01-11T15:46:48.294+07:00",
+                                    "profile": [
+                                        "https://vital-fhir.oucru.org/StructureDefinition/VitalPatient"
+                                    ]
+                                },
+                                "identifier": [
+                                    {
+                                        "use": "official",
+                                        "type": {
+                                            "coding": [
+                                                {
+                                                    "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                                    "code": "FILL",
+                                                    "display": "Filler Identifier"
+                                                }
+                                            ]
+                                        },
+                                        "system": "https://vital-fhir.oucru.org/PatientIdentifier"
+                                    }
+                                ],
+                                "active": true,
+                                "name": [
+                                    {
+                                        "given": [
+                                            "13NV-003-4001-V"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "type": "replaced-by"
+                        }
+                    ]
+                }
+            },
+            "search": {
+                "mode": "match"
+            }
+        },
+        {
+            "fullUrl": "http://localhost:8080/fhir/ResearchSubject/3613",
+            "resource": {
+                "resourceType": "ResearchSubject",
+                "id": "3613",
+                "meta": {
+                    "versionId": "1",
+                    "lastUpdated": "2026-01-11T15:47:32.412+07:00",
+                    "profile": [
+                        "https://vital-fhir.oucru.org/StructureDefinition/ScreeningResearchSubject"
+                    ]
+                },
+                "extension": [
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/condition",
+                        "valueCodeableConcept": {
+                            "coding": [
+                                {
+                                    "system": "http://snomed.info/sct",
+                                    "code": "429271009",
+                                    "display": "Ventilator associated pneumonia"
+                                }
+                            ],
+                            "text": "VAP"
+                        }
+                    },
+                    {
+                        "url": "https://vital-fhir.oucru.org/StructureDefinition/comparisonGroup",
+                        "valueId": "VAP"
+                    }
+                ],
+                "identifier": [
+                    {
+                        "use": "usual",
+                        "type": {
+                            "coding": [
+                                {
+                                    "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                    "code": "FILL",
+                                    "display": "Filler Identifier"
+                                }
+                            ]
+                        },
+                        "system": "https://vital-fhir.oucru.org/ResearchSubjectIdentifier"
+                    }
+                ],
+                "status": "draft",
+                "progress": [
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "screening"
+                                }
+                            ],
+                            "text": "screening"
+                        },
+                        "startDate": "2026-01-13"
+                    },
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "on-study"
+                                }
+                            ]
+                        },
+                        "reason": {
+                            "coding": [
+                                {
+                                    "code": "enrolled",
+                                    "display": "enrolled"
+                                }
+                            ],
+                            "text": "enrolled"
+                        },
+                        "startDate": "2026-01-11"
+                    },
+                    {
+                        "subjectState": {
+                            "coding": [
+                                {
+                                    "code": "eligible"
+                                }
+                            ]
+                        },
+                        "reason": {
+                            "coding": [
+                                {
+                                    "code": "inclusion",
+                                    "display": "inclusion"
+                                }
+                            ],
+                            "text": "No exclusion reason"
+                        },
+                        "startDate": "2026-01-13"
+                    }
+                ],
+                "study": {
+                    "reference": "ResearchStudy/Study13NV"
+                },
+                "subject": {
+                    "resourceType": "Patient",
+                    "id": "3610",
+                    "meta": {
+                        "versionId": "1",
+                        "lastUpdated": "2026-01-11T15:47:31.565+07:00",
+                        "profile": [
+                            "https://vital-fhir.oucru.org/StructureDefinition/VitalScreeningPatient"
+                        ]
+                    },
+                    "identifier": [
+                        {
+                            "use": "secondary",
+                            "type": {
+                                "coding": [
+                                    {
+                                        "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                        "code": "FILL",
+                                        "display": "Filler Identifier"
+                                    }
+                                ]
+                            },
+                            "system": "https://vital-fhir.oucru.org/VitalScreeningPatientIdentifier",
+                            "value": "4"
+                        }
+                    ],
+                    "active": true,
+                    "name": [
+                        {
+                            "given": [
+                                "V4"
+                            ]
+                        }
+                    ],
+                    "gender": "unknown",
+                    "birthDate": "2004",
+                    "managingOrganization": {
+                        "reference": "Organization/WardHTDNhiemD"
+                    },
+                    "link": [
+                        {
+                            "other": {
+                                "resourceType": "Patient",
+                                "id": "3593",
+                                "meta": {
+                                    "versionId": "1",
+                                    "lastUpdated": "2026-01-11T15:47:13.966+07:00",
+                                    "profile": [
+                                        "https://vital-fhir.oucru.org/StructureDefinition/VitalPatient"
+                                    ]
+                                },
+                                "identifier": [
+                                    {
+                                        "use": "official",
+                                        "type": {
+                                            "coding": [
+                                                {
+                                                    "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                                    "code": "FILL",
+                                                    "display": "Filler Identifier"
+                                                }
+                                            ]
+                                        },
+                                        "system": "https://vital-fhir.oucru.org/PatientIdentifier"
+                                    }
+                                ],
+                                "active": true,
+                                "name": [
+                                    {
+                                        "given": [
+                                            "13NV-003-4002-V"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "type": "replaced-by"
+                        }
+                    ]
+                }
+            },
+            "search": {
+                "mode": "match"
+            }
+        }
+    ]
+}

@@ -149,6 +149,42 @@ const extractWard = (subject) => {
 };
 
 /**
+ * Extract site (hospital) code from managingOrganization reference
+ * Site is derived from the ward organization reference
+ * 
+ * Organization reference format: "Organization/WardXXXYY"
+ * Where XXX = site/hospital code (e.g., "HTD" = Hospital of Tropical Diseases)
+ *       YY = ward code within that site (e.g., "ED" = Emergency Department)
+ * 
+ * @param {Object} subject - The subject Patient resource
+ * @returns {string} The site code or "Unknown"
+ */
+const extractSite = (resource, subject) => {
+  const orgRef = subject?.managingOrganization?.reference || '';
+  
+  // Extract from "Organization/WardXXXYY" format
+  // The site code is typically the first 3 characters after "Ward"
+  const wardMatch = orgRef.match(/Organization\/Ward([A-Z]{3})/i);
+  if (wardMatch) {
+    return wardMatch[1]; // Returns site code like "HTD"
+  }
+  
+  // Fallback: Try to get from "Organization/SiteXXX" format
+  const siteMatch = orgRef.match(/Organization\/Site([A-Z0-9]+)/i);
+  if (siteMatch) {
+    return siteMatch[1];
+  }
+  
+  // Last fallback: Try organization display name if available
+  const orgDisplay = subject?.managingOrganization?.display;
+  if (orgDisplay) {
+    return orgDisplay;
+  }
+  
+  return 'Unknown';
+};
+
+/**
  * Process mockLabel.json data into table rows
  * @param {Object} bundle - The FHIR Bundle from mockLabel.json
  * @returns {Array} Processed rows for DataGrid
@@ -169,6 +205,7 @@ const processMockLabelData = (bundle) => {
       condition: extractCondition(resource),
       label: extractLabel(linkedPatient),
       status: resource.status || 'Unknown',
+      site: extractSite(resource, subject),
       ward: extractWard(subject),
       screeningDate: extractProgressDate(resource.progress, 'screening'),
       enrolledDate: extractProgressDate(resource.progress, 'on-study'),
@@ -177,6 +214,103 @@ const processMockLabelData = (bundle) => {
     };
   });
 };
+
+// ============ EDIT START: Filter mock data function - MOVED OUTSIDE COMPONENT (2026-01-29) ============
+/**
+ * Filter FHIR Bundle entries based on selected filters
+ * Simulates server-side filtering that would happen with real API
+ *
+ * IMPORTANT: This function is defined OUTSIDE the component to avoid
+ * stale closure issues when used inside useCallback hooks.
+ *
+ * SITE MATCHING LOGIC:
+ * ====================
+ * The site filter uses the site's alias array for matching because:
+ * - Site dropdown provides code like "003" (from study-specific alias "13NV-003-")
+ * - Mock data has ward references like "Organization/WardHTDED" (site = "HTD")
+ * - The site object has alias array: ["HTD", "13NV-003-", ...]
+ * - We check if ANY alias matches the site code in the ward reference
+ *
+ * @param {Object} bundle - FHIR Bundle with entries
+ * @param {Object} filters - Filter criteria
+ * @param {Object} filters.siteObj - Full site object with alias array
+ * @param {Object} filters.wardObj - Full ward object with id for matching
+ * @param {string} filters.group - Condition/group to filter by (CAP, VAP, etc.)
+ * @returns {Object} Filtered FHIR Bundle
+ */
+const filterMockData = (bundle, filters = {}) => {
+  if (!bundle?.entry) return bundle;
+
+  const { siteObj, wardObj, group } = filters;
+
+  let filteredEntries = [...bundle.entry];
+
+  // Filter by group (condition)
+  if (group) {
+    filteredEntries = filteredEntries.filter(entry => {
+      const conditionExt = entry.resource?.extension?.find(
+        ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/condition'
+      );
+      const conditionText = conditionExt?.valueCodeableConcept?.text;
+      return conditionText === group;
+    });
+    console.log(`[TrackingCurrent] Filtered by group "${group}": ${filteredEntries.length} entries`);
+  }
+
+  // Filter by site using alias array matching
+  // The site object has alias array like: ["HTD", "13NV-003-", "54EI-003-"]
+  // Ward references are like: "Organization/WardHTDED" where "HTD" is the site code
+  if (siteObj && siteObj.alias && siteObj.alias.length > 0) {
+    // Get the short site code (first alias, usually like "HTD", "NTTH")
+    const siteAliases = siteObj.alias.map(a => a.toUpperCase());
+
+    console.log(`[TrackingCurrent] Filtering by site aliases:`, siteAliases);
+
+    filteredEntries = filteredEntries.filter(entry => {
+      const orgRef = entry.resource?.subject?.managingOrganization?.reference || '';
+      // Extract site code from "Organization/WardHTDED" → "HTDED" → check if starts with any alias
+      const wardMatch = orgRef.match(/Organization\/Ward(.+)/i);
+      const wardCode = wardMatch ? wardMatch[1].toUpperCase() : '';
+
+      // Check if the ward code starts with any of the site's aliases
+      // e.g., "HTDED" starts with "HTD", "HTDNhiemD" starts with "HTD"
+      // e.g., "NTTHED" starts with "NTTH" (for Nguyen Thi Thap Hospital)
+      const matchesAnySiteAlias = siteAliases.some(alias => {
+        // Only match short aliases (like "HTD", "NTTH") not study-specific ones (like "13NV-003-")
+        if (alias.includes('-')) return false;
+        return wardCode.startsWith(alias);
+      });
+
+      return matchesAnySiteAlias;
+    });
+    console.log(`[TrackingCurrent] Filtered by site "${siteObj.name}": ${filteredEntries.length} entries`);
+  }
+
+  // Filter by ward using ward object's ID
+  // Ward object has id like "WardHTDED", mock data has references like "Organization/WardHTDED"
+  // Extract the ward code from the ward object's id (remove "Ward" prefix if present)
+  if (wardObj && wardObj.id) {
+    // Ward id is like "WardHTDED" or just "HTDED"
+    const wardIdCode = wardObj.id.replace(/^Ward/i, '').toUpperCase();
+
+    console.log(`[TrackingCurrent] Filtering by ward ID: "${wardObj.id}" → code: "${wardIdCode}"`);
+
+    filteredEntries = filteredEntries.filter(entry => {
+      const orgRef = entry.resource?.subject?.managingOrganization?.reference || '';
+      const wardMatch = orgRef.match(/Organization\/Ward(.+)/i);
+      const entryWard = wardMatch ? wardMatch[1].toUpperCase() : '';
+      return entryWard === wardIdCode;
+    });
+    console.log(`[TrackingCurrent] Filtered by ward "${wardObj.name}": ${filteredEntries.length} entries`);
+  }
+
+  return {
+    ...bundle,
+    entry: filteredEntries,
+    total: filteredEntries.length,
+  };
+};
+// ============ EDIT END: Filter mock data function ============
 
 /**
  * TrackingCurrentPage Component
@@ -204,27 +338,37 @@ const TrackingCurrentPage = () => {
   // ============ EDIT START: Dynamic initial state - no hard-coded conditions (2026-01-28) ============
   const [stats, setStats] = useState({
     total: 0,
-    byCondition: {},      // Will be populated dynamically with any conditions from data
+    byCondition: {},      // Will be populated dynamically with any groups from data
     byLabel: {},
     byStatus: {},
+    bySite: {},           // Site totals
     byWard: {},
-    byLabelCondition: {}, // Will be populated dynamically with any conditions from data
+    byLabelCondition: {}, // Will be populated dynamically with any groups from data
+    byWardCondition: {},  // Ward → Group breakdown for stacked bar chart
+    bySiteCondition: {},  // Site → Group breakdown for stacked bar chart
   });
   // ============ EDIT END: Dynamic initial state ============
 
   /**
    * Load data from mock file (development mode)
    * Uses dynamic import pattern consistent with fhirService.js
+   * Applies filters to simulate API filtering behavior
    */
-  const loadMockData = useCallback(async () => {
+  const loadMockData = useCallback(async (filters = {}) => {
     try {
       console.log('[TrackingCurrent] DEVELOPMENT MODE: Loading mockLabel.json...');
+      console.log('[TrackingCurrent] Applied filters:', filters);
 
       // Dynamic import of mock data JSON file
+      // IMPORTANT: Dynamic imports are cached by the module system.
+      // We deep clone to ensure fresh data each time and avoid stale reference issues.
       const mockModule = await import('../../mockData/fhir/mockLabel.json');
-      const data = mockModule.default || mockModule;
+      const rawData = JSON.parse(JSON.stringify(mockModule.default || mockModule));
 
-      console.log(`[TrackingCurrent] Loaded ${data.total} subjects from mockLabel.json`);
+      // Apply filters to simulate API behavior
+      const data = filterMockData(rawData, filters);
+
+      console.log(`[TrackingCurrent] Loaded ${data.total} subjects (filtered from ${rawData.total})`);
       return data;
 
     } catch (error) {
@@ -244,13 +388,15 @@ const TrackingCurrentPage = () => {
    *   - study: ResearchStudy/{studyId} (filter by study if selected)
    *   - _include: ResearchSubject:subject (include Patient data)
    */
-  const loadFromAPI = useCallback(async () => {
+  const loadFromAPI = useCallback(async (filters = {}) => {
     try {
       console.log('[TrackingCurrent] PRODUCTION MODE: Loading from FHIR API...');
+      console.log('[TrackingCurrent] API filters:', filters);
 
       // Call FHIR service to get current recruitment data
       const data = await getCurrentRecruitmentData({
         studyCode: selectedStudy || undefined,
+        ...filters, // Pass filters to API
       });
 
       console.log(`[TrackingCurrent] Loaded ${data?.total || 0} subjects from FHIR API`);
@@ -265,19 +411,38 @@ const TrackingCurrentPage = () => {
   /**
    * Main data loading function
    * Automatically chooses between mock data (development) and FHIR API (production)
-   * Default: Uses mock data in development mode
+   * Applies selected filters (site, ward, group) to the data source
    */
   const loadRecruitmentData = useCallback(async () => {
     try {
       setLoading(true);
 
+      // Build filters from current selections
+      // Pass full objects for proper matching in mock data
+      const filters = {
+        siteObj: currentSite || null,  // Full site object with alias array
+        site: currentSite?.code || null,  // Site code for API calls
+        wardObj: currentWard || null,  // Full ward object with id for matching
+        ward: currentWard?.code || null,  // Ward code for API calls
+        group: currentCondition || null,
+      };
+
+      console.log('[TrackingCurrent] Loading data with filters:', {
+        siteName: currentSite?.name,
+        siteCode: currentSite?.code,
+        siteAliases: currentSite?.alias,
+        wardId: currentWard?.id,
+        wardName: currentWard?.name,
+        group: filters.group,
+      });
+
       let data;
       if (isDevelopmentMode()) {
-        // Development mode: Load from mock JSON file
-        data = await loadMockData();
+        // Development mode: Load from mock JSON file with filters
+        data = await loadMockData(filters);
       } else {
-        // Production mode: Load from FHIR API
-        data = await loadFromAPI();
+        // Production mode: Load from FHIR API with filters
+        data = await loadFromAPI(filters);
       }
 
       setMockData(data);
@@ -288,7 +453,7 @@ const TrackingCurrentPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [loadMockData, loadFromAPI]);
+  }, [loadMockData, loadFromAPI, currentSite, currentWard, currentCondition]);
 
   /**
    * Load studies list for dropdown
@@ -305,40 +470,35 @@ const TrackingCurrentPage = () => {
   }, []);
 
   /**
-   * Process and filter data when mockData or filters change
+   * Process data when mockData changes
+   * Note: Filtering is now done at the data loading level (simulating API behavior)
+   * This useEffect only processes the already-filtered data into table format and calculates stats
    */
   useEffect(() => {
     if (!mockData) return;
 
-    let processed = processMockLabelData(mockData);
-
-    // Apply condition filter
-    if (currentCondition) {
-      processed = processed.filter(row => row.condition === currentCondition);
-    }
-
-    // Apply ward filter
-    if (currentWard) {
-      processed = processed.filter(row =>
-        row.ward.toLowerCase().includes(currentWard.code?.toLowerCase() || '')
-      );
-    }
-
+    // Process the pre-filtered data into table rows
+    const processed = processMockLabelData(mockData);
     setTableData(processed);
+    
+    console.log(`[TrackingCurrent] Processed ${processed.length} rows for display`);
 
     // ============ EDIT START: Fully dynamic stats calculation (2026-01-28) ============
     // Calculate statistics - no hard-coded conditions, all dynamic from data
     const newStats = {
       total: processed.length,
-      byCondition: {},        // Dynamically populated
+      byCondition: {},        // Dynamically populated (now called "Group")
       byLabel: {},
       byStatus: {},
+      bySite: {},             // Site totals
       byWard: {},
       byLabelCondition: {},   // Dynamically populated
+      byWardCondition: {},    // Ward → Group breakdown for stacked bar chart
+      bySiteCondition: {},    // Site → Group breakdown for stacked bar chart
     };
 
     processed.forEach(row => {
-      // Count by condition (dynamic - any condition from data)
+      // Count by condition/group (dynamic - any condition from data)
       const condition = row.condition || 'Unknown';
       newStats.byCondition[condition] = (newStats.byCondition[condition] || 0) + 1;
 
@@ -348,9 +508,27 @@ const TrackingCurrentPage = () => {
       // Count by status
       newStats.byStatus[row.status] = (newStats.byStatus[row.status] || 0) + 1;
 
-      // Count by ward
+      // Count by site (total)
+      const site = row.site || 'Unknown';
+      newStats.bySite[site] = (newStats.bySite[site] || 0) + 1;
+
+      // Count by site AND condition (for stacked bar chart)
+      if (!newStats.bySiteCondition[site]) {
+        newStats.bySiteCondition[site] = {};
+      }
+      newStats.bySiteCondition[site][condition] = 
+        (newStats.bySiteCondition[site][condition] || 0) + 1;
+
+      // Count by ward (total)
       const ward = row.ward || 'Unknown';
       newStats.byWard[ward] = (newStats.byWard[ward] || 0) + 1;
+
+      // Count by ward AND condition (for stacked bar chart)
+      if (!newStats.byWardCondition[ward]) {
+        newStats.byWardCondition[ward] = {};
+      }
+      newStats.byWardCondition[ward][condition] = 
+        (newStats.byWardCondition[ward][condition] || 0) + 1;
 
       // Count labels grouped by condition (dynamic - for label-condition chart)
       if (!newStats.byLabelCondition[condition]) {
@@ -363,7 +541,7 @@ const TrackingCurrentPage = () => {
     setStats(newStats);
     // ============ EDIT END: Fully dynamic stats calculation ============
 
-  }, [mockData, currentCondition, currentWard]);
+  }, [mockData]); // Only re-process when mockData changes (filtering is done at load time)
 
   // Initial data load
   // Uses loadRecruitmentData which automatically chooses between mock (dev) and API (prod)
@@ -386,44 +564,63 @@ const TrackingCurrentPage = () => {
     }
   };
 
+  // ============================================
+  // COLOR PALETTES & HELPER FUNCTIONS
+  // ============================================
+
+  // ============ EDIT START: Unified color palette for all charts (2026-01-28) ============
+  // Single color palette used consistently across all charts - rotates if more items than colors
+  const chartColors = [
+    '#0288d1', // Blue
+    '#ed6c02', // Orange
+    '#4caf50', // Green
+    '#9c27b0', // Purple
+    '#f44336', // Red
+    '#ff9800', // Amber
+    '#00bcd4', // Cyan
+    '#e91e63', // Pink
+    '#3f51b5', // Indigo
+    '#795548', // Brown
+  ];
+
+  // MUI chip colors for dynamic items - rotates if more items than colors
+  const chipColorMap = ['info', 'warning', 'success', 'error', 'primary', 'secondary'];
+
   /**
-   * Get chip color based on label type
+   * Get chart color by index (rotates through palette)
+   */
+  const getChartColor = (index) => chartColors[index % chartColors.length];
+
+  /**
+   * Get chip color based on label (dynamic - based on label index)
    */
   const getLabelColor = (label) => {
-    if (label.startsWith('cap')) return 'primary';
-    if (label.startsWith('vap')) return 'secondary';
-    return 'default';
+    const labelList = Object.keys(stats.byLabel || {}).sort();
+    const index = labelList.indexOf(label);
+    return index >= 0 ? chipColorMap[index % chipColorMap.length] : 'default';
   };
 
-  // ============ EDIT START: Dynamic chip colors for conditions (2026-01-28) ============
-  // Map of MUI chip colors for dynamic conditions
-  const chipColorMap = ['info', 'warning', 'success', 'error', 'primary', 'secondary'];
-  
   /**
-   * Get chip color based on condition (dynamic)
+   * Get chip color based on group (dynamic - based on group index)
    */
   const getConditionColor = (condition) => {
     const conditionList = Object.keys(stats.byCondition || {});
     const index = conditionList.indexOf(condition);
     return index >= 0 ? chipColorMap[index % chipColorMap.length] : 'default';
   };
-  // ============ EDIT END: Dynamic chip colors for conditions ============
+  // ============ EDIT END: Unified color palette for all charts ============
 
   // ============================================
   // CHART CONFIGURATIONS
   // ============================================
-
-  // ============ EDIT START: Dynamic condition pie chart (2026-01-28) ============
-  // Color palette for dynamic conditions in charts
-  const pieConditionColors = ['#0288d1', '#ed6c02', '#4caf50', '#9c27b0', '#f44336', '#ff9800'];
   
   /**
-   * Pie Chart - Condition Distribution (dynamic from data)
-   * Shows the percentage breakdown of all conditions
+   * Pie Chart - Group Distribution (dynamic from data)
+   * Shows the percentage breakdown of all groups
    */
   const conditionPieChartOption = {
     title: {
-      text: 'Condition Distribution',
+      text: 'Group Distribution',
       left: 'center',
       textStyle: {
         fontSize: 16,
@@ -441,7 +638,7 @@ const TrackingCurrentPage = () => {
     },
     series: [
       {
-        name: 'Condition',
+        name: 'Group',
         type: 'pie',
         radius: ['40%', '70%'],
         avoidLabelOverlap: false,
@@ -465,11 +662,11 @@ const TrackingCurrentPage = () => {
         labelLine: {
           show: true,
         },
-        // Dynamically generate data from all conditions
-        data: Object.entries(stats.byCondition || {}).map(([condition, count], index) => ({
+        // Dynamically generate data from all groups
+        data: Object.entries(stats.byCondition || {}).map(([group, count], index) => ({
           value: count,
-          name: condition,
-          itemStyle: { color: pieConditionColors[index % pieConditionColors.length] },
+          name: group,
+          itemStyle: { color: getChartColor(index) },
         })),
       },
     ],
@@ -520,10 +717,11 @@ const TrackingCurrentPage = () => {
         barWidth: '60%',
         data: Object.keys(stats.byLabel || {})
           .sort()
-          .map((label) => ({
+          .map((label, index) => ({
             value: stats.byLabel?.[label] || 0,
             itemStyle: {
-              color: label.startsWith('cap') ? '#1976d2' : '#9c27b0',
+              // Dynamic color based on label index (rotates through palette)
+              color: getChartColor(index),
               borderRadius: [4, 4, 0, 0],
             },
           })),
@@ -537,13 +735,21 @@ const TrackingCurrentPage = () => {
     ],
   };
 
+  // ============ EDIT START: Stacked bar chart by ward and group (2026-01-28) ============
+  // Get sorted wards by total count (descending)
+  const sortedWards = Object.keys(stats.byWard || {})
+    .sort((a, b) => (stats.byWard?.[b] || 0) - (stats.byWard?.[a] || 0));
+  
+  // Get all unique groups for the ward chart
+  const allGroups = Object.keys(stats.byCondition || {});
+
   /**
-   * Horizontal Bar Chart - Ward Distribution
-   * Shows recruitment count by hospital ward
+   * Horizontal Stacked Bar Chart - Ward Distribution by Group
+   * Shows recruitment count by hospital ward, stacked by group
    */
   const wardBarChartOption = {
     title: {
-      text: 'Recruitment by Ward',
+      text: 'Recruitment by Ward & Group',
       left: 'center',
       textStyle: {
         fontSize: 16,
@@ -555,12 +761,27 @@ const TrackingCurrentPage = () => {
       axisPointer: {
         type: 'shadow',
       },
-      formatter: '{b}: {c} subjects',
+      formatter: (params) => {
+        let tooltip = `<strong>${params[0].axisValue}</strong><br/>`;
+        let total = 0;
+        params.forEach(p => {
+          if (p.value > 0) {
+            tooltip += `${p.marker} ${p.seriesName}: ${p.value}<br/>`;
+            total += p.value;
+          }
+        });
+        tooltip += `<strong>Total: ${total}</strong>`;
+        return tooltip;
+      },
+    },
+    legend: {
+      data: allGroups,
+      bottom: '0%',
     },
     grid: {
       left: '3%',
-      right: '10%',
-      bottom: '3%',
+      right: '8%',
+      bottom: '12%',
       top: '15%',
       containLabel: true,
     },
@@ -570,37 +791,55 @@ const TrackingCurrentPage = () => {
     },
     yAxis: {
       type: 'category',
-      data: Object.keys(stats.byWard || {}).sort((a, b) => (stats.byWard?.[b] || 0) - (stats.byWard?.[a] || 0)),
+      data: sortedWards,
       axisLabel: {
         fontSize: 11,
       },
     },
     series: [
-      {
-        name: 'Subjects',
+      // One series per group (stacked)
+      ...allGroups.map((group, index) => ({
+        name: group,
         type: 'bar',
-        data: Object.keys(stats.byWard || {})
-          .sort((a, b) => (stats.byWard?.[b] || 0) - (stats.byWard?.[a] || 0))
-          .map((ward, index) => ({
-            value: stats.byWard?.[ward] || 0,
-            itemStyle: {
-              color: ['#1976d2', '#2196f3', '#03a9f4', '#00bcd4', '#009688', '#4caf50'][index % 6],
-              borderRadius: [0, 4, 4, 0],
-            },
-          })),
+        stack: 'total',
+        emphasis: {
+          focus: 'series',
+        },
+        data: sortedWards.map(ward => stats.byWardCondition?.[ward]?.[group] || 0),
+        itemStyle: {
+          color: getChartColor(index),
+        },
+        label: {
+          show: false,
+        },
+      })),
+      // Total label (invisible bar just for showing total)
+      {
+        name: 'Total',
+        type: 'bar',
+        stack: 'total',
+        itemStyle: {
+          color: 'transparent',
+        },
         label: {
           show: true,
           position: 'right',
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: 'bold',
+          formatter: (params) => {
+            const ward = sortedWards[params.dataIndex];
+            return stats.byWard?.[ward] || 0;
+          },
         },
+        data: sortedWards.map(() => 0), // Zero values, just for label
       },
     ],
   };
+  // ============ EDIT END: Stacked bar chart by ward and group ============
 
   // ============ EDIT START: Dynamic conditions from data (2026-01-28) ============
-  // Get all unique conditions dynamically from the data (not hard-coded CAP/VAP)
-  const allConditions = Object.keys(stats.byLabelCondition || {});
+  // Get all unique conditions/groups dynamically from the data
+  const allConditions = Object.keys(stats.byCondition || {});
   
   // Get all unique labels across all conditions
   const allLabels = [...new Set(
@@ -609,17 +848,18 @@ const TrackingCurrentPage = () => {
     )
   )].sort();
 
-  // Color palette for dynamic conditions
-  const conditionColors = ['#0288d1', '#ed6c02', '#4caf50', '#9c27b0', '#f44336', '#ff9800'];
+  // Get sorted sites by total count (descending)
+  const sortedSites = Object.keys(stats.bySite || {})
+    .sort((a, b) => (stats.bySite?.[b] || 0) - (stats.bySite?.[a] || 0));
   // ============ EDIT END: Dynamic conditions from data ============
 
   /**
-   * Grouped Bar Chart - Labels by Condition
-   * Shows label distribution within each condition (dynamically from data)
+   * Horizontal Stacked Bar Chart - Recruitment by Site & Group
+   * Shows recruitment count by site, stacked by group
    */
-  const labelConditionChartOption = {
+  const siteChartOption = {
     title: {
-      text: 'Labels by Condition',
+      text: 'Recruitment by Site & Group',
       left: 'center',
       textStyle: {
         fontSize: 16,
@@ -631,47 +871,79 @@ const TrackingCurrentPage = () => {
       axisPointer: {
         type: 'shadow',
       },
+      formatter: (params) => {
+        let tooltip = `<strong>Site: ${params[0].axisValue}</strong><br/>`;
+        let total = 0;
+        params.forEach(p => {
+          if (p.value > 0) {
+            tooltip += `${p.marker} ${p.seriesName}: ${p.value}<br/>`;
+            total += p.value;
+          }
+        });
+        tooltip += `<strong>Total: ${total}</strong>`;
+        return tooltip;
+      },
     },
     legend: {
       data: allConditions,
-      bottom: '5%',
+      bottom: '0%',
     },
     grid: {
       left: '3%',
-      right: '4%',
-      bottom: '15%',
+      right: '8%',
+      bottom: '12%',
       top: '15%',
       containLabel: true,
     },
     xAxis: {
-      type: 'category',
-      data: allLabels,
-      axisLabel: {
-        fontSize: 12,
-      },
-    },
-    yAxis: {
       type: 'value',
       name: 'Subjects',
     },
-    series: allConditions.map((condition, index) => ({
-      name: condition,
-      type: 'bar',
-      barGap: index === 0 ? 0 : undefined,
-      data: allLabels.map((label) => ({
-        value: stats.byLabelCondition?.[condition]?.[label] || 0,
+    yAxis: {
+      type: 'category',
+      data: sortedSites,
+      axisLabel: {
+        fontSize: 11,
+      },
+    },
+    series: [
+      // One series per group (stacked)
+      ...allConditions.map((group, index) => ({
+        name: group,
+        type: 'bar',
+        stack: 'total',
+        emphasis: {
+          focus: 'series',
+        },
+        data: sortedSites.map(site => stats.bySiteCondition?.[site]?.[group] || 0),
         itemStyle: {
-          color: conditionColors[index % conditionColors.length],
-          borderRadius: [4, 4, 0, 0],
+          color: getChartColor(index),
+        },
+        label: {
+          show: false,
         },
       })),
-      label: {
-        show: true,
-        position: 'top',
-        fontSize: 11,
-        formatter: (params) => params.value > 0 ? params.value : '',
+      // Total label (invisible bar just for showing total)
+      {
+        name: 'Total',
+        type: 'bar',
+        stack: 'total',
+        itemStyle: {
+          color: 'transparent',
+        },
+        label: {
+          show: true,
+          position: 'right',
+          fontSize: 11,
+          fontWeight: 'bold',
+          formatter: (params) => {
+            const site = sortedSites[params.dataIndex];
+            return stats.bySite?.[site] || 0;
+          },
+        },
+        data: sortedSites.map(() => 0), // Zero values, just for label
       },
-    })),
+    ],
   };
 
   /**
@@ -728,7 +1000,7 @@ const TrackingCurrentPage = () => {
             ).length,
           ],
           name: condition,
-          itemStyle: { color: conditionColors[index % conditionColors.length] },
+          itemStyle: { color: getChartColor(index) },
           areaStyle: { opacity: 0.3 },
         })),
       },
@@ -760,7 +1032,7 @@ const TrackingCurrentPage = () => {
     },
     {
       field: 'condition',
-      headerName: 'Condition',
+      headerName: 'Group',
       width: 100,
       description: 'CAP (Community Acquired Pneumonia) or VAP (Ventilator Associated Pneumonia)',
       renderCell: (params) => (
@@ -904,26 +1176,26 @@ const TrackingCurrentPage = () => {
           </Card>
         </Grid>
 
-        {/* ============ EDIT START: Dynamic condition cards (2026-01-28) ============ */}
-        {/* Dynamically render cards for each condition in the data */}
-        {Object.entries(stats.byCondition || {}).map(([condition, count], index) => (
-          <Grid item xs={12} sm={6} md={3} key={condition}>
+        {/* ============ EDIT START: Dynamic group cards (2026-01-28) ============ */}
+        {/* Dynamically render cards for each group in the data */}
+        {Object.entries(stats.byCondition || {}).map(([group, count], index) => (
+          <Grid item xs={12} sm={6} md={3} key={group}>
             <Card elevation={2}>
               <CardContent>
                 <Typography color="text.secondary" gutterBottom>
-                  {condition} Subjects
+                  {group} Subjects
                 </Typography>
-                <Typography variant="h3" sx={{ color: pieConditionColors[index % pieConditionColors.length] }}>
+                <Typography variant="h3" sx={{ color: getChartColor(index) }}>
                   {count}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Condition: {condition}
+                  Group: {group}
                 </Typography>
               </CardContent>
             </Card>
           </Grid>
         ))}
-        {/* ============ EDIT END: Dynamic condition cards ============ */}
+        {/* ============ EDIT END: Dynamic group cards ============ */}
 
         {/* Labels Breakdown Card */}
         <Grid item xs={12} sm={6} md={3}>
@@ -953,58 +1225,158 @@ const TrackingCurrentPage = () => {
         Recruitment Analytics
       </Typography>
       <Grid container spacing={3} sx={{ mb: 3 }}>
-        {/* Condition Distribution Pie Chart */}
+        {/* Group Distribution Pie Chart */}
         <Grid item xs={12} md={4}>
           <Paper elevation={2} sx={{ p: 2 }}>
-            <ReactECharts
-              option={conditionPieChartOption}
-              style={{ height: '300px', width: '100%' }}
-              opts={{ renderer: 'canvas' }}
-            />
+            {stats.total > 0 ? (
+              <ReactECharts
+                option={conditionPieChartOption}
+                style={{ height: '300px', width: '100%' }}
+                opts={{ renderer: 'canvas' }}
+                notMerge={true}
+              />
+            ) : (
+              <Box
+                sx={{
+                  height: '300px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}
+              >
+                <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
+                  Group Distribution
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  No data available for selected filters
+                </Typography>
+              </Box>
+            )}
           </Paper>
         </Grid>
 
         {/* Label Distribution Bar Chart */}
         <Grid item xs={12} md={4}>
           <Paper elevation={2} sx={{ p: 2 }}>
-            <ReactECharts
-              option={labelBarChartOption}
-              style={{ height: '300px', width: '100%' }}
-              opts={{ renderer: 'canvas' }}
-            />
+            {Object.keys(stats.byLabel || {}).length > 0 ? (
+              <ReactECharts
+                option={labelBarChartOption}
+                style={{ height: '300px', width: '100%' }}
+                opts={{ renderer: 'canvas' }}
+                notMerge={true}
+              />
+            ) : (
+              <Box
+                sx={{
+                  height: '300px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}
+              >
+                <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
+                  Label Distribution
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  No data available for selected filters
+                </Typography>
+              </Box>
+            )}
           </Paper>
         </Grid>
 
         {/* Ward Distribution Bar Chart */}
         <Grid item xs={12} md={4}>
           <Paper elevation={2} sx={{ p: 2 }}>
-            <ReactECharts
-              option={wardBarChartOption}
-              style={{ height: '300px', width: '100%' }}
-              opts={{ renderer: 'canvas' }}
-            />
+            {sortedWards.length > 0 ? (
+              <ReactECharts
+                option={wardBarChartOption}
+                style={{ height: '300px', width: '100%' }}
+                opts={{ renderer: 'canvas' }}
+                notMerge={true}
+              />
+            ) : (
+              <Box
+                sx={{
+                  height: '300px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}
+              >
+                <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
+                  Recruitment by Ward & Group
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  No data available for selected filters
+                </Typography>
+              </Box>
+            )}
           </Paper>
         </Grid>
 
-        {/* Labels by Condition Chart */}
+        {/* Recruitment by Site Chart */}
         <Grid item xs={12} md={6}>
           <Paper elevation={2} sx={{ p: 2 }}>
-            <ReactECharts
-              option={labelConditionChartOption}
-              style={{ height: '320px', width: '100%' }}
-              opts={{ renderer: 'canvas' }}
-            />
+            {sortedSites.length > 0 ? (
+              <ReactECharts
+                option={siteChartOption}
+                style={{ height: '320px', width: '100%' }}
+                opts={{ renderer: 'canvas' }}
+                notMerge={true}
+              />
+            ) : (
+              <Box
+                sx={{
+                  height: '320px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}
+              >
+                <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
+                  Recruitment by Site & Group
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  No data available for selected filters
+                </Typography>
+              </Box>
+            )}
           </Paper>
         </Grid>
 
         {/* Recruitment Overview Radar Chart */}
         <Grid item xs={12} md={6}>
           <Paper elevation={2} sx={{ p: 2 }}>
-            <ReactECharts
-              option={recruitmentRadarOption}
-              style={{ height: '320px', width: '100%' }}
-              opts={{ renderer: 'canvas' }}
-            />
+            {stats.total > 0 ? (
+              <ReactECharts
+                option={recruitmentRadarOption}
+                style={{ height: '320px', width: '100%' }}
+                opts={{ renderer: 'canvas' }}
+                notMerge={true}
+              />
+            ) : (
+              <Box
+                sx={{
+                  height: '320px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}
+              >
+                <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
+                  Recruitment Overview
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  No data available for selected filters
+                </Typography>
+              </Box>
+            )}
           </Paper>
         </Grid>
       </Grid>

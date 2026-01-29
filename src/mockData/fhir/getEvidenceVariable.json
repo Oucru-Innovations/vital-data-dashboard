@@ -1,0 +1,446 @@
+{
+  "resourceType": "Bundle",
+  "id": "79c07025-211e-4aca-aeef-9e21b2b8f562",
+  "meta": {
+    "lastUpdated": "2025-12-24T11:22:09.875+07:00"
+  },
+  "type": "searchset",
+  "total": 4,
+  "link": [
+    {
+      "relation": "self",
+      "url": "http://localhost:8080/fhir/EvidenceVariable?_count=2000"
+    }
+  ],
+  "entry": [
+    {
+      "fullUrl": "http://localhost:8080/fhir/EvidenceVariable/Envidence00EIExample",
+      "resource": {
+        "resourceType": "EvidenceVariable",
+        "id": "Envidence00EIExample",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2025-12-24T11:07:16.462+07:00"
+        },
+        "identifier": [
+          {
+            "use": "official",
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "FILL",
+                  "display": "Filler Identifier"
+                }
+              ]
+            },
+            "system": "https://vital-fhir.oucru.org/EvidenceVariableIdentifier",
+            "value": "00EI"
+          }
+        ],
+        "name": "Inc-Exc-00EI",
+        "title": "Inclusion and Exclusion Criteria for 00EI Example Study",
+        "status": "active",
+        "description": "Recruitment criteria: Elderly (60 years old and above), healthy (no hospitalized), exclude blind, deaf",
+        "note": [
+          {
+            "text": "Complex criteria can be check by definitionByCombination"
+          }
+        ],
+        "characteristic": [
+          {
+            "description": "Inclusion criteria: Elderly - age >= 60",
+            "exclude": false,
+            "definitionByTypeAndValue": {
+              "type": {
+                "coding": [
+                  {
+                    "code": "age"
+                  }
+                ]
+              },
+              "method": [
+                {
+                  "coding": [
+                    {
+                      "system": "http://snomed.info/sct",
+                      "code": "424144002",
+                      "display": "Current chronological age"
+                    }
+                  ]
+                }
+              ],
+              "valueQuantity": {
+                "value": 60,
+                "comparator": ">=",
+                "unit": "year",
+                "system": "http://unitsofmeasure.org"
+              }
+            }
+          },
+          {
+            "description": "Inclusion criteria: Healthy (not hospitalized)",
+            "exclude": false,
+            "definitionCodeableConcept": {
+              "coding": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "160245001",
+                  "display": "No current problems or disability"
+                }
+              ]
+            }
+          },
+          {
+            "description": "Exclusion criteria: hearing or vision impairment",
+            "exclude": true,
+            "definitionByCombination": {
+              "code": "at-least",
+              "threshold": 1,
+              "characteristic": [
+                {
+                  "description": "Vision impairment",
+                  "exclude": true,
+                  "definitionCodeableConcept": {
+                    "coding": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "code": "128127008",
+                        "display": "Visual system disorder (disorder)"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "description": "Deaf",
+                  "exclude": true,
+                  "definitionCodeableConcept": {
+                    "coding": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "code": "128540005",
+                        "display": "Hearing disorder (disorder)"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "search": {
+        "mode": "match"
+      }
+    },
+    {
+      "fullUrl": "http://localhost:8080/fhir/EvidenceVariable/Evidence13NV",
+      "resource": {
+        "resourceType": "EvidenceVariable",
+        "id": "Evidence13NV",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2025-12-24T11:07:16.462+07:00"
+        },
+        "identifier": [
+          {
+            "use": "official",
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "FILL",
+                  "display": "Filler Identifier"
+                }
+              ]
+            },
+            "system": "https://vital-fhir.oucru.org/EvidenceVariableIdentifier",
+            "value": "13NV"
+          }
+        ],
+        "name": "Inc-Exc-13NV",
+        "title": "Inclusion and Exclusion Criteria for 13NV Study for both cohorts",
+        "status": "active",
+        "description": "Inclusion and Exclusion Criteria for 13NV Study for both cohorts",
+        "note": [
+          {
+            "text": "Combination of CAP and VAP cohort criteria"
+          }
+        ],
+        "characteristic": [
+          {
+            "exclude": false,
+            "definitionByCombination": {
+              "code": "any-of",
+              "characteristic": [
+                {
+                  "definitionReference": {
+                    "reference": "EvidenceVariable/Evidence13NVCAP"
+                  }
+                },
+                {
+                  "definitionReference": {
+                    "reference": "EvidenceVariable/Evidence13NVVAP"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "search": {
+        "mode": "match"
+      }
+    },
+    {
+      "fullUrl": "http://localhost:8080/fhir/EvidenceVariable/Evidence13NVCAP",
+      "resource": {
+        "resourceType": "EvidenceVariable",
+        "id": "Evidence13NVCAP",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2025-12-24T11:07:16.462+07:00"
+        },
+        "identifier": [
+          {
+            "use": "official",
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "FILL",
+                  "display": "Filler Identifier"
+                }
+              ]
+            },
+            "system": "https://vital-fhir.oucru.org/EvidenceVariableIdentifier",
+            "value": "13NV-CAP"
+          }
+        ],
+        "name": "Inc-Exc-13NV-CAP",
+        "title": "Inclusion and Exclusion Criteria for 13NV Study - CAP cohort",
+        "status": "active",
+        "description": "- Inclusion Criteria\nAged 18 years or older \nParticipant or their representative is willing and able to give informed consent for participation in the study \nHospitalised for clinical diagnosis of pneumonia \nWithin 6 hours of hospital presentation admission \n- Exclusion Criteria\nThe participant is expected to be transferred to another centre within 24 hours (after enrolment) \nThe participant has a contra-indication with to fix wearable monitoring devices (for example allergy or skin lesion or pacemaker) \nPatients admitted to other healthcare facilities in this episode\nPatient is unlikely to be able to comply with study procedures (for example blood sampling requirements) \n",
+        "note": [
+          {
+            "text": "Different criteria for 2 cohorts"
+          }
+        ],
+        "characteristic": [
+          {
+            "description": "Aged 18 years or older",
+            "exclude": false,
+            "definitionByTypeAndValue": {
+              "type": {
+                "coding": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "code": "424144002",
+                    "display": "Current chronological age (observable entity)"
+                  }
+                ]
+              },
+              "valueRange": {
+                "low": {
+                  "value": 18,
+                  "unit": "years",
+                  "system": "http://unitsofmeasure.org",
+                  "code": "a"
+                }
+              }
+            }
+          },
+          {
+            "description": "Participant or their representative is willing and able to give informed consent for participation in the study",
+            "exclude": false,
+            "definitionExpression": {
+              "expression": "Gave informed consent for participation in the study"
+            }
+          },
+          {
+            "description": "Hospitalised for clinical diagnosis of pneumonia\n* A diagnosis of pneumonia follows: \na) typical symptoms (e.g. influenza-like illness with fever and muscle pain, or respiratory illness with cough and shortness of breath); AND \nb) compatible chest imaging (consolidation or ground-glass shadowing on X-ray or CT); AND \nc) alternative causes have been considered unlikely or excluded (e.g. heart failure).   \nOR a clinical diagnosis pneumonia based on the opinion of a doctor \n",
+            "exclude": false,
+            "definitionCodeableConcept": {
+              "coding": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "233604007",
+                  "display": "Pneumonia"
+                }
+              ]
+            }
+          },
+          {
+            "description": "Within 6 hours of hospital presentation admission",
+            "exclude": false,
+            "definitionExpression": {
+              "expression": "Within 6 hours of hospital presentation admission"
+            }
+          },
+          {
+            "description": "The participant is expected to be transferred to another centre within 24 hours (after enrolment)",
+            "exclude": true,
+            "definitionExpression": {
+              "expression": "Transferred to another centre within 24 hours"
+            }
+          },
+          {
+            "description": "The participant has a contra-indication with to fix wearable monitoring devices (for example allergy or skin lesion or pacemaker)",
+            "exclude": true,
+            "definitionExpression": {
+              "expression": "Contra-indication to wearable monitoring devices"
+            }
+          },
+          {
+            "description": "Patients admitted to other healthcare facilities in this episode",
+            "exclude": true,
+            "definitionExpression": {
+              "expression": "Admitted to other healthcare facilities"
+            }
+          },
+          {
+            "description": "Patient is unlikely to be able to comply with study procedures (for example blood sampling requirements)",
+            "exclude": true,
+            "definitionExpression": {
+              "expression": "Unlikely to comply with study procedures"
+            }
+          }
+        ]
+      },
+      "search": {
+        "mode": "match"
+      }
+    },
+    {
+      "fullUrl": "http://localhost:8080/fhir/EvidenceVariable/Evidence13NVVAP",
+      "resource": {
+        "resourceType": "EvidenceVariable",
+        "id": "Evidence13NVVAP",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2025-12-24T11:07:16.462+07:00"
+        },
+        "identifier": [
+          {
+            "use": "official",
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "FILL",
+                  "display": "Filler Identifier"
+                }
+              ]
+            },
+            "system": "https://vital-fhir.oucru.org/EvidenceVariableIdentifier",
+            "value": "13NV-VAP"
+          }
+        ],
+        "name": "Inc-Exc-13NV-VAP",
+        "title": "Inclusion and Exclusion Criteria for 13NV Study - VAP cohort",
+        "status": "active",
+        "description": "- Inclusion Criteria\nAged 18 years or older \nParticipant or their representative is willing and able to give informed consent for participation in the study\nParticipant is receiving mechanical ventilation and is expected to continue to do so at a study site hospital for at least 5 days\n- Exclusion Criteria\nThe participant has received mechanical ventilation for longer than 48 hours this episode or has received another episode of mechanical ventilation within the last 14 days\nThe participant is expected to be transferred to other centre within 5 days \nDiagnosis of pneumonia within preceding 7 days (diagnosed clinically using criteria in 7.2 above)\nThe participant has a contra-indication to fix with wearable devices (for example allergy or skin lesion or pacemaker) \nPatient is unlikely to be able to comply with study procedures (for example blood sampling requirements, ETA) \n",
+        "note": [
+          {
+            "text": "Different criteria for 2 cohorts"
+          }
+        ],
+        "characteristic": [
+          {
+            "description": "Aged 18 years or older",
+            "exclude": false,
+            "definitionByTypeAndValue": {
+              "type": {
+                "coding": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "code": "424144002",
+                    "display": "Current chronological age (observable entity)"
+                  }
+                ]
+              },
+              "valueRange": {
+                "low": {
+                  "value": 18,
+                  "unit": "years",
+                  "system": "http://unitsofmeasure.org",
+                  "code": "a"
+                }
+              }
+            }
+          },
+          {
+            "description": "Participant or their representative is willing and able to give informed consent for participation in the study",
+            "exclude": false,
+            "definitionExpression": {
+              "expression": "Gave informed consent for participation in the study"
+            }
+          },
+          {
+            "description": "Participant is receiving mechanical ventilation and is expected to continue to do so at a study site hospital for at least 5 days",
+            "exclude": false,
+            "definitionExpression": {
+              "expression": "Expecting mechanical ventilation at least 5 days"
+            }
+          },
+          {
+            "description": "The participant has received mechanical ventilation for longer than 48 hours this episode or has received another episode of mechanical ventilation within the last 14 days",
+            "exclude": true,
+            "definitionByCombination": {
+              "code": "any-of",
+              "characteristic": [
+                {
+                  "definitionExpression": {
+                    "expression": "Received mechanical ventilation for longer than 48 hours this episode"
+                  }
+                },
+                {
+                  "description": "The participant has received mechanical ventilation for longer than 48 hours this episode"
+                },
+                {
+                  "definitionExpression": {
+                    "expression": "Received another episode of mechanical ventilation within the last 14 days"
+                  }
+                },
+                {
+                  "description": "The participant has received another episode of mechanical ventilation within the last 14 days"
+                }
+              ]
+            }
+          },
+          {
+            "description": "The participant is expected to be transferred to other centre within 5 days",
+            "exclude": true,
+            "definitionExpression": {
+              "expression": "Expected transfer within 5 days"
+            }
+          },
+          {
+            "description": "Diagnosis of pneumonia within preceding 7 days (diagnosed clinically using criteria in 7.2 Protocol)",
+            "exclude": true,
+            "definitionExpression": {
+              "expression": "Diagnosis of pneumonia within the preceding 7 days"
+            }
+          },
+          {
+            "description": "The participant has a contra-indication to fix with wearable devices (for example allergy or skin lesion or pacemaker)",
+            "exclude": true,
+            "definitionExpression": {
+              "expression": "Contra-indication to wearable monitoring devices"
+            }
+          },
+          {
+            "description": "Patient is unlikely to be able to comply with study procedures (for example blood sampling requirements, ETA)",
+            "exclude": true,
+            "definitionExpression": {
+              "expression": "Patient is unlikely to be able to comply with study procedures"
+            }
+          }
+        ]
+      },
+      "search": {
+        "mode": "match"
+      }
+    }
+  ]
+}

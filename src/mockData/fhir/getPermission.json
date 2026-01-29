@@ -1,0 +1,152 @@
+{
+  "resourceType": "Bundle",
+  "id": "48783dd4-e2ba-4986-bba7-ed5fc2562668",
+  "meta": {
+    "lastUpdated": "2025-12-24T11:22:10.047+07:00"
+  },
+  "type": "searchset",
+  "total": 2,
+  "link": [
+    {
+      "relation": "self",
+      "url": "http://localhost:8080/fhir/Permission?_count=2000"
+    }
+  ],
+  "entry": [
+    {
+      "fullUrl": "http://localhost:8080/fhir/Permission/ICFTemplate00EIExample",
+      "resource": {
+        "resourceType": "Permission",
+        "id": "ICFTemplate00EIExample",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2025-12-24T11:07:16.462+07:00"
+        },
+        "status": "active",
+        "combining": "permit-unless-deny",
+        "rule": [
+          {
+            "type": "permit",
+            "data": [
+              {
+                "expression": {
+                  "name": "Participate",
+                  "expression": "I ☐ AGREE or ☐ DISAGREE to participate in the study"
+                }
+              }
+            ]
+          },
+          {
+            "type": "permit",
+            "data": [
+              {
+                "expression": {
+                  "name": "DataActionOnWithdrawal",
+                  "expression": "If I withdraw from the study, I ☐ AGREE or ☐ DISAGREE that the information and data collected up to the time I withdraw from the study will continue to be stored and analyzed."
+                }
+              }
+            ]
+          },
+          {
+            "type": "permit",
+            "data": [
+              {
+                "expression": {
+                  "name": "SecondaryAnalysis",
+                  "expression": "I ☐ AGREE or ☐ DISAGREE that the data I have provided will be stored and used/analyzed in other future studies"
+                }
+              }
+            ]
+          },
+          {
+            "type": "permit",
+            "data": [
+              {
+                "expression": {
+                  "name": "MediaPublication",
+                  "expression": "I ☐ AGREE or ☐ DISAGREE to allow research staff to take the picture and audio record the discussions during participation and to use them in media publications"
+                }
+              }
+            ]
+          },
+          {
+            "type": "permit",
+            "data": [
+              {
+                "expression": {
+                  "name": "Contact",
+                  "expression": "I ☐ AGREE or ☐ DISAGREE to allow research staff to contact me for future research studies"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "search": {
+        "mode": "match"
+      }
+    },
+    {
+      "fullUrl": "http://localhost:8080/fhir/Permission/ICFTemplate13NV",
+      "resource": {
+        "resourceType": "Permission",
+        "id": "ICFTemplate13NV",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2025-12-24T11:07:16.462+07:00"
+        },
+        "status": "active",
+        "combining": "permit-unless-deny",
+        "rule": [
+          {
+            "type": "permit",
+            "data": [
+              {
+                "expression": {
+                  "name": "Participate",
+                  "expression": "I ☐ AGREE or ☐ NOT AGREE take part into this study"
+                }
+              }
+            ]
+          },
+          {
+            "type": "permit",
+            "data": [
+              {
+                "expression": {
+                  "name": "DataAndSampleActionOnWithdrawal",
+                  "expression": "I ☐ AGREE or ☐ NOT AGREE that my data and samples which have been collected until the time of my withdrawal will be kept and analysed if I withdraw from the study."
+                }
+              }
+            ]
+          },
+          {
+            "type": "permit",
+            "data": [
+              {
+                "expression": {
+                  "name": "DataSharingForFutureResearch\"",
+                  "expression": "I ☐ AGREE or ☐ NOT AGREE for my de-identified data to be retained and used or analysed in future research."
+                }
+              }
+            ]
+          },
+          {
+            "type": "permit",
+            "data": [
+              {
+                "expression": {
+                  "name": "SampleSharingForFutureResearch\"",
+                  "expression": "I ☐ AGREE or ☐ NOT AGREE for my de-identified samples to be retained and used or analysed in future research including future genetic research."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "search": {
+        "mode": "match"
+      }
+    }
+  ]
+}
