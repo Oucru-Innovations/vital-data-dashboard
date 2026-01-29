@@ -273,22 +273,11 @@ const filterMockData = (bundle, filters = {}) => {
 
   if (group) {
     filteredEntries = filteredEntries.filter(entry => {
-      // Check comparisonGroup extension list (handles multiple groups)
-      const groupExts = entry.resource?.extension?.filter(
-        ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/comparisonGroup' ||
-          ext.url?.includes('/comparisonGroup')
+      const groupExt = entry.resource?.extension?.filter(
+        ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/comparisonGroup'
       );
-
-      const patientGroups = groupExts?.map(ext => ext.valueId) || [];
-
-      // Also check condition extension as fallback
-      const conditionExt = entry.resource?.extension?.find(
-        ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/condition' ||
-          ext.url?.includes('/condition')
-      );
-      const conditionText = conditionExt?.valueCodeableConcept?.text;
-
-      return patientGroups.includes(group) || conditionText === group;
+      const groupText = groupExt?.map(ext => ext.valueId);
+      return groupText.includes(group);
     });
     console.log(`[TrackingCurrent] Filtered by group "${group}": ${filteredEntries.length} entries`);
   }
@@ -382,8 +371,8 @@ const TrackingCurrentPage = () => {
     bySite: {},           // Site totals
     byWard: {},
     byLabelGroup: {}, // Will be populated dynamically with any groups from data
-    byWardCondition: {},  // Ward → Group breakdown for stacked bar chart
-    bySiteCondition: {},  // Site → Group breakdown for stacked bar chart
+    byWardGroup: {},  // Ward → Group breakdown for stacked bar chart
+    bySiteGroup: {},  // Site → Group breakdown for stacked bar chart
   });
   // ============ EDIT END: Dynamic initial state ============
 
@@ -456,39 +445,13 @@ const TrackingCurrentPage = () => {
       setLoading(true);
 
       // Build filters from current selections
-      // Pass full objects for proper matching in mock data AND API
+      // Pass full objects for proper matching in mock data
       const filters = {
-        // Common filters
-        studyCode: selectedStudy || null,
-
-        // Site filtering
-        siteCode: currentSite?.code || null,
-        alias: currentSite?.alias?.join(',') || null, // Join aliases for API query
-
-        // Ward filtering
-        wardCode: currentWard?.code || null,
-
-        // Organization Context (for API filter logic)
-        // If ward is selected, use ward as organization. If only site, use site.
-        organization: currentWard || currentSite || null,
-
-        // Condition/Group
-        // Note: 'group' in inferRecruitmentQuery maps to 'group-extension'
-        // 'condition' maps to 'condition-extension'
-        // In TrackingCurrent, the dropdown is called "Condition" but acts as a group/condition filter
-        // Condition/Group
-        // Note: 'group' in inferRecruitmentQuery maps to 'group-extension'
-        // 'condition' maps to 'condition-extension'
-        // In TrackingCurrent, the dropdown is called "Condition" but acts as a group/condition filter
-        // We prioritize passing 'group' logic since patients can have multiple groups
-        condition: null,
-        group: currentCondition || null, // Map currentCondition to group parameter
-
-        // Legacy/Mock compatibility
-        siteObj: currentSite || null,
-        wardObj: currentWard || null,
-        site: currentSite?.code || null,
-        ward: currentWard?.code || null,
+        siteObj: currentSite || null,  // Full site object with alias array
+        site: currentSite?.code || null,  // Site code for API calls
+        wardObj: currentWard || null,  // Full ward object with id for matching
+        ward: currentWard?.code || null,  // Ward code for API calls
+        group: currentGroup || null,
       };
 
       console.log('[TrackingCurrent] Loading data with filters:', {
@@ -867,7 +830,7 @@ const TrackingCurrentPage = () => {
         emphasis: {
           focus: 'series',
         },
-        data: sortedWards.map(ward => stats.byWardCondition?.[ward]?.[group] || 0),
+        data: sortedWards.map(ward => stats.byWardGroup?.[ward]?.[group] || 0),
         itemStyle: {
           color: getChartColor(index),
         },
@@ -1166,14 +1129,15 @@ const TrackingCurrentPage = () => {
     );
   }
 
+  console.log('stat got is ', stats);
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" gutterBottom>
         Current Recruitment Tracking
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+      {/* <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Patient-level recruitment details with label information from FHIR data
-      </Typography>
+      </Typography> */}
       <Divider sx={{ mb: 3 }} />
 
       {/* Filter Controls */}
@@ -1240,7 +1204,7 @@ const TrackingCurrentPage = () => {
 
         {/* ============ EDIT START: Dynamic group cards (2026-01-28) ============ */}
         {/* Dynamically render cards for each group in the data */}
-        {Object.entries(stats.byCondition || {}).map(([group, count], index) => (
+        {Object.entries(stats.byGroup || {}).map(([group, count], index) => (
           <Grid item xs={12} sm={6} md={3} key={group}>
             <Card elevation={2}>
               <CardContent>
