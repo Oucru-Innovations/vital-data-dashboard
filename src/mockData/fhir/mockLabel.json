@@ -1,8 +1,8 @@
 {
     "resourceType": "Bundle",
-    "id": "c0a1d7dd-cf4e-4213-bb3a-a517a53e38ba",
+    "id": "dedccc1a-ad34-42fa-852f-bf92d7c33d65",
     "meta": {
-        "lastUpdated": "2026-01-28T09:27:46.030+07:00"
+        "lastUpdated": "2026-02-02T14:17:19.325+07:00"
     },
     "type": "searchset",
     "total": 10,
@@ -158,8 +158,8 @@
                                 "resourceType": "Patient",
                                 "id": "360A",
                                 "meta": {
-                                    "versionId": "3",
-                                    "lastUpdated": "2026-01-28T09:27:22.724+07:00",
+                                    "versionId": "7",
+                                    "lastUpdated": "2026-02-02T14:12:03.502+07:00",
                                     "profile": [
                                         "https://vital-fhir.oucru.org/StructureDefinition/VitalPatient"
                                     ]
@@ -174,7 +174,33 @@
                                             },
                                             {
                                                 "url": "value",
-                                                "valueString": "cap-1"
+                                                "valueString": "CAP.category2.cap-3"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "url": "https://vital-fhir.oucru.org/StructureDefinition/dictionary",
+                                        "extension": [
+                                            {
+                                                "url": "key",
+                                                "valueString": "label"
+                                            },
+                                            {
+                                                "url": "value",
+                                                "valueString": "CAP.serverity.cap-1"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "url": "https://vital-fhir.oucru.org/StructureDefinition/dictionary",
+                                        "extension": [
+                                            {
+                                                "url": "key",
+                                                "valueString": "label"
+                                            },
+                                            {
+                                                "url": "value",
+                                                "valueString": "CAP.serverity.cap-2"
                                             }
                                         ]
                                     }
@@ -357,8 +383,8 @@
                                 "resourceType": "Patient",
                                 "id": "378A",
                                 "meta": {
-                                    "versionId": "3",
-                                    "lastUpdated": "2026-01-28T09:27:22.314+07:00",
+                                    "versionId": "7",
+                                    "lastUpdated": "2026-02-02T14:12:02.885+07:00",
                                     "profile": [
                                         "https://vital-fhir.oucru.org/StructureDefinition/VitalPatient"
                                     ]
@@ -373,7 +399,33 @@
                                             },
                                             {
                                                 "url": "value",
-                                                "valueString": "vap-1"
+                                                "valueString": "CAP.category2.cap-3"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "url": "https://vital-fhir.oucru.org/StructureDefinition/dictionary",
+                                        "extension": [
+                                            {
+                                                "url": "key",
+                                                "valueString": "label"
+                                            },
+                                            {
+                                                "url": "value",
+                                                "valueString": "VAP.vap-1"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "url": "https://vital-fhir.oucru.org/StructureDefinition/dictionary",
+                                        "extension": [
+                                            {
+                                                "url": "key",
+                                                "valueString": "label"
+                                            },
+                                            {
+                                                "url": "value",
+                                                "valueString": "CAP.serverity.cap-2"
                                             }
                                         ]
                                     }
@@ -555,8 +607,8 @@
                                 "resourceType": "Patient",
                                 "id": "3481A",
                                 "meta": {
-                                    "versionId": "3",
-                                    "lastUpdated": "2026-01-28T09:27:21.783+07:00",
+                                    "versionId": "4",
+                                    "lastUpdated": "2026-02-02T10:08:41.604+07:00",
                                     "profile": [
                                         "https://vital-fhir.oucru.org/StructureDefinition/VitalPatient"
                                     ]
@@ -571,7 +623,7 @@
                                             },
                                             {
                                                 "url": "value",
-                                                "valueString": "cap-2"
+                                                "valueString": "CAP.serverity.cap-2"
                                             }
                                         ]
                                     }
@@ -754,8 +806,8 @@
                                 "resourceType": "Patient",
                                 "id": "3507A",
                                 "meta": {
-                                    "versionId": "3",
-                                    "lastUpdated": "2026-01-28T09:27:20.339+07:00",
+                                    "versionId": "4",
+                                    "lastUpdated": "2026-02-02T10:08:45.652+07:00",
                                     "profile": [
                                         "https://vital-fhir.oucru.org/StructureDefinition/VitalPatient"
                                     ]
@@ -770,7 +822,7 @@
                                             },
                                             {
                                                 "url": "value",
-                                                "valueString": "cap-1"
+                                                "valueString": "CAP.serverity.cap-1"
                                             }
                                         ]
                                     }
@@ -953,8 +1005,8 @@
                                 "resourceType": "Patient",
                                 "id": "3518A",
                                 "meta": {
-                                    "versionId": "3",
-                                    "lastUpdated": "2026-01-28T09:27:19.785+07:00",
+                                    "versionId": "5",
+                                    "lastUpdated": "2026-02-02T14:13:40.228+07:00",
                                     "profile": [
                                         "https://vital-fhir.oucru.org/StructureDefinition/VitalPatient"
                                     ]
@@ -969,7 +1021,20 @@
                                             },
                                             {
                                                 "url": "value",
-                                                "valueString": "cap-2"
+                                                "valueString": "CAP.serverity.cap-2"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "url": "https://vital-fhir.oucru.org/StructureDefinition/dictionary",
+                                        "extension": [
+                                            {
+                                                "url": "key",
+                                                "valueString": "label"
+                                            },
+                                            {
+                                                "url": "value",
+                                                "valueString": "CAP.category2.cap-3"
                                             }
                                         ]
                                     }
@@ -1152,8 +1217,8 @@
                                 "resourceType": "Patient",
                                 "id": "3564A",
                                 "meta": {
-                                    "versionId": "3",
-                                    "lastUpdated": "2026-01-28T09:27:19.308+07:00",
+                                    "versionId": "4",
+                                    "lastUpdated": "2026-02-02T10:08:54.121+07:00",
                                     "profile": [
                                         "https://vital-fhir.oucru.org/StructureDefinition/VitalPatient"
                                     ]
@@ -1168,7 +1233,7 @@
                                             },
                                             {
                                                 "url": "value",
-                                                "valueString": "cap-1"
+                                                "valueString": "CAP.serverity.cap-1"
                                             }
                                         ]
                                     }
@@ -1351,8 +1416,8 @@
                                 "resourceType": "Patient",
                                 "id": "3586A",
                                 "meta": {
-                                    "versionId": "3",
-                                    "lastUpdated": "2026-01-28T09:27:21.352+07:00",
+                                    "versionId": "5",
+                                    "lastUpdated": "2026-02-02T14:13:40.816+07:00",
                                     "profile": [
                                         "https://vital-fhir.oucru.org/StructureDefinition/VitalPatient"
                                     ]
@@ -1367,7 +1432,20 @@
                                             },
                                             {
                                                 "url": "value",
-                                                "valueString": "vap-1"
+                                                "valueString": "VAP.vap-1"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "url": "https://vital-fhir.oucru.org/StructureDefinition/dictionary",
+                                        "extension": [
+                                            {
+                                                "url": "key",
+                                                "valueString": "label"
+                                            },
+                                            {
+                                                "url": "value",
+                                                "valueString": "VAP.vap-2"
                                             }
                                         ]
                                     }
@@ -1550,8 +1628,8 @@
                                 "resourceType": "Patient",
                                 "id": "3593A",
                                 "meta": {
-                                    "versionId": "3",
-                                    "lastUpdated": "2026-01-28T09:27:20.777+07:00",
+                                    "versionId": "4",
+                                    "lastUpdated": "2026-02-02T10:09:02.476+07:00",
                                     "profile": [
                                         "https://vital-fhir.oucru.org/StructureDefinition/VitalPatient"
                                     ]
@@ -1566,7 +1644,7 @@
                                             },
                                             {
                                                 "url": "value",
-                                                "valueString": "vap-1"
+                                                "valueString": "VAP.vap-1"
                                             }
                                         ]
                                     }
@@ -1730,8 +1808,8 @@
                                 "resourceType": "Patient",
                                 "id": "3658A",
                                 "meta": {
-                                    "versionId": "3",
-                                    "lastUpdated": "2026-01-28T09:27:18.080+07:00",
+                                    "versionId": "5",
+                                    "lastUpdated": "2026-02-02T14:16:08.704+07:00",
                                     "profile": [
                                         "https://vital-fhir.oucru.org/StructureDefinition/VitalPatient"
                                     ]
@@ -1746,7 +1824,7 @@
                                             },
                                             {
                                                 "url": "value",
-                                                "valueString": "vap-1"
+                                                "valueString": "CAP.category2.cap-3"
                                             }
                                         ]
                                     }
@@ -1929,8 +2007,8 @@
                                 "resourceType": "Patient",
                                 "id": "3652A",
                                 "meta": {
-                                    "versionId": "3",
-                                    "lastUpdated": "2026-01-28T09:27:18.849+07:00",
+                                    "versionId": "5",
+                                    "lastUpdated": "2026-02-02T14:16:09.283+07:00",
                                     "profile": [
                                         "https://vital-fhir.oucru.org/StructureDefinition/VitalPatient"
                                     ]
@@ -1945,7 +2023,20 @@
                                             },
                                             {
                                                 "url": "value",
-                                                "valueString": "vap-2"
+                                                "valueString": "CAP.category2.cap-3"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "url": "https://vital-fhir.oucru.org/StructureDefinition/dictionary",
+                                        "extension": [
+                                            {
+                                                "url": "key",
+                                                "valueString": "label"
+                                            },
+                                            {
+                                                "url": "value",
+                                                "valueString": "CAP.serverity.cap-1"
                                             }
                                         ]
                                     }

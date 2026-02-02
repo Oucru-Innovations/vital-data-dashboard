@@ -1,15 +1,15 @@
 {
   "resourceType": "Bundle",
-  "id": "08275752-8dc1-46ed-a62f-f7d76198e2cc",
+  "id": "beabbe00-6bc7-4b38-9702-ce3a75783199",
   "meta": {
-    "lastUpdated": "2025-12-24T11:22:10.067+07:00"
+    "lastUpdated": "2026-02-02T14:18:47.305+07:00"
   },
   "type": "searchset",
   "total": 46,
   "link": [
     {
       "relation": "self",
-      "url": "http://localhost:8080/fhir/ResearchStudy?_count=2000"
+      "url": "http://localhost:8080/fhir/ResearchStudy?_count=2000&_format=json"
     }
   ],
   "entry": [
@@ -20,7 +20,7 @@
         "id": "Study00EIExample",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -185,7 +185,7 @@
         "id": "Study01NVa",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -338,7 +338,7 @@
         "id": "Study01NVc",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -481,7 +481,7 @@
         "id": "Study01NVd",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -611,7 +611,7 @@
         "id": "Study01NVe",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -750,7 +750,7 @@
         "id": "Study01NVf",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -893,7 +893,7 @@
         "id": "Study02TS",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -1021,7 +1021,7 @@
         "id": "Study03NV",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -1172,7 +1172,7 @@
         "id": "Study03NVa",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -1315,7 +1315,7 @@
         "id": "Study03NVb",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -1451,7 +1451,7 @@
         "id": "Study03NVc",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -1584,7 +1584,7 @@
         "id": "Study03TS",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -1742,7 +1742,7 @@
         "id": "Study04NV",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -1905,7 +1905,7 @@
         "id": "Study04TS",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -2032,7 +2032,7 @@
         "id": "Study05EI",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -2169,7 +2169,7 @@
         "id": "Study05NV",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -2308,7 +2308,7 @@
         "id": "Study06NV",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -2451,7 +2451,7 @@
         "id": "Study06TS",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -2605,7 +2605,7 @@
         "id": "Study07NV",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -2751,7 +2751,7 @@
         "id": "Study09NV",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -2888,240 +2888,13 @@
       }
     },
     {
-      "fullUrl": "http://localhost:8080/fhir/ResearchStudy/Study13NV",
-      "resource": {
-        "resourceType": "ResearchStudy",
-        "id": "Study13NV",
-        "meta": {
-          "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
-          "profile": [
-            "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
-          ]
-        },
-        "extension": [
-          {
-            "url": "https://vital-fhir.oucru.org/StructureDefinition/sop",
-            "valueUrl": "https://vital-cdn.oucru.org/SOP/13NV-Study-SOP.pdf"
-          },
-          {
-            "url": "https://vital-fhir.oucru.org/StructureDefinition/data-dictionary",
-            "valueUrl": "https://vital-cdn.oucru.org/DataDictionary/13NV-Data-Dictionary.xlsx"
-          },
-          {
-            "url": "https://vital-fhir.oucru.org/StructureDefinition/in-hospital-visits",
-            "valueDecimal": 10
-          },
-          {
-            "url": "https://vital-fhir.oucru.org/StructureDefinition/fu-visits",
-            "valueDecimal": 1
-          },
-          {
-            "url": "https://vital-fhir.oucru.org/StructureDefinition/blood-sample",
-            "valueString": "Yes"
-          },
-          {
-            "url": "https://vital-fhir.oucru.org/StructureDefinition/ultrasound",
-            "valueString": "Yes, Lung ultrasound"
-          },
-          {
-            "url": "https://vital-fhir.oucru.org/StructureDefinition/quality-of-life-interview",
-            "valueString": "No"
-          },
-          {
-            "url": "https://vital-fhir.oucru.org/StructureDefinition/wearable-device-acceptance-interview",
-            "valueString": "No"
-          },
-          {
-            "url": "https://vital-fhir.oucru.org/StructureDefinition/clinical-source",
-            "valueString": "CliRes"
-          },
-          {
-            "url": "https://vital-fhir.oucru.org/StructureDefinition/access-type",
-            "valueString": "#private"
-          },
-          {
-            "url": "https://vital-fhir.oucru.org/StructureDefinition/secondary-analysis",
-            "valueString": "Yes"
-          },
-          {
-            "url": "https://vital-fhir.oucru.org/StructureDefinition/data-sharing-note",
-            "valueString": "Data sharing is allowed for 2nd analysis if the next study approved by EC."
-          }
-        ],
-        "identifier": [
-          {
-            "use": "official",
-            "type": {
-              "coding": [
-                {
-                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
-                  "code": "FILL",
-                  "display": "Filler Identifier"
-                }
-              ]
-            },
-            "system": "https://vital-fhir.oucru.org/ResearchStudyIdentifier",
-            "value": "13NV"
-          }
-        ],
-        "name": "Defining new phenotypes in pneumonia ",
-        "title": "Discovering novel pneumonia phenotypes using artificial intelligence and multimodal data: a prospective observational study",
-        "label": [
-          {
-            "type": {
-              "coding": [
-                {
-                  "code": "language"
-                }
-              ]
-            }
-          }
-        ],
-        "status": "active",
-        "studyDesign": [
-          {
-            "coding": [
-              {
-                "code": "observational"
-              }
-            ]
-          }
-        ],
-        "condition": [
-          {
-            "coding": [
-              {
-                "system": "http://snomed.info/sct",
-                "code": "385093006",
-                "display": "Community acquired pneumonia"
-              }
-            ],
-            "text": "CAP"
-          },
-          {
-            "coding": [
-              {
-                "system": "http://snomed.info/sct",
-                "code": "429271009",
-                "display": "Ventilator associated pneumonia"
-              }
-            ],
-            "text": "VAP"
-          }
-        ],
-        "descriptionSummary": "Defining new phenotypes in pneumonia",
-        "description": "We will observe hospitalised patients at risk of severe CAP or VAP, collecting multiple types of data, identifying the pathogens themselves, patient clinical, inflammatory and immune responses to pathogens in order to identify groups of features (phenotypes) that are associated with specific outcomes. We will use conventional statistics and AI approaches to analyse these very large and complex datasets to identify subgroups of features or patients associated with severe disease. ",
-        "period": {
-          "start": "2026-03-01",
-          "end": "2029-02-28"
-        },
-        "site": [
-          {
-            "reference": "Organization/HospitalforTropicalDiseases"
-          },
-          {
-            "reference": "Organization/TrungVuongHospital"
-          },
-          {
-            "reference": "Organization/NguyenThiThapHospital"
-          },
-          {
-            "reference": "Organization/NationalHospitalforTropicalDiseases"
-          }
-        ],
-        "associatedParty": [
-          {
-            "name": "Louise Thwaites",
-            "role": {
-              "coding": [
-                {
-                  "system": "http://hl7.org/fhir/research-study-party-role",
-                  "code": "primary-investigator",
-                  "display": "primary-investigator"
-                }
-              ]
-            },
-            "party": {
-              "reference": "Practitioner/ProfLouiseThwaites"
-            }
-          },
-          {
-            "name": "Nguyen Le Nhu Tung",
-            "role": {
-              "coding": [
-                {
-                  "system": "http://hl7.org/fhir/research-study-party-role",
-                  "code": "primary-investigator",
-                  "display": "primary-investigator"
-                }
-              ]
-            },
-            "party": {
-              "reference": "Practitioner/DrNguyenLeNhuTung"
-            }
-          },
-          {
-            "name": "Huynh Ngoc Hon",
-            "role": {
-              "coding": [
-                {
-                  "system": "http://hl7.org/fhir/research-study-party-role",
-                  "code": "primary-investigator",
-                  "display": "primary-investigator"
-                }
-              ]
-            },
-            "party": {
-              "reference": "Practitioner/DrHuynhNgocHon"
-            }
-          },
-          {
-            "name": "Luong Hoang Liem",
-            "role": {
-              "coding": [
-                {
-                  "system": "http://hl7.org/fhir/research-study-party-role",
-                  "code": "primary-investigator",
-                  "display": "primary-investigator"
-                }
-              ]
-            },
-            "party": {
-              "reference": "Practitioner/DrLuongHoangLiem"
-            }
-          }
-        ],
-        "recruitment": {
-          "targetNumber": 1101,
-          "eligibility": {
-            "reference": "EvidenceVariable/Evidence13NV"
-          }
-        },
-        "comparisonGroup": [
-          {
-            "name": "CAP"
-          },
-          {
-            "name": "VAP"
-          },
-          {
-            "name": "VAP+"
-          }
-        ]
-      },
-      "search": {
-        "mode": "match"
-      }
-    },
-    {
       "fullUrl": "http://localhost:8080/fhir/ResearchStudy/Study17EI",
       "resource": {
         "resourceType": "ResearchStudy",
         "id": "Study17EI",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -3278,7 +3051,7 @@
         "id": "Study23EI",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -3421,7 +3194,7 @@
         "id": "Study24EI",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -3564,7 +3337,7 @@
         "id": "Study24EIa",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -3710,7 +3483,7 @@
         "id": "Study24EIb",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -3853,7 +3626,7 @@
         "id": "Study24EIc",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -3992,7 +3765,7 @@
         "id": "Study26TB",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -4141,7 +3914,7 @@
         "id": "Study27TB",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -4317,7 +4090,7 @@
         "id": "Study28EI",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -4460,7 +4233,7 @@
         "id": "Study31TB",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -4672,7 +4445,7 @@
         "id": "Study34EN",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -4818,7 +4591,7 @@
         "id": "Study38CN",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -4967,7 +4740,7 @@
         "id": "Study38CNa",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -5094,7 +4867,7 @@
         "id": "Study38CNb",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -5227,7 +5000,7 @@
         "id": "Study39EI",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -5370,7 +5143,7 @@
         "id": "Study39EIa",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -5513,7 +5286,7 @@
         "id": "Study46EI",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -5656,7 +5429,7 @@
         "id": "Study47EI",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -5795,7 +5568,7 @@
         "id": "Study49EI",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -5956,7 +5729,7 @@
         "id": "Study54EI",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -6117,7 +5890,7 @@
         "id": "Study56EI",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -6240,7 +6013,7 @@
         "id": "Study60EI",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -6374,7 +6147,7 @@
         "id": "Study61EI",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -6517,7 +6290,7 @@
         "id": "Study62EI",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -6613,7 +6386,7 @@
         "id": "Study69DX",
         "meta": {
           "versionId": "1",
-          "lastUpdated": "2025-12-24T11:07:16.462+07:00",
+          "lastUpdated": "2026-01-27T17:09:00.172+07:00",
           "profile": [
             "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
           ]
@@ -6742,6 +6515,295 @@
         "comparisonGroup": [
           {
             "name": "default"
+          }
+        ]
+      },
+      "search": {
+        "mode": "match"
+      }
+    },
+    {
+      "fullUrl": "http://localhost:8080/fhir/ResearchStudy/Study13NV",
+      "resource": {
+        "resourceType": "ResearchStudy",
+        "id": "Study13NV",
+        "meta": {
+          "versionId": "4",
+          "lastUpdated": "2026-02-02T09:48:21.432+07:00",
+          "profile": [
+            "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
+          ]
+        },
+        "extension": [
+          {
+            "url": "https://vital-fhir.oucru.org/StructureDefinition/sop",
+            "valueUrl": "https://vital-cdn.oucru.org/SOP/13NV-Study-SOP.pdf"
+          },
+          {
+            "url": "https://vital-fhir.oucru.org/StructureDefinition/data-dictionary",
+            "valueUrl": "https://vital-cdn.oucru.org/DataDictionary/13NV-Data-Dictionary.xlsx"
+          },
+          {
+            "url": "https://vital-fhir.oucru.org/StructureDefinition/in-hospital-visits",
+            "valueDecimal": 10
+          },
+          {
+            "url": "https://vital-fhir.oucru.org/StructureDefinition/fu-visits",
+            "valueDecimal": 1
+          },
+          {
+            "url": "https://vital-fhir.oucru.org/StructureDefinition/blood-sample",
+            "valueString": "Yes"
+          },
+          {
+            "url": "https://vital-fhir.oucru.org/StructureDefinition/ultrasound",
+            "valueString": "Yes, Lung ultrasound"
+          },
+          {
+            "url": "https://vital-fhir.oucru.org/StructureDefinition/quality-of-life-interview",
+            "valueString": "No"
+          },
+          {
+            "url": "https://vital-fhir.oucru.org/StructureDefinition/wearable-device-acceptance-interview",
+            "valueString": "No"
+          },
+          {
+            "url": "https://vital-fhir.oucru.org/StructureDefinition/clinical-source",
+            "valueString": "CliRes"
+          },
+          {
+            "url": "https://vital-fhir.oucru.org/StructureDefinition/access-type",
+            "valueString": "#private"
+          },
+          {
+            "url": "https://vital-fhir.oucru.org/StructureDefinition/secondary-analysis",
+            "valueString": "Yes"
+          },
+          {
+            "url": "https://vital-fhir.oucru.org/StructureDefinition/data-sharing-note",
+            "valueString": "Data sharing is allowed for 2nd analysis if the next study approved by EC."
+          },
+          {
+            "url": "https://vital-fhir.oucru.org/StructureDefinition/ext-multiple-value",
+            "extension": [
+              {
+                "url": "label",
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "code": "CAP.serverity.cap-1"
+                    }
+                  ],
+                  "text": "subgroup for serverity in cap: level 1"
+                }
+              },
+              {
+                "url": "label",
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "code": "CAP.serverity.cap-2"
+                    }
+                  ],
+                  "text": "subgroup for serverity in cap: level 2"
+                }
+              },
+              {
+                "url": "label",
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "code": "CAP.category2.cap-3"
+                    }
+                  ],
+                  "text": "subgroup for <category2> in cap"
+                }
+              },
+              {
+                "url": "label",
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "code": "VAP.vap-1"
+                    }
+                  ],
+                  "text": "subgroup for vap: group 1"
+                }
+              },
+              {
+                "url": "label",
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "code": "VAP.vap-2"
+                    }
+                  ],
+                  "text": "subgroup for vap: group 2"
+                }
+              }
+            ]
+          }
+        ],
+        "identifier": [
+          {
+            "use": "official",
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "FILL",
+                  "display": "Filler Identifier"
+                }
+              ]
+            },
+            "system": "https://vital-fhir.oucru.org/ResearchStudyIdentifier",
+            "value": "13NV"
+          }
+        ],
+        "name": "Defining new phenotypes in pneumonia ",
+        "title": "Discovering novel pneumonia phenotypes using artificial intelligence and multimodal data: a prospective observational study",
+        "label": [
+          {
+            "type": {
+              "coding": [
+                {
+                  "code": "language"
+                }
+              ]
+            }
+          }
+        ],
+        "status": "active",
+        "studyDesign": [
+          {
+            "coding": [
+              {
+                "code": "observational"
+              }
+            ]
+          }
+        ],
+        "condition": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "385093006",
+                "display": "Community acquired pneumonia"
+              }
+            ],
+            "text": "CAP"
+          },
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "429271009",
+                "display": "Ventilator associated pneumonia"
+              }
+            ],
+            "text": "VAP"
+          }
+        ],
+        "descriptionSummary": "Defining new phenotypes in pneumonia",
+        "description": "We will observe hospitalised patients at risk of severe CAP or VAP, collecting multiple types of data, identifying the pathogens themselves, patient clinical, inflammatory and immune responses to pathogens in order to identify groups of features (phenotypes) that are associated with specific outcomes. We will use conventional statistics and AI approaches to analyse these very large and complex datasets to identify subgroups of features or patients associated with severe disease. ",
+        "period": {
+          "start": "2026-03-01",
+          "end": "2029-02-28"
+        },
+        "site": [
+          {
+            "reference": "Organization/HospitalforTropicalDiseases"
+          },
+          {
+            "reference": "Organization/TrungVuongHospital"
+          },
+          {
+            "reference": "Organization/NguyenThiThapHospital"
+          },
+          {
+            "reference": "Organization/NationalHospitalforTropicalDiseases"
+          }
+        ],
+        "associatedParty": [
+          {
+            "name": "Louise Thwaites",
+            "role": {
+              "coding": [
+                {
+                  "system": "http://hl7.org/fhir/research-study-party-role",
+                  "code": "primary-investigator",
+                  "display": "primary-investigator"
+                }
+              ]
+            },
+            "party": {
+              "reference": "Practitioner/ProfLouiseThwaites"
+            }
+          },
+          {
+            "name": "Nguyen Le Nhu Tung",
+            "role": {
+              "coding": [
+                {
+                  "system": "http://hl7.org/fhir/research-study-party-role",
+                  "code": "primary-investigator",
+                  "display": "primary-investigator"
+                }
+              ]
+            },
+            "party": {
+              "reference": "Practitioner/DrNguyenLeNhuTung"
+            }
+          },
+          {
+            "name": "Huynh Ngoc Hon",
+            "role": {
+              "coding": [
+                {
+                  "system": "http://hl7.org/fhir/research-study-party-role",
+                  "code": "primary-investigator",
+                  "display": "primary-investigator"
+                }
+              ]
+            },
+            "party": {
+              "reference": "Practitioner/DrHuynhNgocHon"
+            }
+          },
+          {
+            "name": "Luong Hoang Liem",
+            "role": {
+              "coding": [
+                {
+                  "system": "http://hl7.org/fhir/research-study-party-role",
+                  "code": "primary-investigator",
+                  "display": "primary-investigator"
+                }
+              ]
+            },
+            "party": {
+              "reference": "Practitioner/DrLuongHoangLiem"
+            }
+          }
+        ],
+        "recruitment": {
+          "targetNumber": 1101,
+          "eligibility": {
+            "reference": "EvidenceVariable/Evidence13NV"
+          }
+        },
+        "comparisonGroup": [
+          {
+            "name": "CAP",
+            "description": "680"
+          },
+          {
+            "name": "VAP",
+            "description": "430"
+          },
+          {
+            "name": "VAP+"
           }
         ]
       },

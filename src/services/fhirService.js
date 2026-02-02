@@ -411,6 +411,23 @@ export const getStudies = async () => {
   }
 };
 
+
+
+
+
+const extractMultipleStudyLabels = (extension) => {
+  if (!extension) return [];
+  const multiLabelExtensions = extension.find(ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/ext-multiple-value') || {};
+  if (!multiLabelExtensions.extension) return [];
+  // console.log("Extracting labels from extension:", extension);
+  // console.log("Found multiLabelExtensions:", multiLabelExtensions);
+  const codeableLabel = multiLabelExtensions.extension.filter(ext => ext.url === 'label') || [];
+  // console.log("got the label codeableconcept", codeableLabel);
+  const labelString = codeableLabel.map(ext => ext.valueCodeableConcept.coding[0].code) || [];
+  // console.log("Extracted label strings:", labelString);
+  return labelString;
+}
+
 /**
  * Preprocess ResearchStudy Bundle into simplified study objects
  *
@@ -440,6 +457,7 @@ export const preprocessStudies = (bundle) => {
   return bundle.entry
     .map((entry) => {
       const study = entry.resource;
+      const label = extractMultipleStudyLabels(study.extension);
 
       // Extract study code from identifier
       // identifier is array, typically first element has the study code
@@ -454,6 +472,7 @@ export const preprocessStudies = (bundle) => {
         period: study.period || {},
         recruitment: study.recruitment || {},
         group: study.comparisonGroup || [],
+        label: label || [],
       };
     })
     .filter((study) => study.id && study.name).filter((study) => study.status !== 'retired'); // Only include valid studies
