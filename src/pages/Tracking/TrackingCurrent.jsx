@@ -7,8 +7,8 @@
  * KEY FEATURES:
  * =============
  * - Patient-level recruitment details table with label information
- * - Summary statistics cards (total enrolled, by condition, by label)
- * - Hierarchical filtering: Study → Site → Ward → Condition
+ * - Summary statistics cards (total enrolled, by group, by label)
+ * - Hierarchical filtering: Study → Site → Ward → Group
  * - Live filter updates - table refreshes when any filter changes
  *
  * DATA SOURCES:
@@ -69,7 +69,7 @@ import ReactECharts from 'echarts-for-react';
 import Footer from '../../components/toolbars/Footer';
 
 // Shared filter components
-import { SiteSelection, WardSelection, ConditionFilter } from '../../components/filters';
+import { SiteSelection, WardSelection, ConditionFilter, GroupFilter } from '../../components/filters';
 
 // Redux state management
 import {
@@ -77,6 +77,8 @@ import {
   selectCurrentSite,
   selectCurrentWard,
   selectCurrentCondition,
+  selectCurrentStudy,
+  selectCurrentGroup,
 } from '../../store/studySlice';
 
 // FHIR service for studies list and API calls
@@ -84,6 +86,7 @@ import {
   getProcessedStudies,
   isDevelopmentMode,
   getCurrentRecruitmentData,
+  getRecruitmentDetail,
 } from '../../services/fhirService';
 
 /**
@@ -123,13 +126,14 @@ const extractLabels = (vitalPatient) => {
  * @returns {string} The condition (CAP/VAP) or "Unknown"
  */
 const extractCondition = (resource) => {
-  if (!resource?.extension) return 'Unknown';
+  if (!resource?.extension) return [];
 
-  const conditionExt = resource.extension.find(
-    ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/condition'
+  const conditionExt = resource.extension.filter(
+    ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/condition' ||
+      ext.url?.includes('/condition')
   );
 
-  return conditionExt?.valueCodeableConcept?.text || 'Unknown';
+  return conditionExt?.map(ext => ext.valueCodeableConcept?.text) || [];
 };
 
 /**
@@ -155,9 +159,9 @@ const extractProgressDate = (progress, stateCode) => {
  */
 const extractWard = (subject) => {
   const orgRef = subject?.managingOrganization?.reference || '';
-  // Extract ward code from "Organization/WardHTDED" format
-  const match = orgRef.match(/Organization\/Ward(.+)/);
-  return match ? match[1] : 'Unknown';
+  // Extract ward code from "Organization/WardHTDED" or "Organization/HTDED" format
+  const match = orgRef.match(/Organization\/(?:Ward)?(.+)/);
+  return match ? match[1] : null;
 };
 
 /**
@@ -201,11 +205,13 @@ const extractSite = (subject) => {
     }
   }
 
+
   // Fallback: Try to get from "Organization/SiteXXX" format
   const siteMatch = orgRef.match(/Organization\/Site([A-Z0-9]+)/i);
   if (siteMatch) {
     return siteMatch[1];
   }
+
 
   // Last fallback: Try organization display name if available
   const orgDisplay = subject?.managingOrganization?.display;
@@ -225,7 +231,7 @@ const extractSite = (subject) => {
  * @param {Object} bundle - The FHIR Bundle from mockLabel.json
  * @returns {Array} Processed rows for DataGrid
  */
-const processMockLabelData = (bundle) => {
+const processLabelData = (bundle) => {
   if (!bundle?.entry) return [];
 
   return bundle.entry.map((entry, index) => {
@@ -237,7 +243,8 @@ const processMockLabelData = (bundle) => {
     return {
       id: index,
       subjectId: resource.id,
-      studyId: linkedPatient?.name?.[0]?.given?.[0] || 'N/A',
+      studyId: studyId,
+      siteCode: siteCode,
       screeningName: subject?.name?.[0]?.given?.[0] || 'N/A',
       condition: extractCondition(resource),
       label: allLabels.join(', '),    // Display: comma-separated for table
@@ -283,14 +290,13 @@ const filterMockData = (bundle, filters = {}) => {
 
   let filteredEntries = [...bundle.entry];
 
-  // Filter by group (condition)
   if (group) {
     filteredEntries = filteredEntries.filter(entry => {
-      const conditionExt = entry.resource?.extension?.find(
-        ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/condition'
+      const groupExt = entry.resource?.extension?.filter(
+        ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/comparisonGroup'
       );
-      const conditionText = conditionExt?.valueCodeableConcept?.text;
-      return conditionText === group;
+      const groupText = groupExt?.map(ext => ext.valueId);
+      return groupText.includes(group);
     });
     console.log(`[TrackingCurrent] Filtered by group "${group}": ${filteredEntries.length} entries`);
   }
@@ -359,13 +365,15 @@ const TrackingCurrentPage = () => {
   const dispatch = useDispatch();
 
   // Redux state for filters
+  const currentStudy = useSelector(selectCurrentStudy);
   const currentSite = useSelector(selectCurrentSite);
   const currentWard = useSelector(selectCurrentWard);
   const currentCondition = useSelector(selectCurrentCondition);
+  const currentGroup = useSelector(selectCurrentGroup);
 
   // Local state
   const [loading, setLoading] = useState(true);
-  const [mockData, setMockData] = useState(null);
+  const [data, setData] = useState(null);
   const [tableData, setTableData] = useState([]);
   const [studies, setStudies] = useState([]);
   const [selectedStudy, setSelectedStudy] = useState(() => {
@@ -373,10 +381,10 @@ const TrackingCurrentPage = () => {
   });
 
   // Summary statistics
-  // ============ EDIT START: Dynamic initial state - no hard-coded conditions (2026-01-28) ============
+  // ============ EDIT START: Dynamic initial state - no hard-coded groups (2026-01-28) ============
   const [stats, setStats] = useState({
     total: 0,
-    byCondition: {},      // Will be populated dynamically with any groups from data
+    byGroup: {},      // Will be populated dynamically with any groups from data
     byLabel: {},
     byStatus: {},
     bySite: {},           // Site totals
@@ -536,7 +544,7 @@ const TrackingCurrentPage = () => {
       console.log('[TrackingCurrent] API filters:', filters);
 
       // Call FHIR service to get current recruitment data
-      const data = await getCurrentRecruitmentData({
+      const data = await getRecruitmentDetail({
         studyCode: selectedStudy || undefined,
         ...filters, // Pass filters to API
       });
@@ -566,7 +574,7 @@ const TrackingCurrentPage = () => {
         site: currentSite?.code || null,  // Site code for API calls
         wardObj: currentWard || null,  // Full ward object with id for matching
         ward: currentWard?.code || null,  // Ward code for API calls
-        group: currentCondition || null,
+        group: currentGroup || null,
       };
 
       console.log('[TrackingCurrent] Loading data with filters:', {
@@ -587,49 +595,47 @@ const TrackingCurrentPage = () => {
         data = await loadFromAPI(filters);
       }
 
-      setMockData(data);
+      setData(data);
 
     } catch (error) {
       console.error('[TrackingCurrent] Error loading recruitment data:', error);
-      setMockData(null);
+      setData(null);
     } finally {
       setLoading(false);
     }
-  }, [loadMockData, loadFromAPI, currentSite, currentWard, currentCondition]);
+  }, [loadMockData, loadFromAPI, currentSite, currentWard, currentGroup]);
 
   /**
    * Load studies list for dropdown
    */
   const loadStudies = useCallback(async () => {
     try {
-      if (isDevelopmentMode()) {
-        const studyList = await getProcessedStudies();
-        setStudies(studyList);
-      }
+      // if (isDevelopmentMode()) {
+      const studyList = await getProcessedStudies();
+      setStudies(studyList);
+      // }
     } catch (error) {
       console.error('[TrackingCurrent] Error loading studies:', error);
     }
   }, []);
 
   /**
-   * Process data when mockData changes
-   * Note: Filtering is now done at the data loading level (simulating API behavior)
-   * This useEffect only processes the already-filtered data into table format and calculates stats
+   * Process and filter data when mockData or filters change
    */
   useEffect(() => {
-    if (!mockData) return;
+    if (!data) return;
 
     // Process the pre-filtered data into table rows
-    const processed = processMockLabelData(mockData);
+    const processed = processLabelData(data);
     setTableData(processed);
-    
+
     console.log(`[TrackingCurrent] Processed ${processed.length} rows for display`);
 
     // ============ EDIT START: Fully dynamic stats calculation (2026-01-28) ============
-    // Calculate statistics - no hard-coded conditions, all dynamic from data
+    // Calculate statistics - no hard-coded groups, all dynamic from data
     const newStats = {
       total: processed.length,
-      byCondition: {},        // Dynamically populated (now called "Group")
+      byGroup: {},        // Dynamically populated (now called "Group")
       byLabel: {},
       byStatus: {},
       bySite: {},             // Site totals
@@ -711,7 +717,7 @@ const TrackingCurrentPage = () => {
     setStats(newStats);
     // ============ EDIT END: Fully dynamic stats calculation ============
 
-  }, [mockData]); // Only re-process when mockData changes (filtering is done at load time)
+  }, [data]); // Only re-process when data changes (filtering is done at load time)
 
   // Initial data load
   // Uses loadRecruitmentData which automatically chooses between mock (dev) and API (prod)
@@ -805,9 +811,9 @@ const TrackingCurrentPage = () => {
   /**
    * Get chip color based on group (dynamic - based on group index)
    */
-  const getConditionColor = (condition) => {
-    const conditionList = Object.keys(stats.byCondition || {});
-    const index = conditionList.indexOf(condition);
+  const getGroupColor = (group) => {
+    const groupList = Object.keys(stats.byGroup || {});
+    const index = groupList.indexOf(group);
     return index >= 0 ? chipColorMap[index % chipColorMap.length] : 'default';
   };
   // ============ EDIT END: Unified color palette for all charts ============
@@ -815,12 +821,12 @@ const TrackingCurrentPage = () => {
   // ============================================
   // CHART CONFIGURATIONS
   // ============================================
-  
+
   /**
    * Pie Chart - Group Distribution (dynamic from data)
    * Shows the percentage breakdown of all groups
    */
-  const conditionPieChartOption = {
+  const groupPieChartOption = {
     title: {
       text: 'Group Distribution',
       left: 'center',
@@ -865,7 +871,7 @@ const TrackingCurrentPage = () => {
           show: true,
         },
         // Dynamically generate data from all groups
-        data: Object.entries(stats.byCondition || {}).map(([group, count], index) => ({
+        data: Object.entries(stats.byGroup || {}).map(([group, count], index) => ({
           value: count,
           name: group,
           itemStyle: { color: getChartColor(index) },
@@ -873,7 +879,7 @@ const TrackingCurrentPage = () => {
       },
     ],
   };
-  // ============ EDIT END: Dynamic condition pie chart ============
+  // ============ EDIT END: Dynamic group pie chart ============
 
   /**
    * Bar Chart - Label Distribution
@@ -941,6 +947,7 @@ const TrackingCurrentPage = () => {
   // Get all wards sorted by total count (descending)
   const allWardsAvailable = Object.keys(stats.byWard || {})
     .sort((a, b) => (stats.byWard?.[b] || 0) - (stats.byWard?.[a] || 0));
+
 
   // Get all unique groups for the ward chart
   const allGroups = Object.keys(stats.byCondition || {});
@@ -1427,6 +1434,7 @@ const TrackingCurrentPage = () => {
     },
     legend: {
       data: allGroups,
+      data: allGroups,
       bottom: '0%',
       type: 'scroll',
     },
@@ -1445,6 +1453,7 @@ const TrackingCurrentPage = () => {
     },
     series: [
       // One series per group (stacked)
+      ...allGroups.map((group, index) => ({
       ...allGroups.map((group, index) => ({
         name: group,
         type: 'bar',
@@ -1481,22 +1490,22 @@ const TrackingCurrentPage = () => {
 
   /**
    * Radar Chart - Recruitment Overview
-   * Shows a multi-dimensional view of recruitment metrics (dynamic conditions)
+   * Shows a multi-dimensional view of recruitment metrics (dynamic groups)
    */
   // ============ EDIT START: Dynamic radar chart (2026-01-28) ============
-  // Build radar indicators dynamically based on conditions and labels
+  // Build radar indicators dynamically based on groups and labels
   const radarIndicators = [
-    { 
-      name: 'Total Count', 
-      max: Math.max(...allConditions.map(c => stats.byCondition?.[c] || 0)) * 1.2 || 10 
+    {
+      name: 'Total Count',
+      max: Math.max(...allGroups.map(c => stats.byGroup?.[c] || 0)) * 1.2 || 10
     },
     ...allLabels.slice(0, 3).map((label, idx) => ({
       name: `Label: ${label}`,
-      max: Math.max(...allConditions.map(c => stats.byLabelCondition?.[c]?.[label] || 0)) * 1.5 || 10,
+      max: Math.max(...allGroups.map(c => stats.byLabelGroup?.[c]?.[label] || 0)) * 1.5 || 10,
     })),
-    { 
-      name: 'Active Wards', 
-      max: Object.keys(stats.byWard || {}).length || 5 
+    {
+      name: 'Active Wards',
+      max: Object.keys(stats.byWard || {}).length || 5
     },
   ];
 
@@ -1513,7 +1522,7 @@ const TrackingCurrentPage = () => {
       trigger: 'item',
     },
     legend: {
-      data: allConditions,
+      data: allGroups,
       bottom: '5%',
     },
     radar: {
@@ -1524,15 +1533,15 @@ const TrackingCurrentPage = () => {
     series: [
       {
         type: 'radar',
-        data: allConditions.map((condition, index) => ({
+        data: allGroups.map((group, index) => ({
           value: [
-            stats.byCondition?.[condition] || 0,
-            ...allLabels.slice(0, 3).map(label => stats.byLabelCondition?.[condition]?.[label] || 0),
+            stats.byGroup?.[group] || 0,
+            ...allLabels.slice(0, 3).map(label => stats.byLabelGroup?.[group]?.[label] || 0),
             Object.keys(stats.byWard || {}).filter(w =>
-              tableData.some(r => r.ward === w && r.condition === condition)
+              tableData.some(r => r.ward === w && r.group === group)
             ).length,
           ],
-          name: condition,
+          name: group,
           itemStyle: { color: getChartColor(index) },
           areaStyle: { opacity: 0.3 },
         })),
@@ -1564,7 +1573,7 @@ const TrackingCurrentPage = () => {
       ),
     },
     {
-      field: 'condition',
+      field: 'group',
       headerName: 'Group',
       width: 100,
       description: `Patient group${Object.keys(labelHierarchy).length > 0 ? ` (${Object.keys(labelHierarchy).join(', ')})` : ''}`,
@@ -1572,7 +1581,7 @@ const TrackingCurrentPage = () => {
         <Chip
           label={params.value}
           size="small"
-          color={getConditionColor(params.value)}
+          color={getGroupColor(params.value)}
         />
       ),
     },
@@ -1637,14 +1646,15 @@ const TrackingCurrentPage = () => {
     );
   }
 
+  console.log('stat got is ', stats);
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" gutterBottom>
         Current Recruitment Tracking
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+      {/* <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Patient-level recruitment details with label information from FHIR data
-      </Typography>
+      </Typography> */}
       <Divider sx={{ mb: 3 }} />
 
       {/* Filter Controls */}
@@ -1663,7 +1673,7 @@ const TrackingCurrentPage = () => {
                 </MenuItem>
                 {studies.map((study) => (
                   <MenuItem key={study.id || study.studyCode} value={study.studyCode}>
-                    {study.studyCode} - {study.name}
+                    {study.studyCode}
                   </MenuItem>
                 ))}
               </Select>
@@ -1684,7 +1694,7 @@ const TrackingCurrentPage = () => {
 
           {selectedStudy && (
             <Grid item xs={12} md={2}>
-              <ConditionFilter />
+              <GroupFilter />
             </Grid>
           )}
         </Grid>
@@ -2019,7 +2029,7 @@ const TrackingCurrentPage = () => {
           <Paper elevation={2} sx={{ p: 2 }}>
             {stats.total > 0 ? (
               <ReactECharts
-                option={conditionPieChartOption}
+                option={groupPieChartOption}
                 style={{ height: '300px', width: '100%' }}
                 opts={{ renderer: 'canvas' }}
                 notMerge={true}
@@ -2455,8 +2465,8 @@ const TrackingCurrentPage = () => {
       {/* Data Source Info */}
       <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
         <Typography variant="caption" color="text.secondary">
-          Data source: mockLabel.json | Total records: {mockData?.total || 0} |
-          Last updated: {mockData?.meta?.lastUpdated || 'N/A'}
+          Total records: {data?.total || 0} |
+          Last updated: {data?.meta?.lastUpdated || 'N/A'}
         </Typography>
       </Box>
 

@@ -411,6 +411,23 @@ export const getStudies = async () => {
   }
 };
 
+
+
+
+
+const extractMultipleStudyLabels = (extension) => {
+  if (!extension) return [];
+  const multiLabelExtensions = extension.find(ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/ext-multiple-value') || {};
+  if (!multiLabelExtensions.extension) return [];
+  // console.log("Extracting labels from extension:", extension);
+  // console.log("Found multiLabelExtensions:", multiLabelExtensions);
+  const codeableLabel = multiLabelExtensions.extension.filter(ext => ext.url === 'label') || [];
+  // console.log("got the label codeableconcept", codeableLabel);
+  const labelString = codeableLabel.map(ext => ext.valueCodeableConcept.coding[0].code) || [];
+  // console.log("Extracted label strings:", labelString);
+  return labelString;
+}
+
 /**
  * Preprocess ResearchStudy Bundle into simplified study objects
  *
@@ -440,6 +457,7 @@ export const preprocessStudies = (bundle) => {
   return bundle.entry
     .map((entry) => {
       const study = entry.resource;
+      const label = extractMultipleStudyLabels(study.extension);
 
       // Extract study code from identifier
       // identifier is array, typically first element has the study code
@@ -454,6 +472,7 @@ export const preprocessStudies = (bundle) => {
         period: study.period || {},
         recruitment: study.recruitment || {},
         group: study.comparisonGroup || [],
+        label: label || [],
       };
     })
     .filter((study) => study.id && study.name).filter((study) => study.status !== 'retired'); // Only include valid studies
@@ -535,8 +554,87 @@ export const getProcessedStudies = async () => {
  *   condition: "CAP"
  * });
  */
-export const getRecruitmentDetail = async (filters) => {
+export const inferRecruitmentQuery = async (filters) => {
   const { studyCode, siteCode, wardCode, condition, organization, alias, group } = filters;
+  const queryParams = [];
+
+  // 1. Organization Filter (Ward or Site)
+  if (wardCode && organization?.id) {
+    // If ward is selected, filter by ward organization
+    queryParams.push(`subject:Patient.organization=Organization/${organization.id}`);
+  } else if (siteCode && organization?.id) {
+    // If only site is selected
+    // Check if there are wards (departments) using alias check
+    let hasWards = false;
+
+    // const ward = study.currentWard || null;
+    // if (study.currentWard) {
+    //     queryParams.push(`subject:Patient.organization=Organization/${ward.id}`);
+    // }
+    // else {
+    //     const site = study.currentSite || null;
+    //     if (site) {
+    //         const bundle = await client.request('Organization?type=dept&_content:contains=' + alias.replace('-', ','));
+    //         const availableWardCount = bundle.total || 0;
+    //         if (availableWardCount > 0) {
+    //             queryParams.push(`subject:Patient.organization.partof=Organization/${site.id}`);
+    //         }
+    //         else {
+    //             queryParams.push(`subject:Patient.organization=Organization/${site.id}`);
+    //         }
+    //     }
+    // }
+
+
+    // if (alias) {
+    try {
+      // Check if there are departments matching the alias
+      // const aliasQuery = alias.replace('-', ',');
+      const checkWards = await fhirClient.get(`/Organization?type=dept&_content:contains=${studyCode},${siteCode}`);
+      if (checkWards.data && checkWards.data.total > 0) {
+        hasWards = true;
+      }
+    } catch (e) {
+      console.warn('[FHIR Service] Failed to check for wards via alias, defaulting to direct organization filter', e);
+    }
+    // }
+
+    if (hasWards) {
+      queryParams.push(`subject:Patient.organization.partof=Organization/${organization.id}`);
+    } else {
+      queryParams.push(`subject:Patient.organization=Organization/${organization.id}`);
+    }
+  }
+
+  // 2. Study Filter
+  // Using `Study${studyCode}` as fallback for ID pattern
+  const studyId = filters.studyId || `Study${studyCode}`;
+  queryParams.push(`study=ResearchStudy/${studyId}`);
+
+  // 3. Condition Filter
+  if (condition) {
+    // Map condition names to SNOMED codes if needed, or use directly
+    const conditionCodes = {
+      CAP: '385093006', // Community Acquired Pneumonia
+      VAP: '87828008',  // Ventilator-Associated Pneumonia (example)
+    };
+    const code = conditionCodes[condition] || condition;
+    queryParams.push(`condition-extension=${code}`);
+  }
+
+  // 4. Group Filter
+  if (group) {
+    queryParams.push(`group-extension=${encodeURIComponent(group.name)}`);
+  }
+
+  queryParams.push("status:not=retired");
+  queryParams.push("_count=2000");
+  console.log('queryParams', queryParams);
+  return queryParams.join('&');
+};
+
+export const getRecruitmentDetail = async (filters) => {
+  const { studyCode, siteCode, wardCode, group } = filters;
   // console.log('organization', organization);
   console.log('[FHIR Service] getScreeningDetail filters:', filters);
 
@@ -544,7 +642,7 @@ export const getRecruitmentDetail = async (filters) => {
   try {
     if (shouldUseMockData()) {
       // BUILD MOCK FILE NAME
-      // Pattern: {study}-{site}-{ward} {condition}.json
+      // Pattern: {study}-{site}-{ward} {group}.json
       let filename = studyCode; // Start with "13NV"
 
       if (siteCode) {
@@ -555,14 +653,14 @@ export const getRecruitmentDetail = async (filters) => {
         filename += `-${wardCode}`; // "13NV-003-4"
       }
 
-      if (condition) {
-        filename += ` ${condition}`; // "13NV-003-4 CAP"
+      if (group) {
+        filename += ` ${group}`; // "13NV-003-4 CAP"
       }
 
       filename += '.json';
 
       console.log(`[FHIR Service] Loading recruitment detail from MOCK file: ${filename}`);
-      console.log(`[FHIR Service] Filters:`, { studyCode, siteCode, wardCode, condition });
+      console.log(`[FHIR Service] Filters:`, { studyCode, siteCode, wardCode, group });
 
       try {
         const mockData = await import(`../mockData/tracking/${filename}`);
@@ -584,67 +682,16 @@ export const getRecruitmentDetail = async (filters) => {
     // PRODUCTION MODE: Call FHIR API
     // Logic adapted from fhirApi.js
 
-    let queryParams = [];
-
-    // 1. Organization Filter (Ward or Site)
-    if (wardCode && organization?.id) {
-      // If ward is selected, filter by ward organization
-      queryParams.push(`subject:Patient.organization=Organization/${organization.id}`);
-    } else if (siteCode && organization?.id) {
-      // If only site is selected
-      // Check if there are wards (departments) using alias check
-      let hasWards = false;
-      if (alias) {
-        try {
-          // Check if there are departments matching the alias
-          const aliasQuery = alias.replace('-', ',');
-          const checkWards = await fhirClient.get(`/Organization?type=dept&_content:contains=${aliasQuery}`);
-          if (checkWards.data && checkWards.data.total > 0) {
-            hasWards = true;
-          }
-        } catch (e) {
-          console.warn('[FHIR Service] Failed to check for wards via alias, defaulting to direct organization filter', e);
-        }
-      }
-
-      if (hasWards) {
-        queryParams.push(`subject:Patient.organization.partof=Organization/${organization.id}`);
-      } else {
-        queryParams.push(`subject:Patient.organization=Organization/${organization.id}`);
-      }
-    }
-
-    // 2. Study Filter
-    // Using `Study${studyCode}` as fallback for ID pattern
-    const studyId = filters.studyId || `Study${studyCode}`;
-    queryParams.push(`study=ResearchStudy/${studyId}`);
-
-    // 3. Condition Filter
-    if (condition) {
-      // Map condition names to SNOMED codes if needed, or use directly
-      const conditionCodes = {
-        CAP: '385093006', // Community Acquired Pneumonia
-        VAP: '87828008',  // Ventilator-Associated Pneumonia (example)
-      };
-      const code = conditionCodes[condition] || condition;
-      queryParams.push(`condition-extension=${code}`);
-    }
-
-    // 4. Group Filter
-    if (group) {
-      queryParams.push(`group-extension=${encodeURIComponent(group)}`);
-    }
-
-    queryParams.push("status:not=retired");
-    queryParams.push("_count=2000");
-
-
-    const queryString = queryParams.join('&');
+    const queryString = await inferRecruitmentQuery(filters);
     const url = `/ResearchSubject?${queryString}`;
     console.log('[FHIR Service] Fetching recruitment detail URL:', url);
 
     // Call API with reference resolution
-    const bundle = await client.request(url);
+    const bundle = await client.request(url,
+      {
+        resolveReferences: ["subject",]
+      }
+    );
 
     if (bundle.entry) {
       for (const entry of bundle.entry) {
@@ -664,6 +711,7 @@ export const getRecruitmentDetail = async (filters) => {
         }
       }
     }
+    console.log('[FHIR Service] hehe bundle receiving', bundle);
 
     return bundle;
 
@@ -966,7 +1014,7 @@ export const generateScreeningSummary = (patients, study, endDate) => {
       other_reasons: 0,
     };
   });
-  // Count patients by condition and status
+  // Count patients by group and status
   patients.forEach(patient => {
     // Check if patient should be included based on date filter
     if (endDate && patient.startDate) {
@@ -981,7 +1029,7 @@ export const generateScreeningSummary = (patients, study, endDate) => {
     }
     const patientGroups = patient.groups || [];
 
-    // Count for specific condition
+    // Count for specific group
     for (const group of patientGroups) {
       if (counters[group]) {
         counters[group].screened++;
@@ -1321,7 +1369,7 @@ export const getFhirConfig = () => ({
  * Wrapper function that fetches recruitment detail and processes it.
  * Used by TrackingWeekly.jsx and MonthlyReport.jsx
  *
- * @param {Object} filters - Filter options (study, site, ward, condition, dateRange)
+ * @param {Object} filters - Filter options (study, site, ward, group, dateRange)
  * @returns {Promise<Array>} Processed recruitment detail records
  */
 export const getProcessedRecruitmentDetail = async (filters = {}) => {
@@ -1342,11 +1390,11 @@ export const getProcessedRecruitmentDetail = async (filters = {}) => {
       const subject = resource.subject;
       const linkedPatient = subject?.link?.[0]?.other;
 
-      // Extract condition from extension
-      const conditionExt = resource.extension?.find(
-        ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/condition'
+      // Extract group from extension
+      const groupExt = resource.extension?.find(
+        ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/comparisonGroup'
       );
-      const condition = conditionExt?.valueCodeableConcept?.text || 'Unknown';
+      const group = groupExt?.valueId || 'Unknown';
 
       // Extract progress dates
       const getProgressDate = (stateCode) => {
@@ -1366,7 +1414,7 @@ export const getProcessedRecruitmentDetail = async (filters = {}) => {
         subjectId: resource.id,
         studyId: linkedPatient?.name?.[0]?.given?.[0] || 'N/A',
         screeningName: subject?.name?.[0]?.given?.[0] || 'N/A',
-        condition,
+        group,
         status: resource.status || 'Unknown',
         ward,
         screeningDate: getProgressDate('screening'),
@@ -1423,16 +1471,12 @@ export const getCurrentRecruitmentData = async (options = {}) => {
       // PRODUCTION MODE: Call FHIR API
       console.log('[fhirService] PRODUCTION MODE: Fetching current recruitment from FHIR API');
 
-      const params = new URLSearchParams({
-        '_count': '2000',
-        'status:not': 'retired',
-      });
+      // Use inferRecruitmentQuery to build the query string with all filters
+      const queryString = await inferRecruitmentQuery(options);
 
-      if (studyCode) {
-        params.append('study', `ResearchStudy/Study${studyCode}`);
-      }
+      console.log(`[fhirService] Querying: /ResearchSubject?${queryString}`);
+      const response = await fhirClient.get(`/ResearchSubject?${queryString}`);
 
-      const response = await fhirClient.get(`/ResearchSubject?${params.toString()}`);
       console.log(`[fhirService] Loaded ${response.data?.total || 0} subjects from FHIR API`);
       return response.data;
     }

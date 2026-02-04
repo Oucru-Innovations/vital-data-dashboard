@@ -71,7 +71,6 @@ const GroupFilter = ({
    * Extract groups from the current study
    * Supports both 'group' and 'comparisonGroup' properties
    */
-  console.log('têt', currentStudy);
   const studyGroups = currentStudy?.group || currentStudy?.comparisonGroup || [];
 
   /**
