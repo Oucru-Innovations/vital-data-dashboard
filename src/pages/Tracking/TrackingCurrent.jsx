@@ -40,7 +40,7 @@
  * LAST UPDATED: 2026-01-28
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -55,6 +55,11 @@ import {
   Card,
   CardContent,
   Chip,
+  LinearProgress,
+  Tooltip,
+  Checkbox,
+  ListItemText,
+  OutlinedInput,
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import { useSelector, useDispatch } from 'react-redux';
@@ -82,27 +87,34 @@ import {
 } from '../../services/fhirService';
 
 /**
- * Extract label from VitalPatient extension
+ * Extract ALL labels from VitalPatient extension
+ * A patient can have multiple labels (multiple dictionary extensions with key="label")
+ *
  * @param {Object} vitalPatient - The linked VitalPatient resource
- * @returns {string} The label value (e.g., "cap-1", "vap-2") or "N/A"
+ * @returns {string[]} Array of label values (e.g., ["cap-1", "cap-2"]) or ["N/A"] if none
  */
-const extractLabel = (vitalPatient) => {
-  if (!vitalPatient?.extension) return 'N/A';
+const extractLabels = (vitalPatient) => {
+  if (!vitalPatient?.extension) return ['N/A'];
 
-  const dictionaryExt = vitalPatient.extension.find(
+  const labels = [];
+
+  // Find ALL dictionary extensions (there can be multiple for multiple labels)
+  const dictionaryExts = vitalPatient.extension.filter(
     ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/dictionary'
   );
 
-  if (!dictionaryExt?.extension) return 'N/A';
+  dictionaryExts.forEach(dictionaryExt => {
+    if (!dictionaryExt?.extension) return;
 
-  const keyExt = dictionaryExt.extension.find(e => e.url === 'key');
-  const valueExt = dictionaryExt.extension.find(e => e.url === 'value');
+    const keyExt = dictionaryExt.extension.find(e => e.url === 'key');
+    const valueExt = dictionaryExt.extension.find(e => e.url === 'value');
 
-  if (keyExt?.valueString === 'label' && valueExt?.valueString) {
-    return valueExt.valueString;
-  }
+    if (keyExt?.valueString === 'label' && valueExt?.valueString) {
+      labels.push(valueExt.valueString);
+    }
+  });
 
-  return 'N/A';
+  return labels.length > 0 ? labels : ['N/A'];
 };
 
 /**
@@ -151,41 +163,65 @@ const extractWard = (subject) => {
 /**
  * Extract site (hospital) code from managingOrganization reference
  * Site is derived from the ward organization reference
- * 
+ *
  * Organization reference format: "Organization/WardXXXYY"
- * Where XXX = site/hospital code (e.g., "HTD" = Hospital of Tropical Diseases)
+ * Where XXX = site/hospital code (e.g., "HTD", "NTTH")
  *       YY = ward code within that site (e.g., "ED" = Emergency Department)
- * 
+ *
+ * SITE CODE PATTERNS:
+ * - HTD: Hospital for Tropical Diseases (3 chars)
+ * - NTTH: Nguyen Thi Thap Hospital (4 chars)
+ * - NTT: Alternative for NTTH (3 chars)
+ *
+ * The function extracts uppercase letters before lowercase letters or "ED"/"ICU" suffixes.
+ *
  * @param {Object} subject - The subject Patient resource
  * @returns {string} The site code or "Unknown"
  */
-const extractSite = (resource, subject) => {
+const extractSite = (subject) => {
   const orgRef = subject?.managingOrganization?.reference || '';
-  
-  // Extract from "Organization/WardXXXYY" format
-  // The site code is typically the first 3 characters after "Ward"
-  const wardMatch = orgRef.match(/Organization\/Ward([A-Z]{3})/i);
+
+  // Extract ward code from "Organization/WardXXXYY" format
+  const wardMatch = orgRef.match(/Organization\/Ward(.+)/i);
   if (wardMatch) {
-    return wardMatch[1]; // Returns site code like "HTD"
+    const fullWardCode = wardMatch[1];
+
+    // Extract site code: uppercase letters at the start before common ward suffixes
+    // e.g., "HTDED" → "HTD", "HTDNhiemD" → "HTD", "NTTHED" → "NTTH"
+    // Look for pattern: uppercase letters followed by (ED|ICU|NhiemD|lowercase)
+    const siteMatch = fullWardCode.match(/^([A-Z]+?)(?:ED|ICU|Nhiem|[a-z]|$)/i);
+    if (siteMatch) {
+      return siteMatch[1].toUpperCase();
+    }
+
+    // Fallback: take first 3-4 uppercase characters
+    const uppercaseMatch = fullWardCode.match(/^([A-Z]{3,4})/);
+    if (uppercaseMatch) {
+      return uppercaseMatch[1];
+    }
   }
-  
+
   // Fallback: Try to get from "Organization/SiteXXX" format
   const siteMatch = orgRef.match(/Organization\/Site([A-Z0-9]+)/i);
   if (siteMatch) {
     return siteMatch[1];
   }
-  
+
   // Last fallback: Try organization display name if available
   const orgDisplay = subject?.managingOrganization?.display;
   if (orgDisplay) {
     return orgDisplay;
   }
-  
+
   return 'Unknown';
 };
 
 /**
  * Process mockLabel.json data into table rows
+ * A patient can have MULTIPLE labels, so we store both:
+ * - label: First label for display in table
+ * - labels: Array of all labels for stats calculation
+ *
  * @param {Object} bundle - The FHIR Bundle from mockLabel.json
  * @returns {Array} Processed rows for DataGrid
  */
@@ -196,6 +232,7 @@ const processMockLabelData = (bundle) => {
     const resource = entry.resource;
     const subject = resource.subject;
     const linkedPatient = subject?.link?.[0]?.other;
+    const allLabels = extractLabels(linkedPatient);
 
     return {
       id: index,
@@ -203,9 +240,10 @@ const processMockLabelData = (bundle) => {
       studyId: linkedPatient?.name?.[0]?.given?.[0] || 'N/A',
       screeningName: subject?.name?.[0]?.given?.[0] || 'N/A',
       condition: extractCondition(resource),
-      label: extractLabel(linkedPatient),
+      label: allLabels.join(', '),    // Display: comma-separated for table
+      labels: allLabels,               // Array: for stats calculation
       status: resource.status || 'Unknown',
-      site: extractSite(resource, subject),
+      site: extractSite(subject),
       ward: extractWard(subject),
       screeningDate: extractProgressDate(resource.progress, 'screening'),
       enrolledDate: extractProgressDate(resource.progress, 'on-study'),
@@ -346,8 +384,112 @@ const TrackingCurrentPage = () => {
     byLabelCondition: {}, // Will be populated dynamically with any groups from data
     byWardCondition: {},  // Ward → Group breakdown for stacked bar chart
     bySiteCondition: {},  // Site → Group breakdown for stacked bar chart
+    byWardLabel: {},      // Ward → Label breakdown for hierarchical filtering
+    bySiteLabel: {},      // Site → Label breakdown for hierarchical filtering
+    labelToCondition: {}, // Map label to its parent condition
   });
   // ============ EDIT END: Dynamic initial state ============
+
+  // ============ EDIT START: Study targets and label hierarchy (2026-02-04) ============
+  /**
+   * Study targets state - loaded from ResearchStudy resource
+   * Contains recruitment targets for overall and per-group
+   */
+  const [studyTargets, setStudyTargets] = useState({
+    totalTarget: 0,           // recruitment.targetNumber
+    byGroup: {},              // Group name → target number (from comparisonGroup.description)
+    labelHierarchy: [],       // Multi-level labels from ext-multiple-value extension
+  });
+  // ============ EDIT END: Study targets and label hierarchy ============
+
+  // ============ EDIT START: Chart filter selections (2026-02-04) ============
+  /**
+   * Chart filter selections - allows users to select which items to display in charts
+   * These are multi-select filters for ward and site charts
+   *
+   * HIERARCHICAL SELECTION:
+   * - Groups (CAP, VAP) are parent nodes
+   * - Labels (cap-1, cap-2, vap-1, vap-2) are child nodes
+   * - Selecting a parent selects all its children
+   * - Chart displays data by labels (more granular)
+   */
+  const [selectedWardsForChart, setSelectedWardsForChart] = useState([]);
+  const [selectedLabelsForWardChart, setSelectedLabelsForWardChart] = useState([]); // Labels for hierarchical filtering
+  const [selectedSitesForChart, setSelectedSitesForChart] = useState([]);
+  const [selectedLabelsForSiteChart, setSelectedLabelsForSiteChart] = useState([]); // Labels for hierarchical filtering
+
+  // Chart type selection - allows switching between bar and pie charts
+  const [wardChartType, setWardChartType] = useState('bar'); // 'bar' (labels), 'group' (groups), or 'pie'
+  const [siteChartType, setSiteChartType] = useState('bar'); // 'bar' (labels), 'group' (groups), or 'pie'
+  // ============ EDIT END: Chart filter selections ============
+
+  /**
+   * Load study data to get recruitment targets and label definitions
+   * Parses the ResearchStudy resource for:
+   * - recruitment.targetNumber: Total recruitment target
+   * - comparisonGroup[].description: Per-group targets (number stored in description)
+   * - ext-multiple-value extension: Multi-level label hierarchy
+   */
+  const loadStudyData = useCallback(async (studyCode) => {
+    try {
+      if (!studyCode) return null;
+
+      console.log(`[TrackingCurrent] Loading study data for: ${studyCode}`);
+
+      // Load study mock data (in development mode)
+      // TODO: In production, fetch from FHIR API: GET /ResearchStudy/{studyId}
+      const studyModule = await import('../../mockData/fhir/MockStudy13NV.json');
+      const studyData = studyModule.default || studyModule;
+
+      // Extract recruitment target
+      const totalTarget = studyData.recruitment?.targetNumber || 0;
+
+      // Extract per-group targets from comparisonGroup
+      // The target is stored in the 'description' field as a number
+      const byGroup = {};
+      if (studyData.comparisonGroup) {
+        studyData.comparisonGroup.forEach(group => {
+          const groupName = group.name;
+          const target = typeof group.description === 'number' ? group.description : parseInt(group.description, 10);
+          if (groupName && !isNaN(target)) {
+            byGroup[groupName] = target;
+          }
+        });
+      }
+
+      // Extract multi-level label hierarchy from ext-multiple-value extension
+      const labelHierarchy = [];
+      const extMultipleValue = studyData.extension?.find(
+        ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/ext-multiple-value'
+      );
+      if (extMultipleValue?.extension) {
+        extMultipleValue.extension.forEach(labelExt => {
+          if (labelExt.url === 'label' && labelExt.valueCodeableConcept) {
+            const code = labelExt.valueCodeableConcept.coding?.[0]?.code || '';
+            const text = labelExt.valueCodeableConcept.text || '';
+            // Parse hierarchical code: "CAP.serverity.cap-1" or "VAP.vap-1"
+            const parts = code.split('.');
+            labelHierarchy.push({
+              code,
+              text,
+              group: parts[0] || '',           // e.g., "CAP" or "VAP"
+              category: parts.length > 2 ? parts[1] : null, // e.g., "serverity" or null
+              label: parts[parts.length - 1] || '',  // e.g., "cap-1" or "vap-1"
+            });
+          }
+        });
+      }
+
+      const targets = { totalTarget, byGroup, labelHierarchy };
+      console.log('[TrackingCurrent] Loaded study targets:', targets);
+      setStudyTargets(targets);
+      return targets;
+
+    } catch (error) {
+      console.error('[TrackingCurrent] Error loading study data:', error);
+      return null;
+    }
+  }, []);
 
   /**
    * Load data from mock file (development mode)
@@ -495,47 +637,75 @@ const TrackingCurrentPage = () => {
       byLabelCondition: {},   // Dynamically populated
       byWardCondition: {},    // Ward → Group breakdown for stacked bar chart
       bySiteCondition: {},    // Site → Group breakdown for stacked bar chart
+      byWardLabel: {},        // Ward → Label breakdown for hierarchical filtering
+      bySiteLabel: {},        // Site → Label breakdown for hierarchical filtering
+      labelToCondition: {},   // Map label to its parent condition (e.g., "cap-1" → "CAP")
     };
 
     processed.forEach(row => {
       // Count by condition/group (dynamic - any condition from data)
       const condition = row.condition || 'Unknown';
+      const labels = row.labels || ['N/A']; // Array of labels (patient can have multiple)
+      const site = row.site || 'Unknown';
+      const ward = row.ward || 'Unknown';
+
+      // Count by condition (once per patient)
       newStats.byCondition[condition] = (newStats.byCondition[condition] || 0) + 1;
 
-      // Count by label
-      newStats.byLabel[row.label] = (newStats.byLabel[row.label] || 0) + 1;
-
-      // Count by status
+      // Count by status (once per patient)
       newStats.byStatus[row.status] = (newStats.byStatus[row.status] || 0) + 1;
 
-      // Count by site (total)
-      const site = row.site || 'Unknown';
+      // Count by site (once per patient)
       newStats.bySite[site] = (newStats.bySite[site] || 0) + 1;
 
-      // Count by site AND condition (for stacked bar chart)
+      // Count by site AND condition (once per patient)
       if (!newStats.bySiteCondition[site]) {
         newStats.bySiteCondition[site] = {};
       }
-      newStats.bySiteCondition[site][condition] = 
+      newStats.bySiteCondition[site][condition] =
         (newStats.bySiteCondition[site][condition] || 0) + 1;
 
-      // Count by ward (total)
-      const ward = row.ward || 'Unknown';
+      // Count by ward (once per patient)
       newStats.byWard[ward] = (newStats.byWard[ward] || 0) + 1;
 
-      // Count by ward AND condition (for stacked bar chart)
+      // Count by ward AND condition (once per patient)
       if (!newStats.byWardCondition[ward]) {
         newStats.byWardCondition[ward] = {};
       }
-      newStats.byWardCondition[ward][condition] = 
+      newStats.byWardCondition[ward][condition] =
         (newStats.byWardCondition[ward][condition] || 0) + 1;
 
-      // Count labels grouped by condition (dynamic - for label-condition chart)
-      if (!newStats.byLabelCondition[condition]) {
-        newStats.byLabelCondition[condition] = {};
-      }
-      newStats.byLabelCondition[condition][row.label] =
-        (newStats.byLabelCondition[condition][row.label] || 0) + 1;
+      // Process EACH label (patient can have multiple labels)
+      labels.forEach(label => {
+        // Count by label (each label counted separately)
+        newStats.byLabel[label] = (newStats.byLabel[label] || 0) + 1;
+
+        // Map label to its parent condition
+        if (label !== 'N/A') {
+          newStats.labelToCondition[label] = condition;
+        }
+
+        // Count by site AND label (for hierarchical filtering)
+        if (!newStats.bySiteLabel[site]) {
+          newStats.bySiteLabel[site] = {};
+        }
+        newStats.bySiteLabel[site][label] =
+          (newStats.bySiteLabel[site][label] || 0) + 1;
+
+        // Count by ward AND label (for hierarchical filtering)
+        if (!newStats.byWardLabel[ward]) {
+          newStats.byWardLabel[ward] = {};
+        }
+        newStats.byWardLabel[ward][label] =
+          (newStats.byWardLabel[ward][label] || 0) + 1;
+
+        // Count labels grouped by condition (for label-condition chart)
+        if (!newStats.byLabelCondition[condition]) {
+          newStats.byLabelCondition[condition] = {};
+        }
+        newStats.byLabelCondition[condition][label] =
+          (newStats.byLabelCondition[condition][label] || 0) + 1;
+      });
     });
 
     setStats(newStats);
@@ -550,8 +720,32 @@ const TrackingCurrentPage = () => {
     loadStudies();
   }, [loadRecruitmentData, loadStudies]);
 
+  // Load study targets when selectedStudy changes or on initial load
+  useEffect(() => {
+    if (selectedStudy) {
+      loadStudyData(selectedStudy);
+    }
+  }, [selectedStudy, loadStudyData]);
+
+  // ============ EDIT START: Initialize chart selections when data changes (2026-02-04) ============
+  // When stats change, initialize ward and site selections
+  useEffect(() => {
+    const allWards = Object.keys(stats.byWard || {});
+    const allSites = Object.keys(stats.bySite || {});
+
+    // Initialize with all items selected (or keep current selection if valid)
+    setSelectedWardsForChart(prev =>
+      prev.length > 0 && prev.every(w => allWards.includes(w)) ? prev : allWards
+    );
+    setSelectedSitesForChart(prev =>
+      prev.length > 0 && prev.every(s => allSites.includes(s)) ? prev : allSites
+    );
+  }, [stats.byWard, stats.bySite]);
+  // ============ EDIT END: Initialize chart selections when data changes ============
+
   /**
    * Handle study selection change
+   * Also loads study targets when a study is selected
    */
   const handleStudyChange = (event) => {
     const studyCode = event.target.value;
@@ -561,6 +755,14 @@ const TrackingCurrentPage = () => {
     const selectedStudyObj = studies.find(s => s.studyCode === studyCode);
     if (selectedStudyObj) {
       dispatch(setStudy(selectedStudyObj));
+    }
+
+    // Load study targets when study is selected
+    if (studyCode) {
+      loadStudyData(studyCode);
+    } else {
+      // Clear targets when no study selected
+      setStudyTargets({ totalTarget: 0, byGroup: {}, labelHierarchy: [] });
     }
   };
 
@@ -736,31 +938,239 @@ const TrackingCurrentPage = () => {
   };
 
   // ============ EDIT START: Stacked bar chart by ward and group (2026-01-28) ============
-  // Get sorted wards by total count (descending)
-  const sortedWards = Object.keys(stats.byWard || {})
+  // Get all wards sorted by total count (descending)
+  const allWardsAvailable = Object.keys(stats.byWard || {})
     .sort((a, b) => (stats.byWard?.[b] || 0) - (stats.byWard?.[a] || 0));
-  
+
   // Get all unique groups for the ward chart
   const allGroups = Object.keys(stats.byCondition || {});
 
+  // Build hierarchical structure: group -> labels
+  // Combines: 1) Study-defined labels (from study definition), 2) Data-derived labels (from actual data)
+  // This ensures ALL labels from study definition are shown, even if they have 0 count
+  const labelHierarchy = useMemo(() => {
+    const hierarchy = {};
+
+    // First, add ALL labels from study definition (most accurate source)
+    // This includes labels with 0 count (like cap-3 if no patients have it yet)
+    if (studyTargets.labelHierarchy && studyTargets.labelHierarchy.length > 0) {
+      studyTargets.labelHierarchy.forEach(item => {
+        const group = item.group;
+        const label = item.label;
+        if (group && label) {
+          if (!hierarchy[group]) hierarchy[group] = [];
+          if (!hierarchy[group].includes(label)) {
+            hierarchy[group].push(label);
+          }
+        }
+      });
+    }
+
+    // Then, add any labels from data that aren't already in ANY group from study definition
+    // This handles cases where data has labels not defined in study
+    allGroups.forEach(group => {
+      if (!hierarchy[group]) hierarchy[group] = [];
+    });
+
+    // Get all labels already assigned to any group (from study definition)
+    const allAssignedLabels = new Set(Object.values(hierarchy).flat());
+
+    // Add labels from data ONLY if they're not already in any group
+    // This prevents duplicates when data has mismatched condition/label (e.g., patient with CAP condition but vap-1 label)
+    Object.keys(stats.byLabel || {}).forEach(label => {
+      if (label === 'N/A') return;
+      if (allAssignedLabels.has(label)) return; // Skip if already assigned from study definition
+
+      const group = stats.labelToCondition?.[label];
+      if (group && hierarchy[group]) {
+        hierarchy[group].push(label);
+        allAssignedLabels.add(label);
+      }
+    });
+
+    // Sort labels within each group
+    Object.keys(hierarchy).forEach(group => {
+      hierarchy[group].sort();
+    });
+
+    return hierarchy;
+  }, [studyTargets.labelHierarchy, allGroups, stats.byLabel, stats.labelToCondition]);
+
+  // Get ALL labels from hierarchy (includes study-defined labels with 0 count)
+  const allLabelsFromHierarchy = useMemo(() => {
+    return Object.values(labelHierarchy).flat().sort();
+  }, [labelHierarchy]);
+
+  // Initialize label selections when hierarchy changes (includes study-defined labels)
+  useEffect(() => {
+    if (allLabelsFromHierarchy.length > 0) {
+      // Initialize with all labels selected (or keep current if all are valid)
+      setSelectedLabelsForWardChart(prev =>
+        prev.length > 0 && prev.every(l => allLabelsFromHierarchy.includes(l)) ? prev : allLabelsFromHierarchy
+      );
+      setSelectedLabelsForSiteChart(prev =>
+        prev.length > 0 && prev.every(l => allLabelsFromHierarchy.includes(l)) ? prev : allLabelsFromHierarchy
+      );
+    }
+  }, [allLabelsFromHierarchy]);
+
+  // ============ EDIT START: Filter wards and groups based on user selection (2026-02-04) ============
+  // Filter to only selected wards (maintain sort order)
+  const filteredWardsForChart = allWardsAvailable.filter(w => selectedWardsForChart.includes(w));
+  // Filter to only selected labels for ward chart (using all labels from hierarchy, including study-defined)
+  const filteredLabelsForWardChart = allLabelsFromHierarchy.filter(l => selectedLabelsForWardChart.includes(l));
+  // ============ EDIT END: Filter wards and groups based on user selection ============
+
   /**
-   * Horizontal Stacked Bar Chart - Ward Distribution by Group
-   * Shows recruitment count by hospital ward, stacked by group
+   * Horizontal Stacked Bar Chart - Ward Distribution by Label (Hierarchical)
+   * Shows recruitment count by hospital ward, stacked by individual labels
+   * Uses label-level data for more granular filtering
    */
-  const wardBarChartOption = {
+  const wardBarChartByLabelOption = {
     title: {
-      text: 'Recruitment by Ward & Group',
+      text: 'Recruitment by Ward & Label',
       left: 'center',
-      textStyle: {
-        fontSize: 16,
-        fontWeight: 'bold',
-      },
+      textStyle: { fontSize: 16, fontWeight: 'bold' },
     },
     tooltip: {
       trigger: 'axis',
-      axisPointer: {
-        type: 'shadow',
+      axisPointer: { type: 'shadow' },
+      formatter: (params) => {
+        let tooltip = `<strong>${params[0].axisValue}</strong><br/>`;
+        let total = 0;
+        params.forEach(p => {
+          if (p.value > 0) {
+            tooltip += `${p.marker} ${p.seriesName}: ${p.value}<br/>`;
+            total += p.value;
+          }
+        });
+        tooltip += `<strong>Total: ${total}</strong>`;
+        return tooltip;
       },
+    },
+    legend: {
+      data: filteredLabelsForWardChart,
+      bottom: '0%',
+      type: 'scroll',
+    },
+    grid: {
+      left: '3%',
+      right: '8%',
+      bottom: '15%',
+      top: '15%',
+      containLabel: true,
+    },
+    xAxis: { type: 'value', name: 'Subjects' },
+    yAxis: {
+      type: 'category',
+      data: filteredWardsForChart,
+      axisLabel: { fontSize: 11 },
+    },
+    series: [
+      // One series per selected label (stacked)
+      ...filteredLabelsForWardChart.map((label, index) => ({
+        name: label,
+        type: 'bar',
+        stack: 'total',
+        emphasis: { focus: 'series' },
+        data: filteredWardsForChart.map(ward => stats.byWardLabel?.[ward]?.[label] || 0),
+        itemStyle: {
+          color: getChartColor(allLabelsFromHierarchy.indexOf(label)), // Consistent colors
+        },
+        label: { show: false },
+      })),
+      // Total label
+      {
+        name: 'Total',
+        type: 'bar',
+        stack: 'total',
+        itemStyle: { color: 'transparent' },
+        label: {
+          show: true,
+          position: 'right',
+          fontSize: 11,
+          fontWeight: 'bold',
+          formatter: (params) => {
+            const ward = filteredWardsForChart[params.dataIndex];
+            return filteredLabelsForWardChart.reduce(
+              (sum, l) => sum + (stats.byWardLabel?.[ward]?.[l] || 0), 0
+            );
+          },
+        },
+        data: filteredWardsForChart.map(() => 0),
+      },
+    ],
+  };
+
+  /**
+   * Pie Chart - Ward Distribution by Label
+   * Shows recruitment count by hospital ward as pie chart (using label-level data)
+   */
+  const wardPieChartOption = {
+    title: {
+      text: 'Recruitment by Ward & Label',
+      left: 'center',
+      textStyle: { fontSize: 16, fontWeight: 'bold' },
+    },
+    tooltip: {
+      trigger: 'item',
+      formatter: (params) => {
+        const { name, value, percent } = params;
+        // Show label breakdown for this ward in tooltip
+        const labelBreakdown = filteredLabelsForWardChart
+          .map(label => `${label}: ${stats.byWardLabel?.[name]?.[label] || 0}`)
+          .filter(item => !item.endsWith(': 0'))
+          .join('<br/>');
+        return `<strong>${name}</strong>: ${value} (${percent}%)<br/>${labelBreakdown || 'No data'}`;
+      },
+    },
+    legend: {
+      orient: 'horizontal',
+      bottom: '0%',
+      type: 'scroll',
+    },
+    series: [
+      {
+        name: 'Ward',
+        type: 'pie',
+        radius: ['30%', '60%'],
+        center: ['50%', '45%'],
+        avoidLabelOverlap: true,
+        itemStyle: {
+          borderRadius: 6,
+          borderColor: '#fff',
+          borderWidth: 2,
+        },
+        label: {
+          show: true,
+          formatter: '{b}: {c}',
+          fontSize: 11,
+        },
+        data: filteredWardsForChart.map((ward, index) => ({
+          value: filteredLabelsForWardChart.reduce(
+            (sum, label) => sum + (stats.byWardLabel?.[ward]?.[label] || 0), 0
+          ),
+          name: ward,
+          itemStyle: { color: getChartColor(index) },
+        })),
+      },
+    ],
+  };
+
+  /**
+   * Horizontal Stacked Bar Chart - Ward Distribution by Group
+   * Shows recruitment count by hospital ward, stacked by groups (CAP, VAP, etc.)
+   * Less granular than label-based chart, shows only group-level breakdown
+   */
+  const wardBarChartByGroupOption = {
+    title: {
+      text: 'Recruitment by Ward & Group',
+      left: 'center',
+      textStyle: { fontSize: 16, fontWeight: 'bold' },
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
       formatter: (params) => {
         let tooltip = `<strong>${params[0].axisValue}</strong><br/>`;
         let total = 0;
@@ -777,6 +1187,7 @@ const TrackingCurrentPage = () => {
     legend: {
       data: allGroups,
       bottom: '0%',
+      type: 'scroll',
     },
     grid: {
       left: '3%',
@@ -785,16 +1196,11 @@ const TrackingCurrentPage = () => {
       top: '15%',
       containLabel: true,
     },
-    xAxis: {
-      type: 'value',
-      name: 'Subjects',
-    },
+    xAxis: { type: 'value', name: 'Subjects' },
     yAxis: {
       type: 'category',
-      data: sortedWards,
-      axisLabel: {
-        fontSize: 11,
-      },
+      data: filteredWardsForChart,
+      axisLabel: { fontSize: 11 },
     },
     series: [
       // One series per group (stacked)
@@ -802,36 +1208,32 @@ const TrackingCurrentPage = () => {
         name: group,
         type: 'bar',
         stack: 'total',
-        emphasis: {
-          focus: 'series',
-        },
-        data: sortedWards.map(ward => stats.byWardCondition?.[ward]?.[group] || 0),
+        emphasis: { focus: 'series' },
+        data: filteredWardsForChart.map(ward => stats.byWardCondition?.[ward]?.[group] || 0),
         itemStyle: {
           color: getChartColor(index),
         },
-        label: {
-          show: false,
-        },
+        label: { show: false },
       })),
-      // Total label (invisible bar just for showing total)
+      // Total label
       {
         name: 'Total',
         type: 'bar',
         stack: 'total',
-        itemStyle: {
-          color: 'transparent',
-        },
+        itemStyle: { color: 'transparent' },
         label: {
           show: true,
           position: 'right',
           fontSize: 11,
           fontWeight: 'bold',
           formatter: (params) => {
-            const ward = sortedWards[params.dataIndex];
-            return stats.byWard?.[ward] || 0;
+            const ward = filteredWardsForChart[params.dataIndex];
+            return allGroups.reduce(
+              (sum, g) => sum + (stats.byWardCondition?.[ward]?.[g] || 0), 0
+            );
           },
         },
-        data: sortedWards.map(() => 0), // Zero values, just for label
+        data: filteredWardsForChart.map(() => 0),
       },
     ],
   };
@@ -840,37 +1242,40 @@ const TrackingCurrentPage = () => {
   // ============ EDIT START: Dynamic conditions from data (2026-01-28) ============
   // Get all unique conditions/groups dynamically from the data
   const allConditions = Object.keys(stats.byCondition || {});
-  
+
   // Get all unique labels across all conditions
   const allLabels = [...new Set(
-    allConditions.flatMap(condition => 
+    allConditions.flatMap(condition =>
       Object.keys(stats.byLabelCondition?.[condition] || {})
     )
   )].sort();
 
-  // Get sorted sites by total count (descending)
-  const sortedSites = Object.keys(stats.bySite || {})
+  // Get all sites sorted by total count (descending)
+  const allSitesAvailable = Object.keys(stats.bySite || {})
     .sort((a, b) => (stats.bySite?.[b] || 0) - (stats.bySite?.[a] || 0));
+
+  // ============ EDIT START: Filter sites and groups based on user selection (2026-02-04) ============
+  // Filter to only selected sites (maintain sort order)
+  const filteredSitesForChart = allSitesAvailable.filter(s => selectedSitesForChart.includes(s));
+  // Filter to only selected labels for site chart (hierarchical filtering)
+  const filteredLabelsForSiteChart = allLabelsFromHierarchy.filter(l => selectedLabelsForSiteChart.includes(l));
+  // ============ EDIT END: Filter sites and groups based on user selection ============
   // ============ EDIT END: Dynamic conditions from data ============
 
   /**
-   * Horizontal Stacked Bar Chart - Recruitment by Site & Group
-   * Shows recruitment count by site, stacked by group
+   * Horizontal Stacked Bar Chart - Site Distribution by Label (Hierarchical)
+   * Shows recruitment count by site, stacked by individual labels
+   * Uses label-level data for more granular filtering
    */
-  const siteChartOption = {
+  const siteBarChartByLabelOption = {
     title: {
-      text: 'Recruitment by Site & Group',
+      text: 'Recruitment by Site & Label',
       left: 'center',
-      textStyle: {
-        fontSize: 16,
-        fontWeight: 'bold',
-      },
+      textStyle: { fontSize: 16, fontWeight: 'bold' },
     },
     tooltip: {
       trigger: 'axis',
-      axisPointer: {
-        type: 'shadow',
-      },
+      axisPointer: { type: 'shadow' },
       formatter: (params) => {
         let tooltip = `<strong>Site: ${params[0].axisValue}</strong><br/>`;
         let total = 0;
@@ -885,8 +1290,145 @@ const TrackingCurrentPage = () => {
       },
     },
     legend: {
-      data: allConditions,
+      data: filteredLabelsForSiteChart,
       bottom: '0%',
+      type: 'scroll',
+    },
+    grid: {
+      left: '3%',
+      right: '8%',
+      bottom: '15%',
+      top: '15%',
+      containLabel: true,
+    },
+    xAxis: { type: 'value', name: 'Subjects' },
+    yAxis: {
+      type: 'category',
+      data: filteredSitesForChart,
+      axisLabel: { fontSize: 11 },
+    },
+    series: [
+      // One series per selected label (stacked)
+      ...filteredLabelsForSiteChart.map((label, index) => ({
+        name: label,
+        type: 'bar',
+        stack: 'total',
+        emphasis: { focus: 'series' },
+        data: filteredSitesForChart.map(site => stats.bySiteLabel?.[site]?.[label] || 0),
+        itemStyle: {
+          color: getChartColor(allLabelsFromHierarchy.indexOf(label)), // Consistent colors
+        },
+        label: { show: false },
+      })),
+      // Total label
+      {
+        name: 'Total',
+        type: 'bar',
+        stack: 'total',
+        itemStyle: { color: 'transparent' },
+        label: {
+          show: true,
+          position: 'right',
+          fontSize: 11,
+          fontWeight: 'bold',
+          formatter: (params) => {
+            const site = filteredSitesForChart[params.dataIndex];
+            return filteredLabelsForSiteChart.reduce(
+              (sum, l) => sum + (stats.bySiteLabel?.[site]?.[l] || 0), 0
+            );
+          },
+        },
+        data: filteredSitesForChart.map(() => 0),
+      },
+    ],
+  };
+
+  /**
+   * Pie Chart - Site Distribution by Label
+   * Shows recruitment count by site as pie chart (using label-level data)
+   */
+  const sitePieChartOption = {
+    title: {
+      text: 'Recruitment by Site & Label',
+      left: 'center',
+      textStyle: { fontSize: 16, fontWeight: 'bold' },
+    },
+    tooltip: {
+      trigger: 'item',
+      formatter: (params) => {
+        const { name, value, percent } = params;
+        // Show label breakdown for this site in tooltip
+        const labelBreakdown = filteredLabelsForSiteChart
+          .map(label => `${label}: ${stats.bySiteLabel?.[name]?.[label] || 0}`)
+          .filter(item => !item.endsWith(': 0'))
+          .join('<br/>');
+        return `<strong>${name}</strong>: ${value} (${percent}%)<br/>${labelBreakdown || 'No data'}`;
+      },
+    },
+    legend: {
+      orient: 'horizontal',
+      bottom: '0%',
+      type: 'scroll',
+    },
+    series: [
+      {
+        name: 'Site',
+        type: 'pie',
+        radius: ['30%', '60%'],
+        center: ['50%', '45%'],
+        avoidLabelOverlap: true,
+        itemStyle: {
+          borderRadius: 6,
+          borderColor: '#fff',
+          borderWidth: 2,
+        },
+        label: {
+          show: true,
+          formatter: '{b}: {c}',
+          fontSize: 11,
+        },
+        data: filteredSitesForChart.map((site, index) => ({
+          value: filteredLabelsForSiteChart.reduce(
+            (sum, label) => sum + (stats.bySiteLabel?.[site]?.[label] || 0), 0
+          ),
+          name: site,
+          itemStyle: { color: getChartColor(index) },
+        })),
+      },
+    ],
+  };
+
+  /**
+   * Horizontal Stacked Bar Chart - Site Distribution by Group
+   * Shows recruitment count by site, stacked by groups (CAP, VAP, etc.)
+   * Less granular than label-based chart, shows only group-level breakdown
+   */
+  const siteBarChartByGroupOption = {
+    title: {
+      text: 'Recruitment by Site & Group',
+      left: 'center',
+      textStyle: { fontSize: 16, fontWeight: 'bold' },
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      formatter: (params) => {
+        let tooltip = `<strong>Site: ${params[0].axisValue}</strong><br/>`;
+        let total = 0;
+        params.forEach(p => {
+          if (p.value > 0) {
+            tooltip += `${p.marker} ${p.seriesName}: ${p.value}<br/>`;
+            total += p.value;
+          }
+        });
+        tooltip += `<strong>Total: ${total}</strong>`;
+        return tooltip;
+      },
+    },
+    legend: {
+      data: allGroups,
+      bottom: '0%',
+      type: 'scroll',
     },
     grid: {
       left: '3%',
@@ -895,53 +1437,44 @@ const TrackingCurrentPage = () => {
       top: '15%',
       containLabel: true,
     },
-    xAxis: {
-      type: 'value',
-      name: 'Subjects',
-    },
+    xAxis: { type: 'value', name: 'Subjects' },
     yAxis: {
       type: 'category',
-      data: sortedSites,
-      axisLabel: {
-        fontSize: 11,
-      },
+      data: filteredSitesForChart,
+      axisLabel: { fontSize: 11 },
     },
     series: [
       // One series per group (stacked)
-      ...allConditions.map((group, index) => ({
+      ...allGroups.map((group, index) => ({
         name: group,
         type: 'bar',
         stack: 'total',
-        emphasis: {
-          focus: 'series',
-        },
-        data: sortedSites.map(site => stats.bySiteCondition?.[site]?.[group] || 0),
+        emphasis: { focus: 'series' },
+        data: filteredSitesForChart.map(site => stats.bySiteCondition?.[site]?.[group] || 0),
         itemStyle: {
           color: getChartColor(index),
         },
-        label: {
-          show: false,
-        },
+        label: { show: false },
       })),
-      // Total label (invisible bar just for showing total)
+      // Total label
       {
         name: 'Total',
         type: 'bar',
         stack: 'total',
-        itemStyle: {
-          color: 'transparent',
-        },
+        itemStyle: { color: 'transparent' },
         label: {
           show: true,
           position: 'right',
           fontSize: 11,
           fontWeight: 'bold',
           formatter: (params) => {
-            const site = sortedSites[params.dataIndex];
-            return stats.bySite?.[site] || 0;
+            const site = filteredSitesForChart[params.dataIndex];
+            return allGroups.reduce(
+              (sum, g) => sum + (stats.bySiteCondition?.[site]?.[g] || 0), 0
+            );
           },
         },
-        data: sortedSites.map(() => 0), // Zero values, just for label
+        data: filteredSitesForChart.map(() => 0),
       },
     ],
   };
@@ -1008,19 +1541,19 @@ const TrackingCurrentPage = () => {
   };
   // ============ EDIT END: Dynamic radar chart ============
 
-  // Table columns definition
+  // Table columns definition - descriptions are dynamic based on available data
   const columns = [
     {
       field: 'studyId',
       headerName: 'Study ID',
       width: 180,
-      description: 'Patient study identifier (e.g., 13NV-003-0002-C)',
+      description: `Patient study identifier${selectedStudy ? ` (e.g., ${selectedStudy}-XXX-XXXX)` : ''}`,
     },
     {
       field: 'label',
       headerName: 'Label',
       width: 100,
-      description: 'Patient cohort label (cap-1, cap-2, vap-1, vap-2)',
+      description: `Patient cohort label${allLabelsFromHierarchy.length > 0 ? ` (${allLabelsFromHierarchy.slice(0, 4).join(', ')}${allLabelsFromHierarchy.length > 4 ? ', ...' : ''})` : ''}`,
       renderCell: (params) => (
         <Chip
           label={params.value}
@@ -1034,7 +1567,7 @@ const TrackingCurrentPage = () => {
       field: 'condition',
       headerName: 'Group',
       width: 100,
-      description: 'CAP (Community Acquired Pneumonia) or VAP (Ventilator Associated Pneumonia)',
+      description: `Patient group${Object.keys(labelHierarchy).length > 0 ? ` (${Object.keys(labelHierarchy).join(', ')})` : ''}`,
       renderCell: (params) => (
         <Chip
           label={params.value}
@@ -1157,45 +1690,101 @@ const TrackingCurrentPage = () => {
         </Grid>
       </Box>
 
-      {/* Summary Statistics Cards */}
+      {/* Summary Statistics Cards with Recruitment Targets */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        {/* Total Subjects Card */}
+        {/* Total Subjects Card - with target progress */}
         <Grid item xs={12} sm={6} md={3}>
           <Card elevation={2}>
             <CardContent>
               <Typography color="text.secondary" gutterBottom>
-                Total Subjects
+                Total Recruitment
               </Typography>
-              <Typography variant="h3" color="primary">
-                {stats.total}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Currently enrolled
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                <Typography variant="h3" color="primary">
+                  {stats.total}
+                </Typography>
+                {studyTargets.totalTarget > 0 && (
+                  <Typography variant="h6" color="text.secondary">
+                    / {studyTargets.totalTarget}
+                  </Typography>
+                )}
+              </Box>
+              {studyTargets.totalTarget > 0 ? (
+                <>
+                  <Tooltip title={`${Math.round((stats.total / studyTargets.totalTarget) * 100)}% of target`}>
+                    <LinearProgress
+                      variant="determinate"
+                      value={Math.min((stats.total / studyTargets.totalTarget) * 100, 100)}
+                      sx={{ mt: 1, mb: 0.5, height: 8, borderRadius: 4 }}
+                    />
+                  </Tooltip>
+                  <Typography variant="caption" color="text.secondary">
+                    {Math.round((stats.total / studyTargets.totalTarget) * 100)}% of target
+                  </Typography>
+                </>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  Currently enrolled
+                </Typography>
+              )}
             </CardContent>
           </Card>
         </Grid>
 
-        {/* ============ EDIT START: Dynamic group cards (2026-01-28) ============ */}
-        {/* Dynamically render cards for each group in the data */}
-        {Object.entries(stats.byCondition || {}).map(([group, count], index) => (
-          <Grid item xs={12} sm={6} md={3} key={group}>
-            <Card elevation={2}>
-              <CardContent>
-                <Typography color="text.secondary" gutterBottom>
-                  {group} Subjects
-                </Typography>
-                <Typography variant="h3" sx={{ color: getChartColor(index) }}>
-                  {count}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Group: {group}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-        {/* ============ EDIT END: Dynamic group cards ============ */}
+        {/* ============ EDIT START: Dynamic group cards with targets (2026-02-04) ============ */}
+        {/* Dynamically render cards for each group with progress towards target */}
+        {Object.entries(stats.byCondition || {}).map(([group, count], index) => {
+          const target = studyTargets.byGroup?.[group] || 0;
+          const percentage = target > 0 ? Math.round((count / target) * 100) : 0;
+          return (
+            <Grid item xs={12} sm={6} md={3} key={group}>
+              <Card elevation={2}>
+                <CardContent>
+                  <Typography color="text.secondary" gutterBottom>
+                    {group} Recruitment
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                    <Typography variant="h3" sx={{ color: getChartColor(index) }}>
+                      {count}
+                    </Typography>
+                    {target > 0 && (
+                      <Typography variant="h6" color="text.secondary">
+                        / {target}
+                      </Typography>
+                    )}
+                  </Box>
+                  {target > 0 ? (
+                    <>
+                      <Tooltip title={`${percentage}% of ${group} target`}>
+                        <LinearProgress
+                          variant="determinate"
+                          value={Math.min(percentage, 100)}
+                          sx={{
+                            mt: 1,
+                            mb: 0.5,
+                            height: 8,
+                            borderRadius: 4,
+                            '& .MuiLinearProgress-bar': {
+                              backgroundColor: getChartColor(index),
+                            },
+                          }}
+                        />
+                      </Tooltip>
+                      <Typography variant="caption" color="text.secondary">
+                        {percentage}% of target
+                      </Typography>
+                    </>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      Group: {group}
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          );
+        })}
+        {/* ============ EDIT END: Dynamic group cards with targets ============ */}
 
         {/* Labels Breakdown Card */}
         <Grid item xs={12} sm={6} md={3}>
@@ -1219,6 +1808,206 @@ const TrackingCurrentPage = () => {
           </Card>
         </Grid>
       </Grid>
+
+      {/* ============ EDIT START: Recruitment Progress Chart with Targets (2026-02-04) ============ */}
+      {/* Recruitment Progress Chart - Shows progress towards targets for all groups */}
+      {studyTargets.totalTarget > 0 && (
+        <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Recruitment Progress vs Targets
+          </Typography>
+          <ReactECharts
+            option={{
+              tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'shadow' },
+                formatter: (params) => {
+                  const param = params[0];
+                  const groupName = param.axisValue;
+                  const current = param.value;
+                  const target = studyTargets.byGroup?.[groupName] || studyTargets.totalTarget;
+                  const percentage = target > 0 ? Math.round((current / target) * 100) : 0;
+                  return `<strong>${groupName}</strong><br/>
+                    Current: ${current}<br/>
+                    Target: ${target}<br/>
+                    Progress: ${percentage}%`;
+                },
+              },
+              grid: {
+                left: '3%',
+                right: '15%',
+                bottom: '3%',
+                top: '10%',
+                containLabel: true,
+              },
+              xAxis: {
+                type: 'value',
+                max: (value) => Math.max(value.max, studyTargets.totalTarget) * 1.1,
+                name: 'Subjects',
+                axisLine: { show: true },
+              },
+              yAxis: {
+                type: 'category',
+                data: ['Total', ...Object.keys(studyTargets.byGroup || {})],
+                axisLabel: { fontSize: 12, fontWeight: 'bold' },
+              },
+              series: [
+                // Current recruitment (filled bars)
+                {
+                  name: 'Current',
+                  type: 'bar',
+                  data: [
+                    {
+                      value: stats.total,
+                      itemStyle: {
+                        color: '#1976d2',
+                        borderRadius: [0, 4, 4, 0],
+                      },
+                    },
+                    ...Object.keys(studyTargets.byGroup || {}).map((group, index) => ({
+                      value: stats.byCondition?.[group] || 0,
+                      itemStyle: {
+                        color: getChartColor(index),
+                        borderRadius: [0, 4, 4, 0],
+                      },
+                    })),
+                  ],
+                  barWidth: '50%',
+                  label: {
+                    show: true,
+                    position: 'right',
+                    formatter: (params) => {
+                      const idx = params.dataIndex;
+                      const current = params.value;
+                      const target = idx === 0
+                        ? studyTargets.totalTarget
+                        : Object.values(studyTargets.byGroup || {})[idx - 1] || 0;
+                      const percentage = target > 0 ? Math.round((current / target) * 100) : 0;
+                      return `${current} / ${target} (${percentage}%)`;
+                    },
+                    fontSize: 11,
+                    fontWeight: 'bold',
+                  },
+                  z: 2,
+                },
+                // Target markers (line marks)
+                {
+                  name: 'Target',
+                  type: 'bar',
+                  data: [
+                    studyTargets.totalTarget,
+                    ...Object.values(studyTargets.byGroup || {}),
+                  ],
+                  barWidth: '50%',
+                  barGap: '-100%',
+                  itemStyle: {
+                    color: 'transparent',
+                    borderColor: '#666',
+                    borderWidth: 2,
+                    borderType: 'dashed',
+                    borderRadius: [0, 4, 4, 0],
+                  },
+                  z: 1,
+                },
+              ],
+            }}
+            style={{ height: `${Math.max(200, (Object.keys(studyTargets.byGroup || {}).length + 1) * 60)}px`, width: '100%' }}
+            opts={{ renderer: 'canvas' }}
+            notMerge={true}
+          />
+        </Paper>
+      )}
+      {/* ============ EDIT END: Recruitment Progress Chart with Targets ============ */}
+
+      {/* ============ EDIT START: Multi-level Label Hierarchy Display (2026-02-04) ============ */}
+      {/* Label Definitions - Shows hierarchical label structure from study */}
+      {studyTargets.labelHierarchy && studyTargets.labelHierarchy.length > 0 && (
+        <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Study Label Definitions
+          </Typography>
+          <Grid container spacing={2}>
+            {/* Group labels by their parent group (CAP, VAP, etc.) */}
+            {Object.entries(
+              studyTargets.labelHierarchy.reduce((acc, labelItem) => {
+                const group = labelItem.group || 'Other';
+                if (!acc[group]) acc[group] = [];
+                acc[group].push(labelItem);
+                return acc;
+              }, {})
+            ).map(([group, labels]) => (
+              <Grid item xs={12} md={6} key={group}>
+                <Card variant="outlined" sx={{ height: '100%' }}>
+                  <CardContent>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                      <Chip
+                        label={group}
+                        color={getConditionColor(group)}
+                        size="small"
+                        sx={{ fontWeight: 'bold' }}
+                      />
+                      <Typography variant="subtitle2" color="text.secondary">
+                        {labels.length} label{labels.length > 1 ? 's' : ''}
+                      </Typography>
+                    </Box>
+                    {/* Group by category within each group */}
+                    {Object.entries(
+                      labels.reduce((acc, l) => {
+                        const cat = l.category || 'default';
+                        if (!acc[cat]) acc[cat] = [];
+                        acc[cat].push(l);
+                        return acc;
+                      }, {})
+                    ).map(([category, categoryLabels]) => (
+                      <Box key={category} sx={{ mb: 1.5 }}>
+                        {category !== 'default' && (
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              display: 'block',
+                              mb: 0.5,
+                              color: 'text.secondary',
+                              fontWeight: 'medium',
+                              textTransform: 'capitalize',
+                            }}
+                          >
+                            {category}:
+                          </Typography>
+                        )}
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, pl: category !== 'default' ? 1 : 0 }}>
+                          {categoryLabels.map((labelItem) => (
+                            <Tooltip
+                              key={labelItem.code}
+                              title={
+                                <Box>
+                                  <Typography variant="body2">{labelItem.text}</Typography>
+                                  <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                                    Code: {labelItem.code}
+                                  </Typography>
+                                </Box>
+                              }
+                              arrow
+                            >
+                              <Chip
+                                label={labelItem.label}
+                                size="small"
+                                variant="outlined"
+                                color={getLabelColor(labelItem.label)}
+                                sx={{ cursor: 'help' }}
+                              />
+                            </Tooltip>
+                          ))}
+                        </Box>
+                      </Box>
+                    ))}
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Paper>
+      )}
+      {/* ============ EDIT END: Multi-level Label Hierarchy Display ============ */}
 
       {/* Charts Section */}
       <Typography variant="h6" sx={{ mb: 2, mt: 2 }}>
@@ -1287,12 +2076,12 @@ const TrackingCurrentPage = () => {
           </Paper>
         </Grid>
 
-        {/* Ward Distribution Bar Chart */}
+        {/* Recruitment Overview Radar Chart - moved to third column */}
         <Grid item xs={12} md={4}>
           <Paper elevation={2} sx={{ p: 2 }}>
-            {sortedWards.length > 0 ? (
+            {stats.total > 0 ? (
               <ReactECharts
-                option={wardBarChartOption}
+                option={recruitmentRadarOption}
                 style={{ height: '300px', width: '100%' }}
                 opts={{ renderer: 'canvas' }}
                 notMerge={true}
@@ -1301,68 +2090,6 @@ const TrackingCurrentPage = () => {
               <Box
                 sx={{
                   height: '300px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  alignItems: 'center'
-                }}
-              >
-                <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
-                  Recruitment by Ward & Group
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  No data available for selected filters
-                </Typography>
-              </Box>
-            )}
-          </Paper>
-        </Grid>
-
-        {/* Recruitment by Site Chart */}
-        <Grid item xs={12} md={6}>
-          <Paper elevation={2} sx={{ p: 2 }}>
-            {sortedSites.length > 0 ? (
-              <ReactECharts
-                option={siteChartOption}
-                style={{ height: '320px', width: '100%' }}
-                opts={{ renderer: 'canvas' }}
-                notMerge={true}
-              />
-            ) : (
-              <Box
-                sx={{
-                  height: '320px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  alignItems: 'center'
-                }}
-              >
-                <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
-                  Recruitment by Site & Group
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  No data available for selected filters
-                </Typography>
-              </Box>
-            )}
-          </Paper>
-        </Grid>
-
-        {/* Recruitment Overview Radar Chart */}
-        <Grid item xs={12} md={6}>
-          <Paper elevation={2} sx={{ p: 2 }}>
-            {stats.total > 0 ? (
-              <ReactECharts
-                option={recruitmentRadarOption}
-                style={{ height: '320px', width: '100%' }}
-                opts={{ renderer: 'canvas' }}
-                notMerge={true}
-              />
-            ) : (
-              <Box
-                sx={{
-                  height: '320px',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'center',
@@ -1379,6 +2106,308 @@ const TrackingCurrentPage = () => {
             )}
           </Paper>
         </Grid>
+
+        {/* ============ EDIT START: Ward Chart with Hierarchical Group/Label Selection (2026-02-04) ============ */}
+        {/* Ward Distribution Chart - with hierarchical group/label selection */}
+        <Grid item xs={12} md={6}>
+          <Paper elevation={2} sx={{ p: 2 }}>
+            <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
+              Recruitment by Ward & Label
+            </Typography>
+            {/* Filter dropdowns */}
+            <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+              {/* Ward selection dropdown */}
+              <FormControl size="small" sx={{ minWidth: 200 }}>
+                <InputLabel id="ward-chart-ward-select-label">Select Wards</InputLabel>
+                <Select
+                  labelId="ward-chart-ward-select-label"
+                  id="ward-chart-ward-select"
+                  multiple
+                  value={selectedWardsForChart}
+                  onChange={(e) => setSelectedWardsForChart(e.target.value)}
+                  input={<OutlinedInput label="Select Wards" />}
+                  renderValue={(selected) => `${selected.length} ward${selected.length !== 1 ? 's' : ''}`}
+                  MenuProps={{ PaperProps: { sx: { maxHeight: 300, minWidth: 250 } } }}
+                >
+                  {allWardsAvailable.map((ward) => (
+                    <MenuItem key={ward} value={ward}>
+                      <Checkbox checked={selectedWardsForChart.includes(ward)} size="small" />
+                      <ListItemText primary={ward} secondary={`${stats.byWard?.[ward] || 0} subjects`} />
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              {/* Hierarchical Group/Label selection dropdown */}
+              <FormControl size="small" sx={{ minWidth: 220 }}>
+                <InputLabel id="ward-chart-label-select-label">Select Groups/Labels</InputLabel>
+                <Select
+                  labelId="ward-chart-label-select-label"
+                  id="ward-chart-label-select"
+                  multiple
+                  value={selectedLabelsForWardChart}
+                  onChange={(e) => setSelectedLabelsForWardChart(e.target.value)}
+                  input={<OutlinedInput label="Select Groups/Labels" />}
+                  renderValue={(selected) => `${selected.length} label${selected.length !== 1 ? 's' : ''}`}
+                  MenuProps={{ PaperProps: { sx: { maxHeight: 400, minWidth: 300 } } }}
+                >
+                  {/* Render hierarchical structure: groups as parents, labels as children */}
+                  {/* Use Object.keys(labelHierarchy) to include all groups from study definition */}
+                  {Object.keys(labelHierarchy).map((group) => {
+                    const groupLabels = labelHierarchy[group] || [];
+                    const allGroupLabelsSelected = groupLabels.length > 0 && groupLabels.every(l => selectedLabelsForWardChart.includes(l));
+                    const someGroupLabelsSelected = groupLabels.some(l => selectedLabelsForWardChart.includes(l));
+                    return (
+                      <React.Fragment key={`group-fragment-${group}`}>
+                        {/* Parent group item (toggles all children) */}
+                        <MenuItem
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (allGroupLabelsSelected) {
+                              setSelectedLabelsForWardChart(prev => prev.filter(l => !groupLabels.includes(l)));
+                            } else {
+                              setSelectedLabelsForWardChart(prev => [...new Set([...prev, ...groupLabels])]);
+                            }
+                          }}
+                          sx={{ fontWeight: 'bold', bgcolor: 'action.hover' }}
+                        >
+                          <Checkbox
+                            checked={allGroupLabelsSelected}
+                            indeterminate={someGroupLabelsSelected && !allGroupLabelsSelected}
+                            size="small"
+                          />
+                          <ListItemText
+                            primary={group}
+                            secondary={`${groupLabels.length} labels • ${stats.byCondition?.[group] || 0} subjects`}
+                          />
+                        </MenuItem>
+                        {/* Child label items (indented under their parent group) */}
+                        {groupLabels.map((label) => (
+                          <MenuItem
+                            key={`${group}-${label}`}
+                            value={label}
+                            sx={{ pl: 4 }}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setSelectedLabelsForWardChart(prev =>
+                                prev.includes(label)
+                                  ? prev.filter(l => l !== label)
+                                  : [...prev, label]
+                              );
+                            }}
+                          >
+                            <Checkbox checked={selectedLabelsForWardChart.includes(label)} size="small" />
+                            <ListItemText
+                              primary={label}
+                              secondary={`${stats.byLabel?.[label] || 0} subjects`}
+                            />
+                          </MenuItem>
+                        ))}
+                      </React.Fragment>
+                    );
+                  })}
+                </Select>
+              </FormControl>
+              {/* Chart type selector */}
+              <FormControl size="small" sx={{ minWidth: 140 }}>
+                <InputLabel id="ward-chart-type-label">Chart Type</InputLabel>
+                <Select
+                  labelId="ward-chart-type-label"
+                  id="ward-chart-type"
+                  value={wardChartType}
+                  onChange={(e) => setWardChartType(e.target.value)}
+                  label="Chart Type"
+                >
+                  <MenuItem value="bar">Stacked (Labels)</MenuItem>
+                  <MenuItem value="group">Stacked (Groups)</MenuItem>
+                  <MenuItem value="pie">Pie Chart</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+            {/* Chart - uses label-based or group-based data depending on selection */}
+            {filteredWardsForChart.length > 0 && (wardChartType === 'group' || filteredLabelsForWardChart.length > 0) ? (
+              <ReactECharts
+                option={
+                  wardChartType === 'pie' ? wardPieChartOption :
+                  wardChartType === 'group' ? wardBarChartByGroupOption :
+                  wardBarChartByLabelOption
+                }
+                style={{ height: wardChartType === 'pie' ? '350px' : `${Math.max(250, filteredWardsForChart.length * 40)}px`, width: '100%' }}
+                opts={{ renderer: 'canvas' }}
+                notMerge={true}
+              />
+            ) : (
+              <Box
+                sx={{
+                  height: '200px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}
+              >
+                <Typography variant="body2" color="text.secondary">
+                  Select wards and labels to display chart
+                </Typography>
+              </Box>
+            )}
+          </Paper>
+        </Grid>
+        {/* ============ EDIT END: Ward Chart with Hierarchical Group/Label Selection ============ */}
+
+        {/* ============ EDIT START: Site Chart with Hierarchical Group/Label Selection (2026-02-04) ============ */}
+        {/* Recruitment by Site Chart - with hierarchical group/label selection */}
+        <Grid item xs={12} md={6}>
+          <Paper elevation={2} sx={{ p: 2 }}>
+            <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
+              Recruitment by Site & Label
+            </Typography>
+            {/* Filter dropdowns */}
+            <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+              {/* Site selection dropdown */}
+              <FormControl size="small" sx={{ minWidth: 200 }}>
+                <InputLabel id="site-chart-site-select-label">Select Sites</InputLabel>
+                <Select
+                  labelId="site-chart-site-select-label"
+                  id="site-chart-site-select"
+                  multiple
+                  value={selectedSitesForChart}
+                  onChange={(e) => setSelectedSitesForChart(e.target.value)}
+                  input={<OutlinedInput label="Select Sites" />}
+                  renderValue={(selected) => `${selected.length} site${selected.length !== 1 ? 's' : ''}`}
+                  MenuProps={{ PaperProps: { sx: { maxHeight: 300, minWidth: 280 } } }}
+                >
+                  {allSitesAvailable.map((site) => (
+                    <MenuItem key={site} value={site} sx={{ minWidth: 250 }}>
+                      <Checkbox checked={selectedSitesForChart.includes(site)} size="small" />
+                      <ListItemText
+                        primary={site}
+                        secondary={`${stats.bySite?.[site] || 0} subjects`}
+                        primaryTypographyProps={{ noWrap: false }}
+                      />
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              {/* Hierarchical Group/Label selection dropdown */}
+              <FormControl size="small" sx={{ minWidth: 220 }}>
+                <InputLabel id="site-chart-label-select-label">Select Groups/Labels</InputLabel>
+                <Select
+                  labelId="site-chart-label-select-label"
+                  id="site-chart-label-select"
+                  multiple
+                  value={selectedLabelsForSiteChart}
+                  onChange={(e) => setSelectedLabelsForSiteChart(e.target.value)}
+                  input={<OutlinedInput label="Select Groups/Labels" />}
+                  renderValue={(selected) => `${selected.length} label${selected.length !== 1 ? 's' : ''}`}
+                  MenuProps={{ PaperProps: { sx: { maxHeight: 400, minWidth: 300 } } }}
+                >
+                  {/* Render hierarchical structure: groups as parents, labels as children */}
+                  {/* Use Object.keys(labelHierarchy) to include all groups from study definition */}
+                  {Object.keys(labelHierarchy).map((group) => {
+                    const groupLabels = labelHierarchy[group] || [];
+                    const allGroupLabelsSelected = groupLabels.length > 0 && groupLabels.every(l => selectedLabelsForSiteChart.includes(l));
+                    const someGroupLabelsSelected = groupLabels.some(l => selectedLabelsForSiteChart.includes(l));
+                    return (
+                      <React.Fragment key={`site-group-fragment-${group}`}>
+                        {/* Parent group item (toggles all children) */}
+                        <MenuItem
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (allGroupLabelsSelected) {
+                              setSelectedLabelsForSiteChart(prev => prev.filter(l => !groupLabels.includes(l)));
+                            } else {
+                              setSelectedLabelsForSiteChart(prev => [...new Set([...prev, ...groupLabels])]);
+                            }
+                          }}
+                          sx={{ fontWeight: 'bold', bgcolor: 'action.hover' }}
+                        >
+                          <Checkbox
+                            checked={allGroupLabelsSelected}
+                            indeterminate={someGroupLabelsSelected && !allGroupLabelsSelected}
+                            size="small"
+                          />
+                          <ListItemText
+                            primary={group}
+                            secondary={`${groupLabels.length} labels • ${stats.byCondition?.[group] || 0} subjects`}
+                          />
+                        </MenuItem>
+                        {/* Child label items (indented under their parent group) */}
+                        {groupLabels.map((label) => (
+                          <MenuItem
+                            key={`site-${group}-${label}`}
+                            value={label}
+                            sx={{ pl: 4 }}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setSelectedLabelsForSiteChart(prev =>
+                                prev.includes(label)
+                                  ? prev.filter(l => l !== label)
+                                  : [...prev, label]
+                              );
+                            }}
+                          >
+                            <Checkbox checked={selectedLabelsForSiteChart.includes(label)} size="small" />
+                            <ListItemText
+                              primary={label}
+                              secondary={`${stats.byLabel?.[label] || 0} subjects`}
+                            />
+                          </MenuItem>
+                        ))}
+                      </React.Fragment>
+                    );
+                  })}
+                </Select>
+              </FormControl>
+              {/* Chart type selector */}
+              <FormControl size="small" sx={{ minWidth: 140 }}>
+                <InputLabel id="site-chart-type-label">Chart Type</InputLabel>
+                <Select
+                  labelId="site-chart-type-label"
+                  id="site-chart-type"
+                  value={siteChartType}
+                  onChange={(e) => setSiteChartType(e.target.value)}
+                  label="Chart Type"
+                >
+                  <MenuItem value="bar">Stacked (Labels)</MenuItem>
+                  <MenuItem value="group">Stacked (Groups)</MenuItem>
+                  <MenuItem value="pie">Pie Chart</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+            {/* Chart - uses label-based or group-based data depending on selection */}
+            {filteredSitesForChart.length > 0 && (siteChartType === 'group' || filteredLabelsForSiteChart.length > 0) ? (
+              <ReactECharts
+                option={
+                  siteChartType === 'pie' ? sitePieChartOption :
+                  siteChartType === 'group' ? siteBarChartByGroupOption :
+                  siteBarChartByLabelOption
+                }
+                style={{ height: siteChartType === 'pie' ? '350px' : `${Math.max(250, filteredSitesForChart.length * 50)}px`, width: '100%' }}
+                opts={{ renderer: 'canvas' }}
+                notMerge={true}
+              />
+            ) : (
+              <Box
+                sx={{
+                  height: '200px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}
+              >
+                <Typography variant="body2" color="text.secondary">
+                  Select sites and labels to display chart
+                </Typography>
+              </Box>
+            )}
+          </Paper>
+        </Grid>
+        {/* ============ EDIT END: Site Chart with Hierarchical Group/Label Selection ============ */}
       </Grid>
 
       {/* Recruitment Details Table */}

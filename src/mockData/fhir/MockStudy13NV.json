@@ -1,0 +1,281 @@
+{
+  "resourceType": "ResearchStudy",
+  "id": "Study13NV",
+  "meta": {
+    "profile": [
+      "https://vital-fhir.oucru.org/StructureDefinition/VitalStudy"
+    ]
+  },
+  "identifier": [
+    {
+      "type": {
+        "coding": [
+          {
+            "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+            "code": "FILL",
+            "display": "Filler Identifier"
+          }
+        ]
+      },
+      "use": "official",
+      "system": "https://vital-fhir.oucru.org/ResearchStudyIdentifier",
+      "value": "13NV"
+    }
+  ],
+  "studyDesign": [
+    {
+      "coding": [
+        {
+          "code": "observational"
+        }
+      ]
+    }
+  ],
+  "condition": [
+    {
+      "coding": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "385093006",
+          "display": "Community acquired pneumonia"
+        }
+      ],
+      "text": "CAP"
+    },
+    {
+      "coding": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "429271009",
+          "display": "Ventilator associated pneumonia"
+        }
+      ],
+      "text": "VAP"
+    }
+  ],
+  "period": {
+    "start": "2026-03-01",
+    "end": "2029-02-28"
+  },
+  "site": [
+    {
+      "reference": "Organization/HospitalforTropicalDiseases"
+    },
+    {
+      "reference": "Organization/TrungVuongHospital"
+    },
+    {
+      "reference": "Organization/NguyenThiThapHospital"
+    },
+    {
+      "reference": "Organization/NationalHospitalforTropicalDiseases"
+    }
+  ],
+  "associatedParty": [
+    {
+      "role": {
+        "coding": [
+          {
+            "system": "http://hl7.org/fhir/research-study-party-role",
+            "code": "primary-investigator",
+            "display": "primary-investigator"
+          }
+        ]
+      },
+      "name": "Louise Thwaites",
+      "party": {
+        "reference": "Practitioner/ProfLouiseThwaites"
+      }
+    },
+    {
+      "role": {
+        "coding": [
+          {
+            "system": "http://hl7.org/fhir/research-study-party-role",
+            "code": "primary-investigator",
+            "display": "primary-investigator"
+          }
+        ]
+      },
+      "name": "Nguyen Le Nhu Tung",
+      "party": {
+        "reference": "Practitioner/DrNguyenLeNhuTung"
+      }
+    },
+    {
+      "role": {
+        "coding": [
+          {
+            "system": "http://hl7.org/fhir/research-study-party-role",
+            "code": "primary-investigator",
+            "display": "primary-investigator"
+          }
+        ]
+      },
+      "name": "Huynh Ngoc Hon",
+      "party": {
+        "reference": "Practitioner/DrHuynhNgocHon"
+      }
+    },
+    {
+      "role": {
+        "coding": [
+          {
+            "system": "http://hl7.org/fhir/research-study-party-role",
+            "code": "primary-investigator",
+            "display": "primary-investigator"
+          }
+        ]
+      },
+      "name": "Luong Hoang Liem",
+      "party": {
+        "reference": "Practitioner/DrLuongHoangLiem"
+      }
+    }
+  ],
+  "recruitment": {
+    "targetNumber": 1101,
+    "eligibility": {
+      "reference": "EvidenceVariable/Evidence13NV"
+    }
+  },
+  "comparisonGroup": [
+    {
+      "name": "CAP",
+      "description": 680
+    },
+    {
+      "name": "VAP",
+      "description": 430
+    },
+    {
+      "name": "VAP+"
+    }
+  ],
+  "extension": [
+    {
+      "url": "https://vital-fhir.oucru.org/StructureDefinition/sop",
+      "valueUrl": "https://vital-cdn.oucru.org/SOP/13NV-Study-SOP.pdf"
+    },
+    {
+      "url": "https://vital-fhir.oucru.org/StructureDefinition/data-dictionary",
+      "valueUrl": "https://vital-cdn.oucru.org/DataDictionary/13NV-Data-Dictionary.xlsx"
+    },
+    {
+      "url": "https://vital-fhir.oucru.org/StructureDefinition/in-hospital-visits",
+      "valueDecimal": 10
+    },
+    {
+      "url": "https://vital-fhir.oucru.org/StructureDefinition/fu-visits",
+      "valueDecimal": 1
+    },
+    {
+      "url": "https://vital-fhir.oucru.org/StructureDefinition/blood-sample",
+      "valueString": "Yes"
+    },
+    {
+      "url": "https://vital-fhir.oucru.org/StructureDefinition/ultrasound",
+      "valueString": "Yes, Lung ultrasound"
+    },
+    {
+      "url": "https://vital-fhir.oucru.org/StructureDefinition/quality-of-life-interview",
+      "valueString": "No"
+    },
+    {
+      "url": "https://vital-fhir.oucru.org/StructureDefinition/wearable-device-acceptance-interview",
+      "valueString": "No"
+    },
+    {
+      "url": "https://vital-fhir.oucru.org/StructureDefinition/clinical-source",
+      "valueString": "CliRes"
+    },
+    {
+      "url": "https://vital-fhir.oucru.org/StructureDefinition/access-type",
+      "valueString": "#private"
+    },
+    {
+      "url": "https://vital-fhir.oucru.org/StructureDefinition/secondary-analysis",
+      "valueString": "Yes"
+    },
+    {
+      "url": "https://vital-fhir.oucru.org/StructureDefinition/data-sharing-note",
+      "valueString": "Data sharing is allowed for 2nd analysis if the next study approved by EC."
+    },
+    {
+      "extension": [
+        {
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "code": "CAP.serverity.cap-1"
+              }
+            ],
+            "text": "subgroup for serverity in cap: level 1"
+          },
+          "url": "label"
+        },
+        {
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "code": "CAP.serverity.cap-2"
+              }
+            ],
+            "text": "subgroup for serverity in cap: level 2"
+          },
+          "url": "label"
+        },
+        {
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "code": "CAP.category2.cap-3"
+              }
+            ],
+            "text": "subgroup for <category2> in cap"
+          },
+          "url": "label"
+        },
+        {
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "code": "VAP.vap-1"
+              }
+            ],
+            "text": "subgroup for vap: group 1"
+          },
+          "url": "label"
+        },
+        {
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "code": "VAP.vap-2"
+              }
+            ],
+            "text": "subgroup for vap: group 2"
+          },
+          "url": "label"
+        }
+      ],
+      "url": "https://vital-fhir.oucru.org/StructureDefinition/ext-multiple-value"
+    }
+  ],
+  "label": [
+    {
+      "type": {
+        "coding": [
+          {
+            "code": "language"
+          }
+        ]
+      }
+    }
+  ],
+  "name": "Defining new phenotypes in pneumonia ",
+  "title": "Discovering novel pneumonia phenotypes using artificial intelligence and multimodal data: a prospective observational study",
+  "status": "active",
+  "description": "We will observe hospitalised patients at risk of severe CAP or VAP, collecting multiple types of data, identifying the pathogens themselves, patient clinical, inflammatory and immune responses to pathogens in order to identify groups of features (phenotypes) that are associated with specific outcomes. We will use conventional statistics and AI approaches to analyse these very large and complex datasets to identify subgroups of features or patients associated with severe disease. ",
+  "descriptionSummary": "Defining new phenotypes in pneumonia"
+}
