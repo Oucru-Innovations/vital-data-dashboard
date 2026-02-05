@@ -16,6 +16,7 @@ const SummaryStudyPage = lazy(() => import('../pages/Summary/SummaryStudy'));
 const TrackingWeekly = lazy(() => import('../pages/Tracking/TrackingWeekly'));
 const TrackingCurrent = lazy(() => import('../pages/Tracking/TrackingCurrent'));
 const TrackingStudyPage = lazy(() => import('../pages/Tracking/MonthlyReport'));
+const TrackingHistory = lazy(() => import('../pages/Tracking/TrackingHistory'));
 
 // Fallback Component
 const Loading = () => (
@@ -177,6 +178,17 @@ const routes = (isAuthenticated, onLogin) => [
       </ProtectedRoute>
     ),
     title: 'Vital Study Recruitment',
+  },
+  {
+    path: '/tracking/history',
+    element: (
+      <ProtectedRoute isAuthenticated={isAuthenticated}>
+        <Suspense fallback={<Loading />}>
+          <TrackingHistory />
+        </Suspense>
+      </ProtectedRoute>
+    ),
+    title: 'Tracking History',
   },
 ];
 

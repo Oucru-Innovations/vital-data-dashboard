@@ -25,6 +25,7 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import MedicalInformationIcon from '@mui/icons-material/MedicalInformation';
 import DevicesOtherIcon from '@mui/icons-material/DevicesOther';
 import SourceIcon from '@mui/icons-material/Source';
+import HistoryIcon from '@mui/icons-material/History';
 
 const ListItemBody = ({ item, isCollapsed, onClick, level = 0, isOpen }) => {
   const hasChildren = item.children && item.children.length > 0;
@@ -144,6 +145,7 @@ const Sidebar = () => {
       icon: <SignalCellularAltIcon />,
       children: [
         { text: 'Current', icon: <CheckCircleIcon />, path: '/tracking/current' },
+        { text: 'History', icon: <HistoryIcon />, path: '/tracking/history' },
         { text: 'Study', icon: <AssessmentIcon />, path: '/tracking/study' },
       ],
     },

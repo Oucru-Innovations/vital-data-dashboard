@@ -1337,10 +1337,10 @@ export const generateRecruitmentDetails = (patients, study, options = {}) => {
     });
   });
 
-  // Filter out null groups if byCategory is false
+  // When byCategory is false, only keep the Total/aggregate rows (not per-group breakdown)
   let finalResults = results;
   if (!byCategory) {
-    finalResults = finalResults.filter(r => r.group === null);
+    finalResults = finalResults.filter(r => r.category === null || r.category === 'Total');
   }
 
   // Return only the requested number of recent periods

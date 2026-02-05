@@ -69,6 +69,7 @@ import ReactECharts from 'echarts-for-react';
 import Footer from '../../components/toolbars/Footer';
 
 // Shared filter components
+// eslint-disable-next-line no-unused-vars -- merged from fhir-summary (7b7f4b0), may be used later
 import { SiteSelection, WardSelection, ConditionFilter, GroupFilter } from '../../components/filters';
 
 // Redux state management
@@ -85,16 +86,32 @@ import {
 import {
   getProcessedStudies,
   isDevelopmentMode,
+  // eslint-disable-next-line no-unused-vars -- merged from fhir-summary (7b7f4b0), may be used later
   getCurrentRecruitmentData,
   getRecruitmentDetail,
 } from '../../services/fhirService';
 
 /**
- * Extract ALL labels from VitalPatient extension
- * A patient can have multiple labels (multiple dictionary extensions with key="label")
+ * Extract the leaf label from a multi-level code (study label hierarchy).
+ * MockStudy13NV uses dot-separated codes: "Group.Category.Label" or "Group.Label".
+ * Examples: "CAP.serverity.cap-1" → "cap-1", "VAP.vap-1" → "vap-1".
+ *
+ * @param {string} code - Full hierarchical code from dictionary value
+ * @returns {string} Leaf label (last segment)
+ */
+const getLeafLabel = (code) => {
+  if (!code || typeof code !== 'string') return code || '';
+  const parts = code.trim().split('.');
+  return parts.length > 1 ? parts[parts.length - 1] : code;
+};
+
+/**
+ * Extract ALL labels from VitalPatient extension (dictionary with key="label").
+ * Values are multi-level codes (e.g. "CAP.serverity.cap-1"); we extract the
+ * children leaf only (e.g. "cap-1") to match MockStudy13NV label hierarchy.
  *
  * @param {Object} vitalPatient - The linked VitalPatient resource
- * @returns {string[]} Array of label values (e.g., ["cap-1", "cap-2"]) or ["N/A"] if none
+ * @returns {string[]} Array of leaf label values (e.g., ["cap-1", "cap-2", "cap-3"]) or ["N/A"] if none
  */
 const extractLabels = (vitalPatient) => {
   if (!vitalPatient?.extension) return ['N/A'];
@@ -113,7 +130,8 @@ const extractLabels = (vitalPatient) => {
     const valueExt = dictionaryExt.extension.find(e => e.url === 'value');
 
     if (keyExt?.valueString === 'label' && valueExt?.valueString) {
-      labels.push(valueExt.valueString);
+      const leaf = getLeafLabel(valueExt.valueString);
+      if (leaf && !labels.includes(leaf)) labels.push(leaf);
     }
   });
 
@@ -121,19 +139,19 @@ const extractLabels = (vitalPatient) => {
 };
 
 /**
- * Extract condition from ResearchSubject extension
+ * Extract condition (group) from ResearchSubject extension
  * @param {Object} resource - The ResearchSubject resource
- * @returns {string} The condition (CAP/VAP) or "Unknown"
+ * @returns {string} The condition/group (CAP/VAP) or "Unknown"
  */
 const extractCondition = (resource) => {
-  if (!resource?.extension) return [];
+  if (!resource?.extension) return 'Unknown';
 
-  const conditionExt = resource.extension.filter(
+  const conditionExt = resource.extension.find(
     ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/condition' ||
       ext.url?.includes('/condition')
   );
 
-  return conditionExt?.map(ext => ext.valueCodeableConcept?.text) || [];
+  return conditionExt?.valueCodeableConcept?.text || 'Unknown';
 };
 
 /**
@@ -239,19 +257,24 @@ const processLabelData = (bundle) => {
     const subject = resource.subject;
     const linkedPatient = subject?.link?.[0]?.other;
     const allLabels = extractLabels(linkedPatient);
+    // Study ID from VitalPatient name (e.g. "13NV-003-0002-C") per commit fbec530
+    const studyId = linkedPatient?.name?.[0]?.given?.[0] || (resource.study?.reference || '').split('/').pop() || 'N/A';
+    const siteCode = extractSite(subject) || 'N/A';
+    const condition = extractCondition(resource); // string: CAP, VAP, etc. (same as "group" in UI)
 
     return {
       id: index,
       subjectId: resource.id,
-      studyId: studyId,
-      siteCode: siteCode,
+      studyId,
+      siteCode,
       screeningName: subject?.name?.[0]?.given?.[0] || 'N/A',
-      condition: extractCondition(resource),
-      label: allLabels.join(', '),    // Display: comma-separated for table
-      labels: allLabels,               // Array: for stats calculation
+      condition,
+      group: condition,              // Group column = condition (CAP, VAP, etc.)
+      label: allLabels.join(', '),  // Display: comma-separated for table
+      labels: allLabels,            // Array: for stats calculation
       status: resource.status || 'Unknown',
       site: extractSite(subject),
-      ward: extractWard(subject),
+      ward: extractWard(subject) || 'Unknown',
       screeningDate: extractProgressDate(resource.progress, 'screening'),
       enrolledDate: extractProgressDate(resource.progress, 'on-study'),
       eligibleDate: extractProgressDate(resource.progress, 'eligible'),
@@ -290,13 +313,15 @@ const filterMockData = (bundle, filters = {}) => {
 
   let filteredEntries = [...bundle.entry];
 
+  // Filter by group (condition) - match condition extension text (CAP, VAP, etc.) per commit fbec530
   if (group) {
     filteredEntries = filteredEntries.filter(entry => {
-      const groupExt = entry.resource?.extension?.filter(
-        ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/comparisonGroup'
+      const conditionExt = entry.resource?.extension?.find(
+        ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/condition' ||
+          ext.url?.includes('/condition')
       );
-      const groupText = groupExt?.map(ext => ext.valueId);
-      return groupText.includes(group);
+      const conditionText = conditionExt?.valueCodeableConcept?.text;
+      return conditionText === group;
     });
     console.log(`[TrackingCurrent] Filtered by group "${group}": ${filteredEntries.length} entries`);
   }
@@ -365,10 +390,14 @@ const TrackingCurrentPage = () => {
   const dispatch = useDispatch();
 
   // Redux state for filters
+  // eslint-disable-next-line no-unused-vars -- merged from fhir-summary (7b7f4b0), may be used later
   const currentStudy = useSelector(selectCurrentStudy);
   const currentSite = useSelector(selectCurrentSite);
+  // eslint-disable-next-line no-unused-vars -- merged from fhir-summary (7b7f4b0), WardSelection uses Redux but this page uses local ward/group filters
   const currentWard = useSelector(selectCurrentWard);
+  // eslint-disable-next-line no-unused-vars -- merged from fhir-summary (7b7f4b0), may be used later
   const currentCondition = useSelector(selectCurrentCondition);
+  // eslint-disable-next-line no-unused-vars -- merged from fhir-summary (7b7f4b0), GroupFilter uses Redux but this page uses local ward/group filters
   const currentGroup = useSelector(selectCurrentGroup);
 
   // Local state
@@ -379,6 +408,11 @@ const TrackingCurrentPage = () => {
   const [selectedStudy, setSelectedStudy] = useState(() => {
     return localStorage.getItem('selectedStudyCode') || '';
   });
+
+  // Local ward and group filters (derived from actual patient data, not organization resources)
+  // These replace the shared WardSelection/GroupFilter components which use different data sources
+  const [localWardFilter, setLocalWardFilter] = useState('');   // '' means all wards
+  const [localGroupFilter, setLocalGroupFilter] = useState(''); // '' means all groups
 
   // Summary statistics
   // ============ EDIT START: Dynamic initial state - no hard-coded groups (2026-01-28) ============
@@ -561,29 +595,25 @@ const TrackingCurrentPage = () => {
   /**
    * Main data loading function
    * Automatically chooses between mock data (development) and FHIR API (production)
-   * Applies selected filters (site, ward, group) to the data source
+   * Applies site filter at load time; ward and group filtering is done client-side
+   * because the shared WardSelection/GroupFilter components use organization resource data
+   * which may not match the ward codes in patient data (managingOrganization references)
    */
   const loadRecruitmentData = useCallback(async () => {
     try {
       setLoading(true);
 
       // Build filters from current selections
-      // Pass full objects for proper matching in mock data
+      // Only site is filtered at load time; ward/group are filtered client-side
       const filters = {
         siteObj: currentSite || null,  // Full site object with alias array
         site: currentSite?.code || null,  // Site code for API calls
-        wardObj: currentWard || null,  // Full ward object with id for matching
-        ward: currentWard?.code || null,  // Ward code for API calls
-        group: currentGroup || null,
       };
 
       console.log('[TrackingCurrent] Loading data with filters:', {
         siteName: currentSite?.name,
         siteCode: currentSite?.code,
         siteAliases: currentSite?.alias,
-        wardId: currentWard?.id,
-        wardName: currentWard?.name,
-        group: filters.group,
       });
 
       let data;
@@ -597,13 +627,17 @@ const TrackingCurrentPage = () => {
 
       setData(data);
 
+      // Reset local ward/group filters when data source changes
+      setLocalWardFilter('');
+      setLocalGroupFilter('');
+
     } catch (error) {
       console.error('[TrackingCurrent] Error loading recruitment data:', error);
       setData(null);
     } finally {
       setLoading(false);
     }
-  }, [loadMockData, loadFromAPI, currentSite, currentWard, currentGroup]);
+  }, [loadMockData, loadFromAPI, currentSite]);
 
   /**
    * Load studies list for dropdown
@@ -635,7 +669,7 @@ const TrackingCurrentPage = () => {
     // Calculate statistics - no hard-coded groups, all dynamic from data
     const newStats = {
       total: processed.length,
-      byGroup: {},        // Dynamically populated (now called "Group")
+      byGroup: {},        // Dynamically populated (Group = condition: CAP, VAP, etc.)
       byLabel: {},
       byStatus: {},
       bySite: {},             // Site totals
@@ -655,8 +689,8 @@ const TrackingCurrentPage = () => {
       const site = row.site || 'Unknown';
       const ward = row.ward || 'Unknown';
 
-      // Count by condition (once per patient)
-      newStats.byCondition[condition] = (newStats.byCondition[condition] || 0) + 1;
+      // Count by group/condition (once per patient)
+      newStats.byGroup[condition] = (newStats.byGroup[condition] || 0) + 1;
 
       // Count by status (once per patient)
       newStats.byStatus[row.status] = (newStats.byStatus[row.status] || 0) + 1;
@@ -717,7 +751,20 @@ const TrackingCurrentPage = () => {
     setStats(newStats);
     // ============ EDIT END: Fully dynamic stats calculation ============
 
-  }, [data]); // Only re-process when data changes (filtering is done at load time)
+  }, [data]); // Only re-process when data changes
+
+  // Client-side filtering for ward and group (derived from actual patient data)
+  // This replaces the server-side filtering that WardSelection/GroupFilter would trigger
+  const filteredTableData = useMemo(() => {
+    let filtered = tableData;
+    if (localWardFilter) {
+      filtered = filtered.filter(row => row.ward === localWardFilter);
+    }
+    if (localGroupFilter) {
+      filtered = filtered.filter(row => row.group === localGroupFilter);
+    }
+    return filtered;
+  }, [tableData, localWardFilter, localGroupFilter]);
 
   // Initial data load
   // Uses loadRecruitmentData which automatically chooses between mock (dev) and API (prod)
@@ -950,7 +997,7 @@ const TrackingCurrentPage = () => {
 
 
   // Get all unique groups for the ward chart
-  const allGroups = Object.keys(stats.byCondition || {});
+  const allGroups = Object.keys(stats.byGroup || {});
 
   // Build hierarchical structure: group -> labels
   // Combines: 1) Study-defined labels (from study definition), 2) Data-derived labels (from actual data)
@@ -1248,7 +1295,7 @@ const TrackingCurrentPage = () => {
 
   // ============ EDIT START: Dynamic conditions from data (2026-01-28) ============
   // Get all unique conditions/groups dynamically from the data
-  const allConditions = Object.keys(stats.byCondition || {});
+  const allConditions = Object.keys(stats.byGroup || {});
 
   // Get all unique labels across all conditions
   const allLabels = [...new Set(
@@ -1434,7 +1481,6 @@ const TrackingCurrentPage = () => {
     },
     legend: {
       data: allGroups,
-      data: allGroups,
       bottom: '0%',
       type: 'scroll',
     },
@@ -1453,7 +1499,7 @@ const TrackingCurrentPage = () => {
     },
     series: [
       // One series per group (stacked)
-      ...allGroups.map((group, index) => ({
+      // ...allGroups.map((group, index) => ({
       ...allGroups.map((group, index) => ({
         name: group,
         type: 'bar',
@@ -1686,15 +1732,51 @@ const TrackingCurrentPage = () => {
             </Grid>
           )}
 
-          {selectedStudy && currentSite && (
+          {/* Ward filter - populated from actual patient data (not organization resources) */}
+          {selectedStudy && Object.keys(stats.byWard || {}).length > 0 && (
             <Grid item xs={12} md={2}>
-              <WardSelection />
+              <FormControl fullWidth size="small">
+                <InputLabel>Ward</InputLabel>
+                <Select
+                  value={localWardFilter}
+                  onChange={(e) => setLocalWardFilter(e.target.value)}
+                  label="Ward"
+                >
+                  <MenuItem value="">
+                    <em>All Wards</em>
+                  </MenuItem>
+                  {Object.entries(stats.byWard || {})
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([ward, count]) => (
+                      <MenuItem key={ward} value={ward}>
+                        {ward} ({count})
+                      </MenuItem>
+                    ))}
+                </Select>
+              </FormControl>
             </Grid>
           )}
 
-          {selectedStudy && (
+          {/* Group filter - populated from actual patient data */}
+          {selectedStudy && Object.keys(stats.byGroup || {}).length > 0 && (
             <Grid item xs={12} md={2}>
-              <GroupFilter />
+              <FormControl fullWidth size="small">
+                <InputLabel>Group</InputLabel>
+                <Select
+                  value={localGroupFilter}
+                  onChange={(e) => setLocalGroupFilter(e.target.value)}
+                  label="Group"
+                >
+                  <MenuItem value="">
+                    <em>All Groups</em>
+                  </MenuItem>
+                  {Object.entries(stats.byGroup || {}).map(([group, count]) => (
+                    <MenuItem key={group} value={group}>
+                      {group} ({count})
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
           )}
         </Grid>
@@ -1743,7 +1825,7 @@ const TrackingCurrentPage = () => {
 
         {/* ============ EDIT START: Dynamic group cards with targets (2026-02-04) ============ */}
         {/* Dynamically render cards for each group with progress towards target */}
-        {Object.entries(stats.byCondition || {}).map(([group, count], index) => {
+        {Object.entries(stats.byGroup || {}).map(([group, count], index) => {
           const target = studyTargets.byGroup?.[group] || 0;
           const percentage = target > 0 ? Math.round((count / target) * 100) : 0;
           return (
@@ -1875,7 +1957,7 @@ const TrackingCurrentPage = () => {
                       },
                     },
                     ...Object.keys(studyTargets.byGroup || {}).map((group, index) => ({
-                      value: stats.byCondition?.[group] || 0,
+                      value: stats.byGroup?.[group] || 0,
                       itemStyle: {
                         color: getChartColor(index),
                         borderRadius: [0, 4, 4, 0],
@@ -1952,7 +2034,7 @@ const TrackingCurrentPage = () => {
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
                       <Chip
                         label={group}
-                        color={getConditionColor(group)}
+                        color={getGroupColor(group)}
                         size="small"
                         sx={{ fontWeight: 'bold' }}
                       />
@@ -2188,7 +2270,7 @@ const TrackingCurrentPage = () => {
                           />
                           <ListItemText
                             primary={group}
-                            secondary={`${groupLabels.length} labels • ${stats.byCondition?.[group] || 0} subjects`}
+                            secondary={`${groupLabels.length} labels • ${stats.byGroup?.[group] || 0} subjects`}
                           />
                         </MenuItem>
                         {/* Child label items (indented under their parent group) */}
@@ -2341,7 +2423,7 @@ const TrackingCurrentPage = () => {
                           />
                           <ListItemText
                             primary={group}
-                            secondary={`${groupLabels.length} labels • ${stats.byCondition?.[group] || 0} subjects`}
+                            secondary={`${groupLabels.length} labels • ${stats.byGroup?.[group] || 0} subjects`}
                           />
                         </MenuItem>
                         {/* Child label items (indented under their parent group) */}
@@ -2434,7 +2516,7 @@ const TrackingCurrentPage = () => {
         </Typography>
         <Box sx={{ height: 500, width: '100%' }}>
           <DataGrid
-            rows={tableData}
+            rows={filteredTableData}
             columns={columns}
             initialState={{
               pagination: {
@@ -2465,7 +2547,7 @@ const TrackingCurrentPage = () => {
       {/* Data Source Info */}
       <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
         <Typography variant="caption" color="text.secondary">
-          Total records: {data?.total || 0} |
+          Total records: {data?.total || 0}{(localWardFilter || localGroupFilter) ? ` | Filtered: ${filteredTableData.length}` : ''} |
           Last updated: {data?.meta?.lastUpdated || 'N/A'}
         </Typography>
       </Box>
