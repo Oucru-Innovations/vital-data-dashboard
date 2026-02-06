@@ -411,6 +411,46 @@ export const getStudies = async () => {
   }
 };
 
+/**
+ * Fetch a specific ResearchStudy by ID
+ * 
+ * DEVELOPMENT MODE:
+ * - Loads from: src/mockData/fhir/Mock{studyId}.json
+ * - Example: MockStudy13NV.json
+ * 
+ * PRODUCTION MODE:
+ * - Calls FHIR API: GET /ResearchStudy/{studyId}
+ * 
+ * @param {string} studyId - The study ID (e.g., "Study13NV")
+ * @returns {Promise<Object>} ResearchStudy resource
+ */
+export const getResearchStudy = async (studyId) => {
+  try {
+    if (!studyId) throw new Error('Study ID is required');
+
+    if (shouldUseMockData()) {
+      console.log(`[FHIR Service] Using MOCK data for study ${studyId} (development mode)`);
+      // Try to load the specific mock file for this study
+      // Note: This relies on the file naming convention Mock{studyId}.json
+      // e.g. MockStudy13NV.json
+      try {
+        const mockData = await import(`../mockData/fhir/Mock${studyId}.json`);
+        return Promise.resolve(mockData.default || mockData);
+      } catch (e) {
+        console.warn(`[FHIR Service] Mock file Mock${studyId}.json not found. Returning empty object.`);
+        return null;
+      }
+    }
+
+    console.log(`[FHIR Service] Fetching study ${studyId} from FHIR API:`, FHIR_API_URL);
+    const response = await fhirClient.get(`/ResearchStudy/${studyId}`);
+    return response.data;
+  } catch (error) {
+    console.error(`[FHIR Service] Error fetching study ${studyId}:`, error);
+    throw new Error(`Failed to fetch study ${studyId}: ${error.message}`);
+  }
+};
+
 
 
 
@@ -590,7 +630,7 @@ export const inferRecruitmentQuery = async (filters) => {
     try {
       // Check if there are departments matching the alias
       // const aliasQuery = alias.replace('-', ',');
-      const checkWards = await fhirClient.get(`/Organization?type=dept&_content:contains=${studyCode},${siteCode}`);
+      const checkWards = await fhirClient.get(`/Organization?type=dept&name:contains=${studyCode}-${siteCode}&_count=2000`);
       if (checkWards.data && checkWards.data.total > 0) {
         hasWards = true;
       }

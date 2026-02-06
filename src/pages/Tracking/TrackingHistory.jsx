@@ -623,7 +623,7 @@ const TrackingHistory = () => {
               <MenuItem value="">All Studies</MenuItem>
               {studies.map((study) => (
                 <MenuItem key={study.id || study.studyCode} value={study.studyCode}>
-                  {study.studyCode} - {study.name}
+                  {study.studyCode}
                 </MenuItem>
               ))}
             </Select>

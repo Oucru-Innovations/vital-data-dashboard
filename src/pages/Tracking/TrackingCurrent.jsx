@@ -60,6 +60,12 @@ import {
   Checkbox,
   ListItemText,
   OutlinedInput,
+  TableContainer,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import { useSelector, useDispatch } from 'react-redux';
@@ -70,7 +76,7 @@ import Footer from '../../components/toolbars/Footer';
 
 // Shared filter components
 // eslint-disable-next-line no-unused-vars -- merged from fhir-summary (7b7f4b0), may be used later
-import { SiteSelection, WardSelection, ConditionFilter, GroupFilter } from '../../components/filters';
+import { SiteSelection, WardSelection, GroupFilter } from '../../components/filters';
 
 // Redux state management
 import {
@@ -89,6 +95,7 @@ import {
   // eslint-disable-next-line no-unused-vars -- merged from fhir-summary (7b7f4b0), may be used later
   getCurrentRecruitmentData,
   getRecruitmentDetail,
+  getResearchStudy // Imported service
 } from '../../services/fhirService';
 
 /**
@@ -139,19 +146,23 @@ const extractLabels = (vitalPatient) => {
 };
 
 /**
- * Extract condition (group) from ResearchSubject extension
+ * Extract group from ResearchSubject extension (formerly condition)
  * @param {Object} resource - The ResearchSubject resource
- * @returns {string} The condition/group (CAP/VAP) or "Unknown"
+ * @returns {string} The group (CAP/VAP) or "Unknown"
  */
-const extractCondition = (resource) => {
-  if (!resource?.extension) return 'Unknown';
+// Modified to return an array of groups (e.g. ['VAP', 'VAP+'])
+const extractGroup = (resource) => {
+  if (!resource?.extension) return ['Unknown'];
 
-  const conditionExt = resource.extension.find(
-    ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/condition' ||
-      ext.url?.includes('/condition')
+  const groupExts = resource.extension.filter(
+    ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/comparisonGroup'
   );
 
-  return conditionExt?.valueCodeableConcept?.text || 'Unknown';
+  if (groupExts.length > 0) {
+    return groupExts.map(ext => ext.valueId).filter(Boolean);
+  }
+
+  return ['Unknown'];
 };
 
 /**
@@ -211,7 +222,7 @@ const extractSite = (subject) => {
     // Extract site code: uppercase letters at the start before common ward suffixes
     // e.g., "HTDED" → "HTD", "HTDNhiemD" → "HTD", "NTTHED" → "NTTH"
     // Look for pattern: uppercase letters followed by (ED|ICU|NhiemD|lowercase)
-    const siteMatch = fullWardCode.match(/^([A-Z]+?)(?:ED|ICU|Nhiem|[a-z]|$)/i);
+    const siteMatch = fullWardCode.match(/^([A-Z]+?)(?:ED|ICU|Nhiem|[a-z]|$)/);
     if (siteMatch) {
       return siteMatch[1].toUpperCase();
     }
@@ -260,7 +271,7 @@ const processLabelData = (bundle) => {
     // Study ID from VitalPatient name (e.g. "13NV-003-0002-C") per commit fbec530
     const studyId = linkedPatient?.name?.[0]?.given?.[0] || (resource.study?.reference || '').split('/').pop() || 'N/A';
     const siteCode = extractSite(subject) || 'N/A';
-    const condition = extractCondition(resource); // string: CAP, VAP, etc. (same as "group" in UI)
+    const groups = extractGroup(resource); // array: ['CAP'], ['VAP', 'VAP+'], etc.
 
     return {
       id: index,
@@ -268,8 +279,8 @@ const processLabelData = (bundle) => {
       studyId,
       siteCode,
       screeningName: subject?.name?.[0]?.given?.[0] || 'N/A',
-      condition,
-      group: condition,              // Group column = condition (CAP, VAP, etc.)
+      groups,             // Store array for logic
+      group: groups.join(', '), // Display string (comma separated)
       label: allLabels.join(', '),  // Display: comma-separated for table
       labels: allLabels,            // Array: for stats calculation
       status: resource.status || 'Unknown',
@@ -282,6 +293,56 @@ const processLabelData = (bundle) => {
     };
   });
 };
+
+/**
+ * Get date range from last Friday to Today (inclusive)
+ * "This week" usually refers to the reporting week starting from last Friday.
+ * If today is Friday, it includes today.
+ * @returns {Object} { start: Date, end: Date }
+ */
+const getDateRangeFromLastFriday = () => {
+  const today = new Date();
+  today.setHours(23, 59, 59, 999); // End of today
+
+  const lastFriday = new Date(today);
+  const day = lastFriday.getDay(); // 0 (Sun) - 6 (Sat)
+
+  // Calculate days to subtract to get to the *previous* Friday
+  // If today is Fri (5), we want to go back 0 days (if we count today as start) 
+  // OR 7 days if "last Friday" strictly means the previous week's Friday.
+  // Requirement: "from last Friday to today". Warning: Ambiguous.
+  // Assumption: "Last Friday" means the most recent Friday (or today if today is Friday).
+  // Actually, usually "Last Friday" implies the start of the week.
+  // If today is Friday, start is probably LAST week's Friday?
+  // Let's assume standard reporting: Start = Most recent past Friday.
+
+  // Logic: Go back until day is 5 (Friday)
+  // If day is 5 (Fri), diff is 0.
+  // If day is 6 (Sat), diff is 1.
+  // If day is 0 (Sun), diff is 2.
+  // If day is 1 (Mon), diff is 3.
+  const diff = (day + 2) % 7;
+  // Wait: (5+2)%7 = 0. (6+2)%7 = 1. (0+2)%7 = 2. (1+2)%7 = 3. Correct.
+
+  lastFriday.setDate(lastFriday.getDate() - diff);
+  lastFriday.setHours(0, 0, 0, 0); // Start of last Friday
+
+  return { start: lastFriday, end: today };
+};
+
+/**
+ * Check if a date string is within a range
+ * @param {string} dateStr - Date string (YYYY-MM-DD or ISO)
+ * @param {Date} start - Start date
+ * @param {Date} end - End date
+ * @returns {boolean}
+ */
+const isDateInRange = (dateStr, start, end) => {
+  if (!dateStr || dateStr === 'N/A') return false;
+  const d = new Date(dateStr);
+  return d >= start && d <= end;
+};
+
 
 // ============ EDIT START: Filter mock data function - MOVED OUTSIDE COMPONENT (2026-01-29) ============
 /**
@@ -313,15 +374,14 @@ const filterMockData = (bundle, filters = {}) => {
 
   let filteredEntries = [...bundle.entry];
 
-  // Filter by group (condition) - match condition extension text (CAP, VAP, etc.) per commit fbec530
+  // Filter by group (comparisonGroup) - match comparisonGroup extension valueId
   if (group) {
     filteredEntries = filteredEntries.filter(entry => {
-      const conditionExt = entry.resource?.extension?.find(
-        ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/condition' ||
-          ext.url?.includes('/condition')
-      );
-      const conditionText = conditionExt?.valueCodeableConcept?.text;
-      return conditionText === group;
+      const groupExts = entry.resource?.extension?.filter(
+        ext => ext.url === 'https://vital-fhir.oucru.org/StructureDefinition/comparisonGroup'
+      ) || [];
+      // Check if ANY of the patient's groups match the selected filter
+      return groupExts.some(ext => ext.valueId === group);
     });
     console.log(`[TrackingCurrent] Filtered by group "${group}": ${filteredEntries.length} entries`);
   }
@@ -396,7 +456,7 @@ const TrackingCurrentPage = () => {
   // eslint-disable-next-line no-unused-vars -- merged from fhir-summary (7b7f4b0), WardSelection uses Redux but this page uses local ward/group filters
   const currentWard = useSelector(selectCurrentWard);
   // eslint-disable-next-line no-unused-vars -- merged from fhir-summary (7b7f4b0), may be used later
-  const currentCondition = useSelector(selectCurrentCondition);
+  // const currentCondition = useSelector(selectCurrentCondition);
   // eslint-disable-next-line no-unused-vars -- merged from fhir-summary (7b7f4b0), GroupFilter uses Redux but this page uses local ward/group filters
   const currentGroup = useSelector(selectCurrentGroup);
 
@@ -417,18 +477,18 @@ const TrackingCurrentPage = () => {
   // Summary statistics
   // ============ EDIT START: Dynamic initial state - no hard-coded groups (2026-01-28) ============
   const [stats, setStats] = useState({
-    total: 0,
+    totalRecruitment: 0,
     byGroup: {},      // Will be populated dynamically with any groups from data
     byLabel: {},
     byStatus: {},
     bySite: {},           // Site totals
     byWard: {},
-    byLabelCondition: {}, // Will be populated dynamically with any groups from data
-    byWardCondition: {},  // Ward → Group breakdown for stacked bar chart
-    bySiteCondition: {},  // Site → Group breakdown for stacked bar chart
+    byLabelGroup: {}, // Will be populated dynamically with any groups from data
+    byWardGroup: {},  // Ward → Group breakdown for stacked bar chart
+    bySiteGroup: {},  // Site → Group breakdown for stacked bar chart
     byWardLabel: {},      // Ward → Label breakdown for hierarchical filtering
     bySiteLabel: {},      // Site → Label breakdown for hierarchical filtering
-    labelToCondition: {}, // Map label to its parent condition
+    labelToGroup: {}, // Map label to its parent group
   });
   // ============ EDIT END: Dynamic initial state ============
 
@@ -478,10 +538,19 @@ const TrackingCurrentPage = () => {
 
       console.log(`[TrackingCurrent] Loading study data for: ${studyCode}`);
 
-      // Load study mock data (in development mode)
-      // TODO: In production, fetch from FHIR API: GET /ResearchStudy/{studyId}
-      const studyModule = await import('../../mockData/fhir/MockStudy13NV.json');
-      const studyData = studyModule.default || studyModule;
+      console.log(`[TrackingCurrent] Loading study data for: ${studyCode}`);
+
+      // Construct Study ID (assuming convention Study + Code)
+      // e.g., "13NV" -> "Study13NV"
+      const studyId = `Study${studyCode}`;
+
+      // Fetch study data using service (handles both dev/mock and prod/api)
+      const studyData = await getResearchStudy(studyId);
+
+      if (!studyData) {
+        console.warn(`[TrackingCurrent] No data found for study ${studyCode}`);
+        return null;
+      }
 
       // Extract recruitment target
       const totalTarget = studyData.recruitment?.targetNumber || 0;
@@ -608,6 +677,9 @@ const TrackingCurrentPage = () => {
       const filters = {
         siteObj: currentSite || null,  // Full site object with alias array
         site: currentSite?.code || null,  // Site code for API calls
+        // Added for fhirService.js compatibility:
+        siteCode: currentSite?.code || null,
+        organization: currentSite || null,
       };
 
       console.log('[TrackingCurrent] Loading data with filters:', {
@@ -654,43 +726,149 @@ const TrackingCurrentPage = () => {
   }, []);
 
   /**
-   * Process and filter data when mockData or filters change
+   * Calculate statistics from a list of rows
+   * Extracted for reuse with both full data (for dropdowns) and filtered data (for charts)
    */
-  useEffect(() => {
-    if (!data) return;
-
-    // Process the pre-filtered data into table rows
-    const processed = processLabelData(data);
-    setTableData(processed);
-
-    console.log(`[TrackingCurrent] Processed ${processed.length} rows for display`);
-
-    // ============ EDIT START: Fully dynamic stats calculation (2026-01-28) ============
-    // Calculate statistics - no hard-coded groups, all dynamic from data
+  const calculateStats = useCallback((rows) => {
     const newStats = {
-      total: processed.length,
-      byGroup: {},        // Dynamically populated (Group = condition: CAP, VAP, etc.)
+      totalRecruitment: 0, // Initialize to 0, will count only enrolled
+      // Date-based stats
+      totalScreening: 0,
+      thisWeekScreening: 0,
+      thisWeekRecruitment: 0,
+
+      byGroup: {},        // Total SCREENING by Group (matches rows.length breakdown)
+      recruitmentByGroup: {}, // Total RECRUITMENT by Group (only enrolled)
+
+      // Breakdown by group for other metrics
+      screeningByGroup: {},
+      thisWeekScreeningByGroup: {},
+      thisWeekRecruitmentByGroup: {},
+
       byLabel: {},
       byStatus: {},
       bySite: {},             // Site totals
       byWard: {},
-      byLabelCondition: {},   // Dynamically populated
-      byWardCondition: {},    // Ward → Group breakdown for stacked bar chart
-      bySiteCondition: {},    // Site → Group breakdown for stacked bar chart
+      byLabelGroup: {},   // Dynamically populated
+      byWardGroup: {},    // Ward → Group breakdown for stacked bar chart
+      bySiteGroup: {},    // Site → Group breakdown for stacked bar chart
       byWardLabel: {},        // Ward → Label breakdown for hierarchical filtering
       bySiteLabel: {},        // Site → Label breakdown for hierarchical filtering
-      labelToCondition: {},   // Map label to its parent condition (e.g., "cap-1" → "CAP")
+      labelToGroup: {},   // Map label to its parent group (e.g., "cap-1" → "CAP")
+
+      // RECRUITMENT-ONLY stats (for charts)
+      recruitmentByLabel: {},
+      recruitmentByWard: {},
+      recruitmentBySite: {},
+      recruitmentByLabelGroup: {},
+      recruitmentByWardGroup: {},
+      recruitmentBySiteGroup: {},
+      recruitmentByWardLabel: {},
+      recruitmentBySiteLabel: {},
     };
 
-    processed.forEach(row => {
-      // Count by condition/group (dynamic - any condition from data)
-      const condition = row.condition || 'Unknown';
-      const labels = row.labels || ['N/A']; // Array of labels (patient can have multiple)
+    const { start: weekStart, end: weekEnd } = getDateRangeFromLastFriday();
+
+    rows.forEach(row => {
+      // Extract groups first to use in all metrics
+      const groups = Array.isArray(row.groups) ? row.groups : [row.group || 'Unknown'];
+      const labels = row.labels || ['N/A']; // Array of labels
       const site = row.site || 'Unknown';
       const ward = row.ward || 'Unknown';
 
-      // Count by group/condition (once per patient)
-      newStats.byGroup[condition] = (newStats.byGroup[condition] || 0) + 1;
+      // Date stats
+      if (row.screeningDate && row.screeningDate !== 'N/A') {
+        newStats.totalScreening++;
+        // Count total screening by group
+        groups.forEach(g => {
+          newStats.screeningByGroup[g] = (newStats.screeningByGroup[g] || 0) + 1;
+        });
+
+        if (isDateInRange(row.screeningDate, weekStart, weekEnd)) {
+          newStats.thisWeekScreening++;
+          // Count this week screening by group
+          groups.forEach(g => {
+            newStats.thisWeekScreeningByGroup[g] = (newStats.thisWeekScreeningByGroup[g] || 0) + 1;
+          });
+        }
+      }
+
+      // Recruitment stats (Enrolled date)
+      if (row.enrolledDate && row.enrolledDate !== 'N/A') {
+        newStats.totalRecruitment++; // Count total recruitment
+        // Count recruitment by group
+        groups.forEach(g => {
+          newStats.recruitmentByGroup[g] = (newStats.recruitmentByGroup[g] || 0) + 1;
+        });
+
+        // Note: filteredStats.totalRecruitment is basically total recruitment (enrolled)
+        // assuming the list contains only active subjects.
+        // We explicitly count "this week" recruitment here.
+        if (isDateInRange(row.enrolledDate, weekStart, weekEnd)) {
+          newStats.thisWeekRecruitment++;
+          // Count this week recruitment by group
+          groups.forEach(g => {
+            newStats.thisWeekRecruitmentByGroup[g] = (newStats.thisWeekRecruitmentByGroup[g] || 0) + 1;
+          });
+        }
+
+        // --- RECRUITMENT ONLY STATS POPULATION ---
+
+        // Count by site (recruited)
+        newStats.recruitmentBySite[site] = (newStats.recruitmentBySite[site] || 0) + 1;
+
+        // Count by site AND group (recruited)
+        if (!newStats.recruitmentBySiteGroup[site]) {
+          newStats.recruitmentBySiteGroup[site] = {};
+        }
+        groups.forEach(g => {
+          newStats.recruitmentBySiteGroup[site][g] = (newStats.recruitmentBySiteGroup[site][g] || 0) + 1;
+        });
+
+        // Count by ward (recruited)
+        newStats.recruitmentByWard[ward] = (newStats.recruitmentByWard[ward] || 0) + 1;
+
+        // Count by ward AND group (recruited)
+        if (!newStats.recruitmentByWardGroup[ward]) {
+          newStats.recruitmentByWardGroup[ward] = {};
+        }
+        groups.forEach(g => {
+          newStats.recruitmentByWardGroup[ward][g] = (newStats.recruitmentByWardGroup[ward][g] || 0) + 1;
+        });
+
+        // Process EACH label for recruitment stats
+        labels.forEach(label => {
+          // Count by label (recruited)
+          newStats.recruitmentByLabel[label] = (newStats.recruitmentByLabel[label] || 0) + 1;
+
+          // Count by site AND label (recruited)
+          if (!newStats.recruitmentBySiteLabel[site]) {
+            newStats.recruitmentBySiteLabel[site] = {};
+          }
+          newStats.recruitmentBySiteLabel[site][label] = (newStats.recruitmentBySiteLabel[site][label] || 0) + 1;
+
+          // Count by ward AND label (recruited)
+          if (!newStats.recruitmentByWardLabel[ward]) {
+            newStats.recruitmentByWardLabel[ward] = {};
+          }
+          newStats.recruitmentByWardLabel[ward][label] = (newStats.recruitmentByWardLabel[ward][label] || 0) + 1;
+
+          // Count labels grouped by group (recruited)
+          groups.forEach(g => {
+            if (!newStats.recruitmentByLabelGroup[g]) {
+              newStats.recruitmentByLabelGroup[g] = {};
+            }
+            newStats.recruitmentByLabelGroup[g][label] = (newStats.recruitmentByLabelGroup[g][label] || 0) + 1;
+          });
+        });
+      }
+
+      // Count by groups (dynamic - iterate array)
+
+      // Count by group (increment for EACH group the patient belongs to)
+      groups.forEach(g => {
+        newStats.byGroup[g] = (newStats.byGroup[g] || 0) + 1;
+      });
 
       // Count by status (once per patient)
       newStats.byStatus[row.status] = (newStats.byStatus[row.status] || 0) + 1;
@@ -698,22 +876,26 @@ const TrackingCurrentPage = () => {
       // Count by site (once per patient)
       newStats.bySite[site] = (newStats.bySite[site] || 0) + 1;
 
-      // Count by site AND condition (once per patient)
-      if (!newStats.bySiteCondition[site]) {
-        newStats.bySiteCondition[site] = {};
+      // Count by site AND group
+      if (!newStats.bySiteGroup[site]) {
+        newStats.bySiteGroup[site] = {};
       }
-      newStats.bySiteCondition[site][condition] =
-        (newStats.bySiteCondition[site][condition] || 0) + 1;
+      groups.forEach(g => {
+        newStats.bySiteGroup[site][g] =
+          (newStats.bySiteGroup[site][g] || 0) + 1;
+      });
 
       // Count by ward (once per patient)
       newStats.byWard[ward] = (newStats.byWard[ward] || 0) + 1;
 
-      // Count by ward AND condition (once per patient)
-      if (!newStats.byWardCondition[ward]) {
-        newStats.byWardCondition[ward] = {};
+      // Count by ward AND group
+      if (!newStats.byWardGroup[ward]) {
+        newStats.byWardGroup[ward] = {};
       }
-      newStats.byWardCondition[ward][condition] =
-        (newStats.byWardCondition[ward][condition] || 0) + 1;
+      groups.forEach(g => {
+        newStats.byWardGroup[ward][g] =
+          (newStats.byWardGroup[ward][g] || 0) + 1;
+      });
 
       // Process EACH label (patient can have multiple labels)
       labels.forEach(label => {
@@ -722,7 +904,9 @@ const TrackingCurrentPage = () => {
 
         // Map label to its parent condition
         if (label !== 'N/A') {
-          newStats.labelToCondition[label] = condition;
+          // Map label to the first group found (heuristic, typically sufficient for hierarchy)
+          // Or we could map to all, but labelToGroup assumes 1:1 in other parts
+          newStats.labelToGroup[label] = groups[0];
         }
 
         // Count by site AND label (for hierarchical filtering)
@@ -739,32 +923,64 @@ const TrackingCurrentPage = () => {
         newStats.byWardLabel[ward][label] =
           (newStats.byWardLabel[ward][label] || 0) + 1;
 
-        // Count labels grouped by condition (for label-condition chart)
-        if (!newStats.byLabelCondition[condition]) {
-          newStats.byLabelCondition[condition] = {};
-        }
-        newStats.byLabelCondition[condition][label] =
-          (newStats.byLabelCondition[condition][label] || 0) + 1;
+        // Count labels grouped by group
+        groups.forEach(g => {
+          if (!newStats.byLabelGroup[g]) {
+            newStats.byLabelGroup[g] = {};
+          }
+          newStats.byLabelGroup[g][label] =
+            (newStats.byLabelGroup[g][label] || 0) + 1;
+        });
       });
     });
 
-    setStats(newStats);
-    // ============ EDIT END: Fully dynamic stats calculation ============
+    return newStats;
+  }, []);
 
-  }, [data]); // Only re-process when data changes
+  /**
+   * Process and filter data when mockData or filters change
+   */
+  useEffect(() => {
+    if (!data) return;
+
+    // Process the pre-filtered data into table rows
+    const processed = processLabelData(data);
+    setTableData(processed);
+
+    console.log(`[TrackingCurrent] Processed ${processed.length} rows for display`);
+
+    // Calculate global statistics (for dropdown options)
+    const newStats = calculateStats(processed);
+    setStats(newStats);
+
+  }, [data, calculateStats]); // Only re-process when data changes
 
   // Client-side filtering for ward and group (derived from actual patient data)
-  // This replaces the server-side filtering that WardSelection/GroupFilter would trigger
   const filteredTableData = useMemo(() => {
     let filtered = tableData;
     if (localWardFilter) {
       filtered = filtered.filter(row => row.ward === localWardFilter);
     }
     if (localGroupFilter) {
-      filtered = filtered.filter(row => row.group === localGroupFilter);
+      filtered = filtered.filter(row => (row.groups || []).includes(localGroupFilter));
     }
     return filtered;
   }, [tableData, localWardFilter, localGroupFilter]);
+
+  // Filter for the TABLE to only show RECRUITED patients (enrolledDate is valid)
+  const recruitedTableData = useMemo(() => {
+    return filteredTableData.filter(row => row.enrolledDate && row.enrolledDate !== 'N/A');
+  }, [filteredTableData]);
+
+  // Calculate filtered statistics (for charts/cards)
+  // This ensures charts update when local filters change, while dropdowns remain populated from global stats
+  const filteredStats = useMemo(() => {
+    return calculateStats(filteredTableData);
+  }, [filteredTableData, calculateStats]);
+
+  // Client-side filtering for ward and group (derived from actual patient data)
+  // This replaces the server-side filtering that WardSelection/GroupFilter would trigger
+
 
   // Initial data load
   // Uses loadRecruitmentData which automatically chooses between mock (dev) and API (prod)
@@ -783,8 +999,9 @@ const TrackingCurrentPage = () => {
   // ============ EDIT START: Initialize chart selections when data changes (2026-02-04) ============
   // When stats change, initialize ward and site selections
   useEffect(() => {
-    const allWards = Object.keys(stats.byWard || {});
-    const allSites = Object.keys(stats.bySite || {});
+    // Use filteredStats so charts update when filters change
+    const allWards = Object.keys(filteredStats.byWard || {});
+    const allSites = Object.keys(filteredStats.bySite || {});
 
     // Initialize with all items selected (or keep current selection if valid)
     setSelectedWardsForChart(prev =>
@@ -793,7 +1010,7 @@ const TrackingCurrentPage = () => {
     setSelectedSitesForChart(prev =>
       prev.length > 0 && prev.every(s => allSites.includes(s)) ? prev : allSites
     );
-  }, [stats.byWard, stats.bySite]);
+  }, [filteredStats.byWard, filteredStats.bySite]);
   // ============ EDIT END: Initialize chart selections when data changes ============
 
   /**
@@ -850,7 +1067,8 @@ const TrackingCurrentPage = () => {
    * Get chip color based on label (dynamic - based on label index)
    */
   const getLabelColor = (label) => {
-    const labelList = Object.keys(stats.byLabel || {}).sort();
+    // Use filteredStats for consistent coloring in charts
+    const labelList = Object.keys(filteredStats.byLabel || {}).sort();
     const index = labelList.indexOf(label);
     return index >= 0 ? chipColorMap[index % chipColorMap.length] : 'default';
   };
@@ -859,7 +1077,7 @@ const TrackingCurrentPage = () => {
    * Get chip color based on group (dynamic - based on group index)
    */
   const getGroupColor = (group) => {
-    const groupList = Object.keys(stats.byGroup || {});
+    const groupList = Object.keys(filteredStats.recruitmentByGroup || {});
     const index = groupList.indexOf(group);
     return index >= 0 ? chipColorMap[index % chipColorMap.length] : 'default';
   };
@@ -918,7 +1136,7 @@ const TrackingCurrentPage = () => {
           show: true,
         },
         // Dynamically generate data from all groups
-        data: Object.entries(stats.byGroup || {}).map(([group, count], index) => ({
+        data: Object.entries(filteredStats.recruitmentByGroup || {}).map(([group, count], index) => ({
           value: count,
           name: group,
           itemStyle: { color: getChartColor(index) },
@@ -955,7 +1173,7 @@ const TrackingCurrentPage = () => {
     },
     xAxis: {
       type: 'category',
-      data: Object.keys(stats.byLabel || {}).sort(),
+      data: Object.keys(filteredStats.byLabel || {}).sort(),
       axisLabel: {
         rotate: 0,
         fontSize: 12,
@@ -970,10 +1188,10 @@ const TrackingCurrentPage = () => {
         name: 'Subjects',
         type: 'bar',
         barWidth: '60%',
-        data: Object.keys(stats.byLabel || {})
+        data: Object.keys(filteredStats.recruitmentByLabel || {})
           .sort()
           .map((label, index) => ({
-            value: stats.byLabel?.[label] || 0,
+            value: filteredStats.recruitmentByLabel?.[label] || 0,
             itemStyle: {
               // Dynamic color based on label index (rotates through palette)
               color: getChartColor(index),
@@ -992,12 +1210,13 @@ const TrackingCurrentPage = () => {
 
   // ============ EDIT START: Stacked bar chart by ward and group (2026-01-28) ============
   // Get all wards sorted by total count (descending)
-  const allWardsAvailable = Object.keys(stats.byWard || {})
-    .sort((a, b) => (stats.byWard?.[b] || 0) - (stats.byWard?.[a] || 0));
+  // Use filteredStats for ward chart
+  const allWardsAvailable = Object.keys(filteredStats.recruitmentByWard || {})
+    .sort((a, b) => (filteredStats.recruitmentByWard?.[b] || 0) - (filteredStats.recruitmentByWard?.[a] || 0));
 
 
   // Get all unique groups for the ward chart
-  const allGroups = Object.keys(stats.byGroup || {});
+  const allGroups = Object.keys(filteredStats.recruitmentByGroup || {});
 
   // Build hierarchical structure: group -> labels
   // Combines: 1) Study-defined labels (from study definition), 2) Data-derived labels (from actual data)
@@ -1030,12 +1249,12 @@ const TrackingCurrentPage = () => {
     const allAssignedLabels = new Set(Object.values(hierarchy).flat());
 
     // Add labels from data ONLY if they're not already in any group
-    // This prevents duplicates when data has mismatched condition/label (e.g., patient with CAP condition but vap-1 label)
-    Object.keys(stats.byLabel || {}).forEach(label => {
+    // This prevents duplicates when data has mismatched group/label (e.g., patient with CAP group but vap-1 label)
+    Object.keys(filteredStats.byLabel || {}).forEach(label => {
       if (label === 'N/A') return;
       if (allAssignedLabels.has(label)) return; // Skip if already assigned from study definition
 
-      const group = stats.labelToCondition?.[label];
+      const group = filteredStats.labelToGroup?.[label];
       if (group && hierarchy[group]) {
         hierarchy[group].push(label);
         allAssignedLabels.add(label);
@@ -1048,7 +1267,7 @@ const TrackingCurrentPage = () => {
     });
 
     return hierarchy;
-  }, [studyTargets.labelHierarchy, allGroups, stats.byLabel, stats.labelToCondition]);
+  }, [studyTargets.labelHierarchy, allGroups, filteredStats.byLabel, filteredStats.labelToGroup]);
 
   // Get ALL labels from hierarchy (includes study-defined labels with 0 count)
   const allLabelsFromHierarchy = useMemo(() => {
@@ -1127,7 +1346,7 @@ const TrackingCurrentPage = () => {
         type: 'bar',
         stack: 'total',
         emphasis: { focus: 'series' },
-        data: filteredWardsForChart.map(ward => stats.byWardLabel?.[ward]?.[label] || 0),
+        data: filteredWardsForChart.map(ward => filteredStats.recruitmentByWardLabel?.[ward]?.[label] || 0),
         itemStyle: {
           color: getChartColor(allLabelsFromHierarchy.indexOf(label)), // Consistent colors
         },
@@ -1147,7 +1366,7 @@ const TrackingCurrentPage = () => {
           formatter: (params) => {
             const ward = filteredWardsForChart[params.dataIndex];
             return filteredLabelsForWardChart.reduce(
-              (sum, l) => sum + (stats.byWardLabel?.[ward]?.[l] || 0), 0
+              (sum, l) => sum + (filteredStats.recruitmentByWardLabel?.[ward]?.[l] || 0), 0
             );
           },
         },
@@ -1172,7 +1391,7 @@ const TrackingCurrentPage = () => {
         const { name, value, percent } = params;
         // Show label breakdown for this ward in tooltip
         const labelBreakdown = filteredLabelsForWardChart
-          .map(label => `${label}: ${stats.byWardLabel?.[name]?.[label] || 0}`)
+          .map(label => `${label}: ${filteredStats.recruitmentByWardLabel?.[name]?.[label] || 0}`)
           .filter(item => !item.endsWith(': 0'))
           .join('<br/>');
         return `<strong>${name}</strong>: ${value} (${percent}%)<br/>${labelBreakdown || 'No data'}`;
@@ -1202,7 +1421,7 @@ const TrackingCurrentPage = () => {
         },
         data: filteredWardsForChart.map((ward, index) => ({
           value: filteredLabelsForWardChart.reduce(
-            (sum, label) => sum + (stats.byWardLabel?.[ward]?.[label] || 0), 0
+            (sum, label) => sum + (filteredStats.recruitmentByWardLabel?.[ward]?.[label] || 0), 0
           ),
           name: ward,
           itemStyle: { color: getChartColor(index) },
@@ -1263,7 +1482,7 @@ const TrackingCurrentPage = () => {
         type: 'bar',
         stack: 'total',
         emphasis: { focus: 'series' },
-        data: filteredWardsForChart.map(ward => stats.byWardCondition?.[ward]?.[group] || 0),
+        data: filteredWardsForChart.map(ward => filteredStats.recruitmentByWardGroup?.[ward]?.[group] || 0),
         itemStyle: {
           color: getChartColor(index),
         },
@@ -1283,7 +1502,7 @@ const TrackingCurrentPage = () => {
           formatter: (params) => {
             const ward = filteredWardsForChart[params.dataIndex];
             return allGroups.reduce(
-              (sum, g) => sum + (stats.byWardCondition?.[ward]?.[g] || 0), 0
+              (sum, g) => sum + (filteredStats.recruitmentByWardGroup?.[ward]?.[g] || 0), 0
             );
           },
         },
@@ -1294,19 +1513,19 @@ const TrackingCurrentPage = () => {
   // ============ EDIT END: Stacked bar chart by ward and group ============
 
   // ============ EDIT START: Dynamic conditions from data (2026-01-28) ============
-  // Get all unique conditions/groups dynamically from the data
-  const allConditions = Object.keys(stats.byGroup || {});
+  // Get all unique groups dynamically from the data
+  // const allGroups = Object.keys(filteredStats.byGroup || {});
 
-  // Get all unique labels across all conditions
+  // Get all unique labels across all groups
   const allLabels = [...new Set(
-    allConditions.flatMap(condition =>
-      Object.keys(stats.byLabelCondition?.[condition] || {})
+    allGroups.flatMap(group =>
+      Object.keys(filteredStats.recruitmentByLabelGroup?.[group] || {})
     )
   )].sort();
 
   // Get all sites sorted by total count (descending)
-  const allSitesAvailable = Object.keys(stats.bySite || {})
-    .sort((a, b) => (stats.bySite?.[b] || 0) - (stats.bySite?.[a] || 0));
+  const allSitesAvailable = Object.keys(filteredStats.recruitmentBySite || {})
+    .sort((a, b) => (filteredStats.recruitmentBySite?.[b] || 0) - (filteredStats.recruitmentBySite?.[a] || 0));
 
   // ============ EDIT START: Filter sites and groups based on user selection (2026-02-04) ============
   // Filter to only selected sites (maintain sort order)
@@ -1314,7 +1533,7 @@ const TrackingCurrentPage = () => {
   // Filter to only selected labels for site chart (hierarchical filtering)
   const filteredLabelsForSiteChart = allLabelsFromHierarchy.filter(l => selectedLabelsForSiteChart.includes(l));
   // ============ EDIT END: Filter sites and groups based on user selection ============
-  // ============ EDIT END: Dynamic conditions from data ============
+  // ============ EDIT END: Dynamic groups from data ============
 
   /**
    * Horizontal Stacked Bar Chart - Site Distribution by Label (Hierarchical)
@@ -1368,7 +1587,7 @@ const TrackingCurrentPage = () => {
         type: 'bar',
         stack: 'total',
         emphasis: { focus: 'series' },
-        data: filteredSitesForChart.map(site => stats.bySiteLabel?.[site]?.[label] || 0),
+        data: filteredSitesForChart.map(site => filteredStats.recruitmentBySiteLabel?.[site]?.[label] || 0),
         itemStyle: {
           color: getChartColor(allLabelsFromHierarchy.indexOf(label)), // Consistent colors
         },
@@ -1388,7 +1607,7 @@ const TrackingCurrentPage = () => {
           formatter: (params) => {
             const site = filteredSitesForChart[params.dataIndex];
             return filteredLabelsForSiteChart.reduce(
-              (sum, l) => sum + (stats.bySiteLabel?.[site]?.[l] || 0), 0
+              (sum, l) => sum + (filteredStats.recruitmentBySiteLabel?.[site]?.[l] || 0), 0
             );
           },
         },
@@ -1413,7 +1632,7 @@ const TrackingCurrentPage = () => {
         const { name, value, percent } = params;
         // Show label breakdown for this site in tooltip
         const labelBreakdown = filteredLabelsForSiteChart
-          .map(label => `${label}: ${stats.bySiteLabel?.[name]?.[label] || 0}`)
+          .map(label => `${label}: ${filteredStats.recruitmentBySiteLabel?.[name]?.[label] || 0}`)
           .filter(item => !item.endsWith(': 0'))
           .join('<br/>');
         return `<strong>${name}</strong>: ${value} (${percent}%)<br/>${labelBreakdown || 'No data'}`;
@@ -1443,7 +1662,7 @@ const TrackingCurrentPage = () => {
         },
         data: filteredSitesForChart.map((site, index) => ({
           value: filteredLabelsForSiteChart.reduce(
-            (sum, label) => sum + (stats.bySiteLabel?.[site]?.[label] || 0), 0
+            (sum, label) => sum + (filteredStats.recruitmentBySiteLabel?.[site]?.[label] || 0), 0
           ),
           name: site,
           itemStyle: { color: getChartColor(index) },
@@ -1505,7 +1724,7 @@ const TrackingCurrentPage = () => {
         type: 'bar',
         stack: 'total',
         emphasis: { focus: 'series' },
-        data: filteredSitesForChart.map(site => stats.bySiteCondition?.[site]?.[group] || 0),
+        data: filteredSitesForChart.map(site => filteredStats.recruitmentBySiteGroup?.[site]?.[group] || 0),
         itemStyle: {
           color: getChartColor(index),
         },
@@ -1525,7 +1744,7 @@ const TrackingCurrentPage = () => {
           formatter: (params) => {
             const site = filteredSitesForChart[params.dataIndex];
             return allGroups.reduce(
-              (sum, g) => sum + (stats.bySiteCondition?.[site]?.[g] || 0), 0
+              (sum, g) => sum + (filteredStats.recruitmentBySiteGroup?.[site]?.[g] || 0), 0
             );
           },
         },
@@ -1543,15 +1762,15 @@ const TrackingCurrentPage = () => {
   const radarIndicators = [
     {
       name: 'Total Count',
-      max: Math.max(...allGroups.map(c => stats.byGroup?.[c] || 0)) * 1.2 || 10
+      max: Math.max(...allGroups.map(c => filteredStats.recruitmentByGroup?.[c] || 0)) * 1.2 || 10
     },
     ...allLabels.slice(0, 3).map((label, idx) => ({
       name: `Label: ${label}`,
-      max: Math.max(...allGroups.map(c => stats.byLabelGroup?.[c]?.[label] || 0)) * 1.5 || 10,
+      max: Math.max(...allGroups.map(c => filteredStats.recruitmentByLabelGroup?.[c]?.[label] || 0)) * 1.5 || 10,
     })),
     {
       name: 'Active Wards',
-      max: Object.keys(stats.byWard || {}).length || 5
+      max: Object.keys(filteredStats.recruitmentByWard || {}).length || 5
     },
   ];
 
@@ -1581,10 +1800,11 @@ const TrackingCurrentPage = () => {
         type: 'radar',
         data: allGroups.map((group, index) => ({
           value: [
-            stats.byGroup?.[group] || 0,
-            ...allLabels.slice(0, 3).map(label => stats.byLabelGroup?.[group]?.[label] || 0),
-            Object.keys(stats.byWard || {}).filter(w =>
-              tableData.some(r => r.ward === w && r.group === group)
+            filteredStats.recruitmentByGroup?.[group] || 0,
+            ...allLabels.slice(0, 3).map(label => filteredStats.recruitmentByLabelGroup?.[group]?.[label] || 0),
+            Object.keys(filteredStats.recruitmentByWard || {}).filter(w =>
+              // Check if ward has recruitment for this group
+              (filteredStats.recruitmentByWardGroup?.[w]?.[group] || 0) > 0
             ).length,
           ],
           name: group,
@@ -1624,11 +1844,16 @@ const TrackingCurrentPage = () => {
       width: 100,
       description: `Patient group${Object.keys(labelHierarchy).length > 0 ? ` (${Object.keys(labelHierarchy).join(', ')})` : ''}`,
       renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={getGroupColor(params.value)}
-        />
+        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+          {params.value.split(', ').map(g => (
+            <Chip
+              key={g}
+              label={g}
+              size="small"
+              color={getGroupColor(g)}
+            />
+          ))}
+        </Box>
       ),
     },
     {
@@ -1782,103 +2007,168 @@ const TrackingCurrentPage = () => {
         </Grid>
       </Box>
 
-      {/* Summary Statistics Cards with Recruitment Targets */}
+      {/* ============ Refactored Statistics Rows (4 Rows) ============ */}
+
+      {/* ============ Refactored Statistics Rows (4 Rows) - COMMENTED OUT FOR COMPACT VIEW ============ */}
+      {/* 
+      <Typography variant="subtitle1" gutterBottom sx={{ mt: 2, fontWeight: 'bold' }}>
+        This Week Screening <Typography component="span" variant="caption" color="text.secondary">(from last Friday to today)</Typography>
+      </Typography>
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        {/* Total Subjects Card - with target progress */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card elevation={2}>
+          <Card elevation={2} sx={{ bgcolor: 'background.paper' }}>
             <CardContent>
-              <Typography color="text.secondary" gutterBottom>
-                Total Recruitment
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-                <Typography variant="h3" color="primary">
-                  {stats.total}
-                </Typography>
-                {studyTargets.totalTarget > 0 && (
-                  <Typography variant="h6" color="text.secondary">
-                    / {studyTargets.totalTarget}
-                  </Typography>
-                )}
-              </Box>
-              {studyTargets.totalTarget > 0 ? (
-                <>
-                  <Tooltip title={`${Math.round((stats.total / studyTargets.totalTarget) * 100)}% of target`}>
-                    <LinearProgress
-                      variant="determinate"
-                      value={Math.min((stats.total / studyTargets.totalTarget) * 100, 100)}
-                      sx={{ mt: 1, mb: 0.5, height: 8, borderRadius: 4 }}
-                    />
-                  </Tooltip>
-                  <Typography variant="caption" color="text.secondary">
-                    {Math.round((stats.total / studyTargets.totalTarget) * 100)}% of target
-                  </Typography>
-                </>
-              ) : (
-                <Typography variant="body2" color="text.secondary">
-                  Currently enrolled
-                </Typography>
-              )}
+              <Typography color="text.secondary" gutterBottom>Total</Typography>
+              <Typography variant="h3" color="primary">{filteredStats.thisWeekScreening}</Typography>
             </CardContent>
           </Card>
         </Grid>
+        {Object.keys(filteredStats.byGroup || {}).map((group, index) => (
+          <Grid item xs={12} sm={6} md={3} key={group}>
+            <Card elevation={1}>
+              <CardContent>
+                <Typography color="text.secondary" gutterBottom>{group}</Typography>
+                <Typography variant="h4" sx={{ color: getChartColor(index) }}>
+                  {filteredStats.thisWeekScreeningByGroup?.[group] || 0}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid> 
+      */}
 
-        {/* ============ EDIT START: Dynamic group cards with targets (2026-02-04) ============ */}
-        {/* Dynamically render cards for each group with progress towards target */}
-        {Object.entries(stats.byGroup || {}).map(([group, count], index) => {
-          const target = studyTargets.byGroup?.[group] || 0;
-          const percentage = target > 0 ? Math.round((count / target) * 100) : 0;
-          return (
-            <Grid item xs={12} sm={6} md={3} key={group}>
-              <Card elevation={2}>
-                <CardContent>
-                  <Typography color="text.secondary" gutterBottom>
-                    {group} Recruitment
+      {/* ============ New Compact Statistics Table (2026-02-05) ============ */}
+      <TableContainer component={Paper} elevation={2} sx={{ mb: 3 }}>
+        <Table size="small" aria-label="recruitment statistics table">
+          <TableHead>
+            <TableRow sx={{ bgcolor: 'background.default' }}>
+              <TableCell sx={{ fontWeight: 'bold' }}>Metric</TableCell>
+              <TableCell align="center" sx={{ fontWeight: 'bold' }}>Total</TableCell>
+              {Object.keys(filteredStats.byGroup || {}).map((group) => (
+                <TableCell key={group} align="center" sx={{ fontWeight: 'bold' }}>{group}</TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {/* Row 1: This Week Screening */}
+            <TableRow>
+              <TableCell component="th" scope="row">
+                <Typography variant="body2" fontWeight="bold">This Week Screening</Typography>
+                <Typography variant="caption" color="text.secondary">from last Friday to today</Typography>
+              </TableCell>
+              <TableCell align="center">
+                <Typography variant="h6" color="primary">{filteredStats.thisWeekScreening}</Typography>
+              </TableCell>
+              {Object.keys(filteredStats.byGroup || {}).map((group, index) => (
+                <TableCell key={group} align="center">
+                  <Typography variant="h6" sx={{ color: getChartColor(index) }}>
+                    {filteredStats.thisWeekScreeningByGroup?.[group] || 0}
                   </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-                    <Typography variant="h3" sx={{ color: getChartColor(index) }}>
-                      {count}
-                    </Typography>
-                    {target > 0 && (
-                      <Typography variant="h6" color="text.secondary">
-                        / {target}
-                      </Typography>
+                </TableCell>
+              ))}
+            </TableRow>
+
+            {/* Row 2: Total Screening */}
+            <TableRow>
+              <TableCell component="th" scope="row">
+                <Typography variant="body2" fontWeight="bold">Total Screening</Typography>
+                <Typography variant="caption" color="text.secondary">Cumulative</Typography>
+              </TableCell>
+              <TableCell align="center">
+                <Typography variant="h6" color="primary">{filteredStats.totalScreening}</Typography>
+              </TableCell>
+              {Object.keys(filteredStats.byGroup || {}).map((group, index) => (
+                <TableCell key={group} align="center">
+                  <Typography variant="h6" sx={{ color: getChartColor(index) }}>
+                    {filteredStats.screeningByGroup?.[group] || 0}
+                  </Typography>
+                </TableCell>
+              ))}
+            </TableRow>
+
+            {/* Row 3: This Week Recruitment */}
+            <TableRow>
+              <TableCell component="th" scope="row">
+                <Typography variant="body2" fontWeight="bold">This Week Recruitment</Typography>
+                <Typography variant="caption" color="text.secondary">from last Friday to today</Typography>
+              </TableCell>
+              <TableCell align="center">
+                <Typography variant="h6" color="primary">{filteredStats.thisWeekRecruitment}</Typography>
+              </TableCell>
+              {Object.keys(filteredStats.byGroup || {}).map((group, index) => (
+                <TableCell key={group} align="center">
+                  <Typography variant="h6" sx={{ color: getChartColor(index) }}>
+                    {filteredStats.thisWeekRecruitmentByGroup?.[group] || 0}
+                  </Typography>
+                </TableCell>
+              ))}
+            </TableRow>
+
+            {/* Row 4: Total Recruitment */}
+            <TableRow>
+              <TableCell component="th" scope="row">
+                <Typography variant="body2" fontWeight="bold">Total Recruitment</Typography>
+                <Typography variant="caption" color="text.secondary">Currently Enrolled</Typography>
+              </TableCell>
+
+              {/* Total Recruitment Cell */}
+              <TableCell align="center">
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                    <Typography variant="h6" color="primary">{filteredStats.totalRecruitment}</Typography>
+                    {studyTargets.totalTarget > 0 && (
+                      <Typography variant="caption" color="text.secondary">/ {studyTargets.totalTarget}</Typography>
                     )}
                   </Box>
-                  {target > 0 ? (
-                    <>
-                      <Tooltip title={`${percentage}% of ${group} target`}>
+                  {studyTargets.totalTarget > 0 && (
+                    <LinearProgress
+                      variant="determinate"
+                      value={Math.min((filteredStats.totalRecruitment / studyTargets.totalTarget) * 100, 100)}
+                      sx={{ width: '80%', height: 4, borderRadius: 2, mt: 0.5 }}
+                    />
+                  )}
+                </Box>
+              </TableCell>
+
+              {/* Group Recruitment Cells */}
+              {Object.keys(filteredStats.byGroup || {}).map((group, index) => {
+                const target = studyTargets.byGroup?.[group] || 0;
+                const count = filteredStats.recruitmentByGroup?.[group] || 0;
+                return (
+                  <TableCell key={group} align="center">
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                        <Typography variant="h6" sx={{ color: getChartColor(index) }}>{count}</Typography>
+                        {target > 0 && (
+                          <Typography variant="caption" color="text.secondary">/ {target}</Typography>
+                        )}
+                      </Box>
+                      {target > 0 && (
                         <LinearProgress
                           variant="determinate"
-                          value={Math.min(percentage, 100)}
+                          value={Math.min((count / target) * 100, 100)}
                           sx={{
-                            mt: 1,
-                            mb: 0.5,
-                            height: 8,
-                            borderRadius: 4,
-                            '& .MuiLinearProgress-bar': {
-                              backgroundColor: getChartColor(index),
-                            },
+                            width: '80%',
+                            height: 4,
+                            borderRadius: 2,
+                            mt: 0.5,
+                            '& .MuiLinearProgress-bar': { backgroundColor: getChartColor(index) }
                           }}
                         />
-                      </Tooltip>
-                      <Typography variant="caption" color="text.secondary">
-                        {percentage}% of target
-                      </Typography>
-                    </>
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      Group: {group}
-                    </Typography>
-                  )}
-                </CardContent>
-              </Card>
-            </Grid>
-          );
-        })}
-        {/* ============ EDIT END: Dynamic group cards with targets ============ */}
+                      )}
+                    </Box>
+                  </TableCell>
+                );
+              })
+              }
+            </TableRow>
+          </TableBody>
+        </Table>
+      </TableContainer>
 
-        {/* Labels Breakdown Card */}
+      {/* Labels Breakdown Card */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Card elevation={2}>
             <CardContent>
@@ -1886,7 +2176,7 @@ const TrackingCurrentPage = () => {
                 By Label
               </Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                {Object.entries(stats.byLabel || {}).map(([label, count]) => (
+                {Object.entries(filteredStats.recruitmentByLabel || {}).map(([label, count]) => (
                   <Chip
                     key={label}
                     label={`${label}: ${count}`}
@@ -1903,202 +2193,206 @@ const TrackingCurrentPage = () => {
 
       {/* ============ EDIT START: Recruitment Progress Chart with Targets (2026-02-04) ============ */}
       {/* Recruitment Progress Chart - Shows progress towards targets for all groups */}
-      {studyTargets.totalTarget > 0 && (
-        <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
-          <Typography variant="h6" sx={{ mb: 2 }}>
-            Recruitment Progress vs Targets
-          </Typography>
-          <ReactECharts
-            option={{
-              tooltip: {
-                trigger: 'axis',
-                axisPointer: { type: 'shadow' },
-                formatter: (params) => {
-                  const param = params[0];
-                  const groupName = param.axisValue;
-                  const current = param.value;
-                  const target = studyTargets.byGroup?.[groupName] || studyTargets.totalTarget;
-                  const percentage = target > 0 ? Math.round((current / target) * 100) : 0;
-                  return `<strong>${groupName}</strong><br/>
+      {
+        studyTargets.totalTarget > 0 && (
+          <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Recruitment Progress vs Targets
+            </Typography>
+            <ReactECharts
+              option={{
+                tooltip: {
+                  trigger: 'axis',
+                  axisPointer: { type: 'shadow' },
+                  formatter: (params) => {
+                    const param = params[0];
+                    const groupName = param.axisValue;
+                    const current = param.value;
+                    const target = studyTargets.byGroup?.[groupName] || studyTargets.totalTarget;
+                    const percentage = target > 0 ? Math.round((current / target) * 100) : 0;
+                    return `<strong>${groupName}</strong><br/>
                     Current: ${current}<br/>
                     Target: ${target}<br/>
                     Progress: ${percentage}%`;
-                },
-              },
-              grid: {
-                left: '3%',
-                right: '15%',
-                bottom: '3%',
-                top: '10%',
-                containLabel: true,
-              },
-              xAxis: {
-                type: 'value',
-                max: (value) => Math.max(value.max, studyTargets.totalTarget) * 1.1,
-                name: 'Subjects',
-                axisLine: { show: true },
-              },
-              yAxis: {
-                type: 'category',
-                data: ['Total', ...Object.keys(studyTargets.byGroup || {})],
-                axisLabel: { fontSize: 12, fontWeight: 'bold' },
-              },
-              series: [
-                // Current recruitment (filled bars)
-                {
-                  name: 'Current',
-                  type: 'bar',
-                  data: [
-                    {
-                      value: stats.total,
-                      itemStyle: {
-                        color: '#1976d2',
-                        borderRadius: [0, 4, 4, 0],
-                      },
-                    },
-                    ...Object.keys(studyTargets.byGroup || {}).map((group, index) => ({
-                      value: stats.byGroup?.[group] || 0,
-                      itemStyle: {
-                        color: getChartColor(index),
-                        borderRadius: [0, 4, 4, 0],
-                      },
-                    })),
-                  ],
-                  barWidth: '50%',
-                  label: {
-                    show: true,
-                    position: 'right',
-                    formatter: (params) => {
-                      const idx = params.dataIndex;
-                      const current = params.value;
-                      const target = idx === 0
-                        ? studyTargets.totalTarget
-                        : Object.values(studyTargets.byGroup || {})[idx - 1] || 0;
-                      const percentage = target > 0 ? Math.round((current / target) * 100) : 0;
-                      return `${current} / ${target} (${percentage}%)`;
-                    },
-                    fontSize: 11,
-                    fontWeight: 'bold',
                   },
-                  z: 2,
                 },
-                // Target markers (line marks)
-                {
-                  name: 'Target',
-                  type: 'bar',
-                  data: [
-                    studyTargets.totalTarget,
-                    ...Object.values(studyTargets.byGroup || {}),
-                  ],
-                  barWidth: '50%',
-                  barGap: '-100%',
-                  itemStyle: {
-                    color: 'transparent',
-                    borderColor: '#666',
-                    borderWidth: 2,
-                    borderType: 'dashed',
-                    borderRadius: [0, 4, 4, 0],
+                grid: {
+                  left: '3%',
+                  right: '15%',
+                  bottom: '3%',
+                  top: '10%',
+                  containLabel: true,
+                },
+                xAxis: {
+                  type: 'value',
+                  max: (value) => Math.max(value.max, studyTargets.totalTarget) * 1.1,
+                  name: 'Subjects',
+                  axisLine: { show: true },
+                },
+                yAxis: {
+                  type: 'category',
+                  data: ['Total', ...Object.keys(studyTargets.byGroup || {})],
+                  axisLabel: { fontSize: 12, fontWeight: 'bold' },
+                },
+                series: [
+                  // Current recruitment (filled bars)
+                  {
+                    name: 'Current',
+                    type: 'bar',
+                    data: [
+                      {
+                        value: filteredStats.totalRecruitment,
+                        itemStyle: {
+                          color: '#1976d2',
+                          borderRadius: [0, 4, 4, 0],
+                        },
+                      },
+                      ...Object.keys(studyTargets.byGroup || {}).map((group, index) => ({
+                        value: filteredStats.byGroup?.[group] || 0,
+                        itemStyle: {
+                          color: getChartColor(index),
+                          borderRadius: [0, 4, 4, 0],
+                        },
+                      })),
+                    ],
+                    barWidth: '50%',
+                    label: {
+                      show: true,
+                      position: 'right',
+                      formatter: (params) => {
+                        const idx = params.dataIndex;
+                        const current = params.value;
+                        const target = idx === 0
+                          ? studyTargets.totalTarget
+                          : Object.values(studyTargets.byGroup || {})[idx - 1] || 0;
+                        const percentage = target > 0 ? Math.round((current / target) * 100) : 0;
+                        return `${current} / ${target} (${percentage}%)`;
+                      },
+                      fontSize: 11,
+                      fontWeight: 'bold',
+                    },
+                    z: 2,
                   },
-                  z: 1,
-                },
-              ],
-            }}
-            style={{ height: `${Math.max(200, (Object.keys(studyTargets.byGroup || {}).length + 1) * 60)}px`, width: '100%' }}
-            opts={{ renderer: 'canvas' }}
-            notMerge={true}
-          />
-        </Paper>
-      )}
+                  // Target markers (line marks)
+                  {
+                    name: 'Target',
+                    type: 'bar',
+                    data: [
+                      studyTargets.totalTarget,
+                      ...Object.values(studyTargets.byGroup || {}),
+                    ],
+                    barWidth: '50%',
+                    barGap: '-100%',
+                    itemStyle: {
+                      color: 'transparent',
+                      borderColor: '#666',
+                      borderWidth: 2,
+                      borderType: 'dashed',
+                      borderRadius: [0, 4, 4, 0],
+                    },
+                    z: 1,
+                  },
+                ],
+              }}
+              style={{ height: `${Math.max(200, (Object.keys(studyTargets.byGroup || {}).length + 1) * 60)}px`, width: '100%' }}
+              opts={{ renderer: 'canvas' }}
+              notMerge={true}
+            />
+          </Paper>
+        )
+      }
       {/* ============ EDIT END: Recruitment Progress Chart with Targets ============ */}
 
       {/* ============ EDIT START: Multi-level Label Hierarchy Display (2026-02-04) ============ */}
       {/* Label Definitions - Shows hierarchical label structure from study */}
-      {studyTargets.labelHierarchy && studyTargets.labelHierarchy.length > 0 && (
-        <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
-          <Typography variant="h6" sx={{ mb: 2 }}>
-            Study Label Definitions
-          </Typography>
-          <Grid container spacing={2}>
-            {/* Group labels by their parent group (CAP, VAP, etc.) */}
-            {Object.entries(
-              studyTargets.labelHierarchy.reduce((acc, labelItem) => {
-                const group = labelItem.group || 'Other';
-                if (!acc[group]) acc[group] = [];
-                acc[group].push(labelItem);
-                return acc;
-              }, {})
-            ).map(([group, labels]) => (
-              <Grid item xs={12} md={6} key={group}>
-                <Card variant="outlined" sx={{ height: '100%' }}>
-                  <CardContent>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-                      <Chip
-                        label={group}
-                        color={getGroupColor(group)}
-                        size="small"
-                        sx={{ fontWeight: 'bold' }}
-                      />
-                      <Typography variant="subtitle2" color="text.secondary">
-                        {labels.length} label{labels.length > 1 ? 's' : ''}
-                      </Typography>
-                    </Box>
-                    {/* Group by category within each group */}
-                    {Object.entries(
-                      labels.reduce((acc, l) => {
-                        const cat = l.category || 'default';
-                        if (!acc[cat]) acc[cat] = [];
-                        acc[cat].push(l);
-                        return acc;
-                      }, {})
-                    ).map(([category, categoryLabels]) => (
-                      <Box key={category} sx={{ mb: 1.5 }}>
-                        {category !== 'default' && (
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              display: 'block',
-                              mb: 0.5,
-                              color: 'text.secondary',
-                              fontWeight: 'medium',
-                              textTransform: 'capitalize',
-                            }}
-                          >
-                            {category}:
-                          </Typography>
-                        )}
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, pl: category !== 'default' ? 1 : 0 }}>
-                          {categoryLabels.map((labelItem) => (
-                            <Tooltip
-                              key={labelItem.code}
-                              title={
-                                <Box>
-                                  <Typography variant="body2">{labelItem.text}</Typography>
-                                  <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                                    Code: {labelItem.code}
-                                  </Typography>
-                                </Box>
-                              }
-                              arrow
-                            >
-                              <Chip
-                                label={labelItem.label}
-                                size="small"
-                                variant="outlined"
-                                color={getLabelColor(labelItem.label)}
-                                sx={{ cursor: 'help' }}
-                              />
-                            </Tooltip>
-                          ))}
-                        </Box>
+      {
+        studyTargets.labelHierarchy && studyTargets.labelHierarchy.length > 0 && (
+          <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Study Label Definitions
+            </Typography>
+            <Grid container spacing={2}>
+              {/* Group labels by their parent group (CAP, VAP, etc.) */}
+              {Object.entries(
+                studyTargets.labelHierarchy.reduce((acc, labelItem) => {
+                  const group = labelItem.group || 'Other';
+                  if (!acc[group]) acc[group] = [];
+                  acc[group].push(labelItem);
+                  return acc;
+                }, {})
+              ).map(([group, labels]) => (
+                <Grid item xs={12} md={6} key={group}>
+                  <Card variant="outlined" sx={{ height: '100%' }}>
+                    <CardContent>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                        <Chip
+                          label={group}
+                          color={getGroupColor(group)}
+                          size="small"
+                          sx={{ fontWeight: 'bold' }}
+                        />
+                        <Typography variant="subtitle2" color="text.secondary">
+                          {labels.length} label{labels.length > 1 ? 's' : ''}
+                        </Typography>
                       </Box>
-                    ))}
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        </Paper>
-      )}
+                      {/* Group by category within each group */}
+                      {Object.entries(
+                        labels.reduce((acc, l) => {
+                          const cat = l.category || 'default';
+                          if (!acc[cat]) acc[cat] = [];
+                          acc[cat].push(l);
+                          return acc;
+                        }, {})
+                      ).map(([category, categoryLabels]) => (
+                        <Box key={category} sx={{ mb: 1.5 }}>
+                          {category !== 'default' && (
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                display: 'block',
+                                mb: 0.5,
+                                color: 'text.secondary',
+                                fontWeight: 'medium',
+                                textTransform: 'capitalize',
+                              }}
+                            >
+                              {category}:
+                            </Typography>
+                          )}
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, pl: category !== 'default' ? 1 : 0 }}>
+                            {categoryLabels.map((labelItem) => (
+                              <Tooltip
+                                key={labelItem.code}
+                                title={
+                                  <Box>
+                                    <Typography variant="body2">{labelItem.text}</Typography>
+                                    <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                                      Code: {labelItem.code}
+                                    </Typography>
+                                  </Box>
+                                }
+                                arrow
+                              >
+                                <Chip
+                                  label={labelItem.label}
+                                  size="small"
+                                  variant="outlined"
+                                  color={getLabelColor(labelItem.label)}
+                                  sx={{ cursor: 'help' }}
+                                />
+                              </Tooltip>
+                            ))}
+                          </Box>
+                        </Box>
+                      ))}
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          </Paper>
+        )
+      }
       {/* ============ EDIT END: Multi-level Label Hierarchy Display ============ */}
 
       {/* Charts Section */}
@@ -2109,7 +2403,7 @@ const TrackingCurrentPage = () => {
         {/* Group Distribution Pie Chart */}
         <Grid item xs={12} md={4}>
           <Paper elevation={2} sx={{ p: 2 }}>
-            {stats.total > 0 ? (
+            {stats.totalRecruitment > 0 ? (
               <ReactECharts
                 option={groupPieChartOption}
                 style={{ height: '300px', width: '100%' }}
@@ -2140,7 +2434,7 @@ const TrackingCurrentPage = () => {
         {/* Label Distribution Bar Chart */}
         <Grid item xs={12} md={4}>
           <Paper elevation={2} sx={{ p: 2 }}>
-            {Object.keys(stats.byLabel || {}).length > 0 ? (
+            {Object.keys(stats.recruitmentByLabel || {}).length > 0 ? (
               <ReactECharts
                 option={labelBarChartOption}
                 style={{ height: '300px', width: '100%' }}
@@ -2171,7 +2465,7 @@ const TrackingCurrentPage = () => {
         {/* Recruitment Overview Radar Chart - moved to third column */}
         <Grid item xs={12} md={4}>
           <Paper elevation={2} sx={{ p: 2 }}>
-            {stats.total > 0 ? (
+            {filteredStats.totalRecruitment > 0 ? (
               <ReactECharts
                 option={recruitmentRadarOption}
                 style={{ height: '300px', width: '100%' }}
@@ -2322,8 +2616,8 @@ const TrackingCurrentPage = () => {
               <ReactECharts
                 option={
                   wardChartType === 'pie' ? wardPieChartOption :
-                  wardChartType === 'group' ? wardBarChartByGroupOption :
-                  wardBarChartByLabelOption
+                    wardChartType === 'group' ? wardBarChartByGroupOption :
+                      wardBarChartByLabelOption
                 }
                 style={{ height: wardChartType === 'pie' ? '350px' : `${Math.max(250, filteredWardsForChart.length * 40)}px`, width: '100%' }}
                 opts={{ renderer: 'canvas' }}
@@ -2475,8 +2769,8 @@ const TrackingCurrentPage = () => {
               <ReactECharts
                 option={
                   siteChartType === 'pie' ? sitePieChartOption :
-                  siteChartType === 'group' ? siteBarChartByGroupOption :
-                  siteBarChartByLabelOption
+                    siteChartType === 'group' ? siteBarChartByGroupOption :
+                      siteBarChartByLabelOption
                 }
                 style={{ height: siteChartType === 'pie' ? '350px' : `${Math.max(250, filteredSitesForChart.length * 50)}px`, width: '100%' }}
                 opts={{ renderer: 'canvas' }}
@@ -2516,7 +2810,7 @@ const TrackingCurrentPage = () => {
         </Typography>
         <Box sx={{ height: 500, width: '100%' }}>
           <DataGrid
-            rows={filteredTableData}
+            rows={recruitedTableData}
             columns={columns}
             initialState={{
               pagination: {
@@ -2547,13 +2841,14 @@ const TrackingCurrentPage = () => {
       {/* Data Source Info */}
       <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
         <Typography variant="caption" color="text.secondary">
-          Total records: {data?.total || 0}{(localWardFilter || localGroupFilter) ? ` | Filtered: ${filteredTableData.length}` : ''} |
+          Total records: {data?.total || 0}{(localWardFilter || localGroupFilter) ? ` | Filtered Screening: ${filteredTableData.length}` : ''} |
+          Recruited listed: {recruitedTableData.length} |
           Last updated: {data?.meta?.lastUpdated || 'N/A'}
         </Typography>
       </Box>
 
       <Footer />
-    </Box>
+    </Box >
   );
 };
 
