@@ -848,17 +848,17 @@ const TrackingHistory = () => {
       )}
 
       {/* Recruitment Details Table */}
-      {recruitmentData.studyData.length > 0 && (
+      {/* {recruitmentData.studyData.length > 0 && (
         <Box sx={{ mt: 4 }}>
           <Typography variant="h6" gutterBottom>
             Recruitment Details
           </Typography>
           <RecruitmentTable data={recruitmentData.studyData} endDate={endDate} />
         </Box>
-      )}
+      )} */}
 
       {/* Patient Detail Table (DataGrid) */}
-      {selectedStudy && (
+      {/* {selectedStudy && (
         <Box sx={{ mt: 4 }}>
           <Divider sx={{ mb: 3 }} />
           <Typography variant="h6" gutterBottom>
@@ -883,7 +883,7 @@ const TrackingHistory = () => {
             />
           </Paper>
         </Box>
-      )}
+      )} */}
 
       <Footer />
     </Box>

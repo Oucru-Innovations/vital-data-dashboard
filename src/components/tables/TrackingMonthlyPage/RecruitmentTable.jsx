@@ -5,7 +5,7 @@ import { Box, Typography, Paper } from '@mui/material';
 const RecruitmentTable = ({ data, endDate }) => {
   const apiRef = useGridApiRef();
   // const currentMonth = new Date().toLocaleString('default', { month: 'long' });
-  
+
   const columns = [
     {
       field: 'study',
@@ -29,30 +29,30 @@ const RecruitmentTable = ({ data, endDate }) => {
       width: 150,
       type: 'number',
     },
-    {
-      field: 'percentage',
-      headerName: 'Percentage',
-      width: 120,
-      type: 'number',
-      valueGetter: (value) => {
-        return `${value}%`;
-      }
-    },
-    {
-      field: 'remaining_days',
-      headerName: 'Months Left',
-      width: 150,
-      type: 'number',
-      valueGetter: (value) => {
-        return value//30
-      }
-    },
+    // {
+    //   field: 'percentage',
+    //   headerName: 'Percentage',
+    //   width: 120,
+    //   type: 'number',
+    //   valueGetter: (value) => {
+    //     return `${value}%`;
+    //   }
+    // },
+    // {
+    //   field: 'remaining_days',
+    //   headerName: 'Months Left',
+    //   width: 150,
+    //   type: 'number',
+    //   valueGetter: (value) => {
+    //     return value//30
+    //   }
+    // },
   ];
 
   const rows = data.map((row, index) => ({
     id: index,
     ...row,
-    percentage: row.target ? (row.cumulativerecruited/row.target).toPrecision(2)*100 : 0,
+    percentage: row.target ? (row.cumulativerecruited / row.target).toPrecision(2) * 100 : 0,
   }));
 
   return (

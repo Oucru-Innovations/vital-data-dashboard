@@ -86,6 +86,7 @@ if (FHIR) {
  * @returns {boolean} True if should use mock data, false for real API
  */
 const shouldUseMockData = () => {
+  return false;
   return FHIR_API_URL.includes('localhost');
 };
 
@@ -1156,14 +1157,15 @@ const formatDateByTimepoint = (dateStr, timepoint) => {
       return format(date, 'yyyy-MM-dd');
 
     case 'weekly':
-      // Using ISO week
-      return format(date, "yyyy-'W'II");
+      // Return start of week date
+      return format(startOfWeek(date, { weekStartsOn: 1 }), 'yyyy-MM-dd');
 
     case 'monthly':
       return format(date, 'yyyy-MM');
 
     case 'quarterly':
-      return format(date, "yyyy-'Q'q");
+      // Return start of quarter month
+      return format(startOfQuarter(date), 'yyyy-MM');
 
     case 'yearly':
       return format(date, 'yyyy');

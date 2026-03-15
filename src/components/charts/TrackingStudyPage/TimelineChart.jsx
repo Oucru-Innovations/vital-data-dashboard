@@ -262,16 +262,16 @@ export const renderRecruitmentChart = (stages) => {
   // Filter out future periods
   // Uses parsePeriodDate() for proper date comparison across all formats
   const chartData = stages
-  .filter(study => {
-    // Convert period date to comparable Date object
-    const studyDate = parsePeriodDate(study.date);
-    return studyDate <= today;
-  })
-  .map(study => ({
-    ...study,
-    // month: new Date(study.month).toLocaleString('default', { month: 'long' }),
-    // target: study.target || 10 // Set default target or get from API
-  }));
+    .filter(study => {
+      // Convert period date to comparable Date object
+      const studyDate = parsePeriodDate(study.date);
+      return studyDate <= today;
+    })
+    .map(study => ({
+      ...study,
+      // month: new Date(study.month).toLocaleString('default', { month: 'long' }),
+      // target: study.target || 10 // Set default target or get from API
+    }));
 
   // ECharts configuration
   const option = {
@@ -325,21 +325,21 @@ export const renderRecruitmentChart = (stages) => {
       }
     ],
     series: [
-      {
-        name: 'Target',
-        type: 'bar',
-        data: chartData.map(d => ({
-          value: d.target,
-          label: {
-            // show: true,
-            position: 'top'
-          }
-        })),
-        barWidth: '40%',
-        itemStyle: {
-          color: '#e0e0e0'
-        }
-      },
+      // {
+      //   name: 'Target',
+      //   type: 'bar',
+      //   data: chartData.map(d => ({
+      //     value: d.target,
+      //     label: {
+      //       // show: true,
+      //       position: 'top'
+      //     }
+      //   })),
+      //   barWidth: '40%',
+      //   itemStyle: {
+      //     color: '#e0e0e0'
+      //   }
+      // },
       {
         name: 'Period Recruitment',
         type: 'line',

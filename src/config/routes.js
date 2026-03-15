@@ -168,17 +168,17 @@ const routes = (isAuthenticated, onLogin) => [
     ),
     title: 'Current Recruitment',
   },
-  {
-    path: '/tracking/study',
-    element: (
-      <ProtectedRoute isAuthenticated={isAuthenticated}>
-        <Suspense fallback={<Loading />}>
-          <TrackingStudyPage />
-        </Suspense>
-      </ProtectedRoute>
-    ),
-    title: 'Vital Study Recruitment',
-  },
+  // {
+  //   path: '/tracking/study',
+  //   element: (
+  //     <ProtectedRoute isAuthenticated={isAuthenticated}>
+  //       <Suspense fallback={<Loading />}>
+  //         <TrackingStudyPage />
+  //       </Suspense>
+  //     </ProtectedRoute>
+  //   ),
+  //   title: 'Vital Study Recruitment',
+  // },
   {
     path: '/tracking/history',
     element: (

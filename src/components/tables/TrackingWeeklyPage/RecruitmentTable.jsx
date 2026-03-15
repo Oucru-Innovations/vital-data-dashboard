@@ -42,30 +42,30 @@ const RecruitmentTable = ({ data, endDate }) => {
       width: 150,
       type: 'number',
     },
-    {
-      field: 'percentage',
-      headerName: 'Percentage',
-      width: 120,
-      type: 'number',
-      valueGetter: (value) => {
-        return `${value}%`;
-      }
-    },
-    {
-      field: 'remaining_days',
-      headerName: 'Weeks Left',
-      width: 150,
-      type: 'number',
-      valueGetter: (value) => {
-        return value//7
-      }
-    },
+    // {
+    //   field: 'percentage',
+    //   headerName: 'Percentage',
+    //   width: 120,
+    //   type: 'number',
+    //   valueGetter: (value) => {
+    //     return `${value}%`;
+    //   }
+    // },
+    // {
+    //   field: 'remaining_days',
+    //   headerName: 'Weeks Left',
+    //   width: 150,
+    //   type: 'number',
+    //   valueGetter: (value) => {
+    //     return value//7
+    //   }
+    // },
   ];
 
   const rows = data.map((row, index) => ({
     id: index,
     ...row,
-    percentage: row.target ? (row.cumulativerecruited/row.target).toPrecision(2)*100 : 0,
+    percentage: row.target ? (row.cumulativerecruited / row.target).toPrecision(2) * 100 : 0,
   }));
 
   return (

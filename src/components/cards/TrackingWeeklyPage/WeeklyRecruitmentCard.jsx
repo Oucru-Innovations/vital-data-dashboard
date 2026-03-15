@@ -3,8 +3,8 @@ import { Box, Paper, Typography, Chip, CircularProgress } from '@mui/material';
 import { ArrowUpward, ArrowDownward } from '@mui/icons-material';
 import { getCurrentWeek, getPreviousWeekDate } from '../../../pages/Tracking/utils/recruitmentProcessing';
 
-const WeeklyRecruitmentCard = ({ week, totalRecruited, change, loading }) => {
-  
+const WeeklyRecruitmentCard = ({ week, totalRecruited, totalScreened, change, loading }) => {
+
 
   return (
     <Paper
@@ -50,6 +50,11 @@ const WeeklyRecruitmentCard = ({ week, totalRecruited, change, loading }) => {
           <Typography variant="h4" sx={{ mb: 1 }}>
             {totalRecruited}
           </Typography>
+          {totalScreened !== undefined && (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Screened: {totalScreened}
+            </Typography>
+          )}
           <Chip
             label={`${change}%`}
             color={change >= 0 ? 'success' : 'error'}

@@ -146,7 +146,7 @@ const Sidebar = () => {
       children: [
         { text: 'Current', icon: <CheckCircleIcon />, path: '/tracking/current' },
         { text: 'History', icon: <HistoryIcon />, path: '/tracking/history' },
-        { text: 'Study', icon: <AssessmentIcon />, path: '/tracking/study' },
+        // { text: 'Study', icon: <AssessmentIcon />, path: '/tracking/study' },
       ],
     },
   ];
