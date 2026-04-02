@@ -35,6 +35,7 @@ import {
 import { store } from '../store/store';
 // eslint-disable-next-line no-unused-vars
 import { selectAlias } from '../store/studySlice';
+import { getAccessToken } from '../state/cookies';
 
 // ============ EDIT START: Conditional FHIR import (2026-01-28) ============
 // Make fhirclient import conditional to prevent crash if package not installed
@@ -59,16 +60,17 @@ try {
  * - Other URLs → Make real FHIR API calls (production)
  */
 const FHIR_API_URL = process.env.REACT_APP_FHIR_URL || 'http://localhost:8080/fhir';
-const TOKEN = 'eyMockToken';
+const getBearerToken = () => getAccessToken();
 
 // ============ EDIT START: Safe FHIR client initialization (2026-01-28) ============
 // Only create FHIR client if the package is available
 let client = null;
 if (FHIR) {
+  const token = getBearerToken();
   client = FHIR.client({
     serverUrl: FHIR_API_URL,
     tokenResponse: {
-      access_token: TOKEN,
+      access_token: token,
       token_type: "Bearer",
       expires_in: 3600
     }
@@ -103,9 +105,18 @@ const fhirClient = axios.create({
   timeout: 10000,
   headers: {
     'Accept': 'application/fhir+json',
-    'Content-Type': 'application/fhir+json',
-    'Authorization': 'Bearer ' + TOKEN
+    'Content-Type': 'application/fhir+json'
   },
+});
+
+fhirClient.interceptors.request.use((config) => {
+  const token = getBearerToken();
+  if (token) {
+    config.headers = config.headers || {};
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
 });
 
 /**

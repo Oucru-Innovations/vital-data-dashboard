@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { isAuthenticated, removeAccessToken, removeRefreshToken } from './state/cookies';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import Header from './components/toolbars/Header';
@@ -9,20 +10,16 @@ import Sidebar from './components/toolbars/Sidebar';
 import routes from './config/routes';
 import store, { persistor } from './store/store';
 
+const routerBaseName = (process.env.REACT_APP_BASENAME || '').replace(/\/$/, '');
+const VITAL_LOG_URL = process.env.REACT_APP_VITAL_LOG_URL;
 
 const App = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authed, setAuthed] = useState(isAuthenticated());
 
-  // Check localStorage for authToken after the component mounts
-  useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    setIsAuthenticated(token !== null);
-  }, []);
-
-  
   const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    setIsAuthenticated(false);
+    removeAccessToken();
+    removeRefreshToken();
+    window.location.href = `${VITAL_LOG_URL}/logout`;
   };
 
   return (
@@ -34,8 +31,8 @@ const App = () => {
         persistor: The persistor instance from store configuration
       */}
       <PersistGate loading={null} persistor={persistor}>
-        <Router>
-          <PageTitle isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated} />
+        <Router basename={routerBaseName || undefined}>
+          <PageTitle isAuthenticated={authed} setIsAuthenticated={setAuthed} />
           <div
             style={{
               display: 'flex',
@@ -44,7 +41,7 @@ const App = () => {
               backgroundColor: '#f5f5f5',
             }}
           >
-            {isAuthenticated && <Sidebar />}
+            {authed && <Sidebar />}
             <div
               style={{
                 flexGrow: 1,
@@ -52,7 +49,7 @@ const App = () => {
                 flexDirection: 'column',
               }}
             >
-              {isAuthenticated && <Header onLogout={handleLogout} />}
+              {authed && <Header onLogout={handleLogout} />}
               <div
                 style={{
                   flexGrow: 1,
@@ -62,7 +59,7 @@ const App = () => {
                 }}
               >
                 <Routes>
-                  {routes(isAuthenticated, setIsAuthenticated).map(({ path, element }, idx) => (
+                  {routes(authed, setAuthed).map(({ path, element }, idx) => (
                     <Route key={idx} path={path} element={element} />
                   ))}
                 </Routes>

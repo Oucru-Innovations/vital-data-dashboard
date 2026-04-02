@@ -27,6 +27,8 @@ import DevicesOtherIcon from '@mui/icons-material/DevicesOther';
 import SourceIcon from '@mui/icons-material/Source';
 import HistoryIcon from '@mui/icons-material/History';
 
+const VITAL_LOG_URL = process.env.REACT_APP_VITAL_LOG_URL;
+
 const ListItemBody = ({ item, isCollapsed, onClick, level = 0, isOpen }) => {
   const hasChildren = item.children && item.children.length > 0;
 
@@ -93,7 +95,11 @@ const MenuItem = ({ item, isCollapsed, level = 0 }) => {
     if (hasChildren) {
       setOpen(!open);
     } else if (item.path) {
-      navigate(item.path);
+      if (/^https?:\/\//.test(item.path)) {
+        window.open(item.path, '_blank', 'noopener,noreferrer');
+      } else {
+        navigate(item.path);
+      }
     }
   };
 
@@ -144,11 +150,17 @@ const Sidebar = () => {
       text: 'Tracking',
       icon: <SignalCellularAltIcon />,
       children: [
-        { text: 'Current', icon: <CheckCircleIcon />, path: '/tracking/current' },
-        { text: 'History', icon: <HistoryIcon />, path: '/tracking/history' },
+        { text: 'Current', icon: <CheckCircleIcon />, path: '/current' },
+        { text: 'History', icon: <HistoryIcon />, path: '/history' },
         // { text: 'Study', icon: <AssessmentIcon />, path: '/tracking/study' },
       ],
     },
+    {
+      text: 'VITAL-LOG',
+      icon: <AssessmentIcon />,
+      path: VITAL_LOG_URL
+
+    }
   ];
   return (
     <Drawer

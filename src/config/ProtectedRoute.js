@@ -1,10 +1,21 @@
-import React from 'react';
-import { Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { isAuthenticated } from '../state/cookies';
+
+const VITAL_LOG_URL = process.env.REACT_APP_VITAL_LOG_URL;
+const VITAL_LOG_LOGIN = `${VITAL_LOG_URL}/login`;
 
 const ProtectedRoute = ({ children }) => {
-  const isAuthenticated = localStorage.getItem('authToken') !== null;
+    useEffect(() => {
+        if (!isAuthenticated()) {
+            window.location.href = VITAL_LOG_LOGIN;
+        }
+    }, []);
 
-  return isAuthenticated ? children : <Navigate to="/login" />;
+    if (!isAuthenticated()) {
+        return null;
+    }
+
+    return children;
 };
 
 export default ProtectedRoute;
