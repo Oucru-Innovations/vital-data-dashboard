@@ -7,7 +7,7 @@ down:
 	docker stop vital-data-dashboard || true &&  docker rm vital-data-dashboard || true
 up:
 	docker run -d --name vital-data-dashboard \
-	-p 3000:80 \
+	-p 3005:80 \
 	--expose 80 \
 	--publish 80 \
 	--add-host=host.docker.internal:host-gateway \

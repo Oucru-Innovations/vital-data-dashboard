@@ -41,7 +41,7 @@ const SummaryTable = ({ summaryData }) => {
     },
     {
       field: 'patient',
-      headerName: 'Patient',
+      headerName: 'Participant',
       width: 100,
       type: 'number',
       // flex: 1,

@@ -419,7 +419,7 @@ export const renderRecruitmentChart = (stages) => {
 
 
 /**
- * Render Patient Status Distribution Chart
+ * Render Participant Status Distribution Chart
  *
  * Creates a pie chart showing the distribution of patients by status:
  * - Active: Currently enrolled patients
@@ -446,7 +446,7 @@ export const renderStatusChart = (recruitmentData) => {
 
   const option = {
     title: {
-      text: 'Patient Status Distribution',
+      text: 'Participant Status Distribution',
       left: 'center',
       textStyle: {
         fontSize: 18,

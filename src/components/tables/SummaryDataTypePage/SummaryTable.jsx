@@ -8,9 +8,9 @@ const SummaryTable = ({ summaryData }) => {
   const columns = [
     { field: 'datatype', headerName: 'Datatype', flex: 1 },
     { field: 'study', headerName: 'Study', flex: 1 },
-    { field: 'patient', headerName: 'Patient', flex: 1, type: 'number' },
+    { field: 'patient', headerName: 'Participant', flex: 1, type: 'number' },
     { field: 'duration', headerName: 'Duration', flex: 1, type: 'number' },
-    { field: 'session', headerName: 'Patient Day', flex: 1, type: 'number' },
+    { field: 'session', headerName: 'Participant Day', flex: 1, type: 'number' },
     { field: 'averageDuration', headerName: 'Duration per Session', flex: 1, type: 'number'},
   ];
 

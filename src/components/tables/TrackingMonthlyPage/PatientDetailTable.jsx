@@ -217,7 +217,7 @@ const PatientRow = ({ patient }) => {
           <Collapse in={open} timeout="auto" unmountOnExit>
             <Box sx={{ margin: 2 }}>
               <Typography variant="h6" gutterBottom component="div">
-                Patient Journey Timeline
+                Participant Journey Timeline
               </Typography>
 
               {/* Progress Steps */}
@@ -297,7 +297,7 @@ const PatientRow = ({ patient }) => {
  * @param {Array} props.patients - Array of patient objects
  * @param {boolean} props.loading - Loading state
  * @param {Function} props.onRefresh - Refresh callback
- * @returns {JSX.Element} Patient detail table
+ * @returns {JSX.Element} Participant detail table
  */
 const PatientDetailTable = ({
   patients = [],
@@ -381,7 +381,7 @@ const PatientDetailTable = ({
       {/* Header */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
         <Typography variant="h6">
-          Patient Detail
+          Participant Detail
           {!loading && (
             <Typography component="span" variant="body2" color="text.secondary" ml={1}>
               ({patients.length} patients)
@@ -453,7 +453,7 @@ const PatientDetailTable = ({
               </TableRow>
             )}
 
-            {/* Patient Rows */}
+            {/* Participant Rows */}
             {!loading && sortedPatients.map((patient) => (
               <PatientRow key={patient.id} patient={patient} />
             ))}

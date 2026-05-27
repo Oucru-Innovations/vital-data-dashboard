@@ -620,7 +620,7 @@ const MonthlyReport = () => {
      * =========
      * When any filter changes, this effect triggers a new data fetch.
      * The fetch function handles the "no study selected" case internally.
-     * Patient data is fetched once, then screening summary and recruitment details
+     * Participant data is fetched once, then screening summary and recruitment details
      * are generated based on timepoint and endDate selections.
      *
      * EXAMPLE SCENARIOS:
@@ -874,7 +874,7 @@ const MonthlyReport = () => {
 
             <StudyTimeline studies={recruitmentData.timelineData.filter(study => study.studyCode === selectedStudy)} />
 
-            {/* Patient Detail Section
+            {/* Participant Detail Section
           This section shows individual patient recruitment details when a study is selected.
 
           FEATURES:

@@ -2,11 +2,11 @@
  * TrackingCurrent.jsx - Current Recruitment Tracking Page
  *
  * This page displays current/active recruitment data with patient-level details
- * including label information from the FHIR ResearchSubject and Patient resources.
+ * including label information from the FHIR ResearchSubject and Participant resources.
  *
  * KEY FEATURES:
  * =============
- * - Patient-level recruitment details table with label information
+ * - Participant-level recruitment details table with label information
  * - Summary statistics cards (total enrolled, by group, by label)
  * - Hierarchical filtering: Study → Site → Ward → Group
  * - Live filter updates - table refreshes when any filter changes
@@ -18,7 +18,7 @@
  * - Uses dynamic import for JSON loading
  *
  * PRODUCTION MODE:
- * - FHIR API: GET /ResearchSubject with _include for Patient data
+ * - FHIR API: GET /ResearchSubject with _include for Participant data
  * - Real-time data from FHIR server
  *
  * FHIR BUNDLE STRUCTURE:
@@ -1822,13 +1822,13 @@ const TrackingCurrentPage = () => {
       field: 'studyId',
       headerName: 'Study ID',
       width: 180,
-      description: `Patient study identifier${selectedStudy ? ` (e.g., ${selectedStudy}-XXX-XXXX)` : ''}`,
+      description: `Participant study identifier${selectedStudy ? ` (e.g., ${selectedStudy}-XXX-XXXX)` : ''}`,
     },
     {
       field: 'label',
       headerName: 'Label',
       width: 100,
-      description: `Patient cohort label${allLabelsFromHierarchy.length > 0 ? ` (${allLabelsFromHierarchy.slice(0, 4).join(', ')}${allLabelsFromHierarchy.length > 4 ? ', ...' : ''})` : ''}`,
+      description: `Participant cohort label${allLabelsFromHierarchy.length > 0 ? ` (${allLabelsFromHierarchy.slice(0, 4).join(', ')}${allLabelsFromHierarchy.length > 4 ? ', ...' : ''})` : ''}`,
       renderCell: (params) => (
         <Chip
           label={params.value}
@@ -1842,7 +1842,7 @@ const TrackingCurrentPage = () => {
       field: 'group',
       headerName: 'Group',
       width: 100,
-      description: `Patient group${Object.keys(labelHierarchy).length > 0 ? ` (${Object.keys(labelHierarchy).join(', ')})` : ''}`,
+      description: `Participant group${Object.keys(labelHierarchy).length > 0 ? ` (${Object.keys(labelHierarchy).join(', ')})` : ''}`,
       renderCell: (params) => (
         <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
           {params.value.split(', ').map(g => (
@@ -1898,13 +1898,13 @@ const TrackingCurrentPage = () => {
       field: 'screeningName',
       headerName: 'Screening Name',
       width: 130,
-      description: 'Patient screening identifier',
+      description: 'Participant screening identifier',
     },
     {
       field: 'birthYear',
       headerName: 'Birth Year',
       width: 100,
-      description: 'Patient birth year',
+      description: 'Participant birth year',
     },
   ];
 
@@ -1924,7 +1924,7 @@ const TrackingCurrentPage = () => {
         Current Recruitment Tracking
       </Typography>
       {/* <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Patient-level recruitment details with label information from FHIR data
+        Participant-level recruitment details with label information from FHIR data
       </Typography> */}
       <Divider sx={{ mb: 3 }} />
 
@@ -2044,10 +2044,10 @@ const TrackingCurrentPage = () => {
           <TableHead>
             <TableRow sx={{ bgcolor: 'background.default' }}>
               <TableCell sx={{ fontWeight: 'bold' }}>Metric</TableCell>
-              <TableCell align="center" sx={{ fontWeight: 'bold' }}>Total</TableCell>
               {Object.keys(filteredStats.byGroup || {}).map((group) => (
                 <TableCell key={group} align="center" sx={{ fontWeight: 'bold' }}>{group}</TableCell>
               ))}
+              <TableCell align="center" sx={{ fontWeight: 'bold' }}>Total</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -2057,9 +2057,6 @@ const TrackingCurrentPage = () => {
                 <Typography variant="body2" fontWeight="bold">This Week Screening</Typography>
                 <Typography variant="caption" color="text.secondary">from last Friday to today</Typography>
               </TableCell>
-              <TableCell align="center">
-                <Typography variant="h6" color="primary">{filteredStats.thisWeekScreening}</Typography>
-              </TableCell>
               {Object.keys(filteredStats.byGroup || {}).map((group, index) => (
                 <TableCell key={group} align="center">
                   <Typography variant="h6" sx={{ color: getChartColor(index) }}>
@@ -2067,6 +2064,9 @@ const TrackingCurrentPage = () => {
                   </Typography>
                 </TableCell>
               ))}
+              <TableCell align="center">
+                <Typography variant="h6" color="primary">{filteredStats.thisWeekScreening}</Typography>
+              </TableCell>
             </TableRow>
 
             {/* Row 2: Total Screening */}
@@ -2075,9 +2075,6 @@ const TrackingCurrentPage = () => {
                 <Typography variant="body2" fontWeight="bold">Total Screening</Typography>
                 <Typography variant="caption" color="text.secondary">Cumulative</Typography>
               </TableCell>
-              <TableCell align="center">
-                <Typography variant="h6" color="primary">{filteredStats.totalScreening}</Typography>
-              </TableCell>
               {Object.keys(filteredStats.byGroup || {}).map((group, index) => (
                 <TableCell key={group} align="center">
                   <Typography variant="h6" sx={{ color: getChartColor(index) }}>
@@ -2085,6 +2082,9 @@ const TrackingCurrentPage = () => {
                   </Typography>
                 </TableCell>
               ))}
+              <TableCell align="center">
+                <Typography variant="h6" color="primary">{filteredStats.totalScreening}</Typography>
+              </TableCell>
             </TableRow>
 
             {/* Row 3: This Week Recruitment */}
@@ -2093,9 +2093,6 @@ const TrackingCurrentPage = () => {
                 <Typography variant="body2" fontWeight="bold">This Week Recruitment</Typography>
                 <Typography variant="caption" color="text.secondary">from last Friday to today</Typography>
               </TableCell>
-              <TableCell align="center">
-                <Typography variant="h6" color="primary">{filteredStats.thisWeekRecruitment}</Typography>
-              </TableCell>
               {Object.keys(filteredStats.byGroup || {}).map((group, index) => (
                 <TableCell key={group} align="center">
                   <Typography variant="h6" sx={{ color: getChartColor(index) }}>
@@ -2103,6 +2100,9 @@ const TrackingCurrentPage = () => {
                   </Typography>
                 </TableCell>
               ))}
+              <TableCell align="center">
+                <Typography variant="h6" color="primary">{filteredStats.thisWeekRecruitment}</Typography>
+              </TableCell>
             </TableRow>
 
             {/* Row 4: Total Recruitment */}
@@ -2112,24 +2112,6 @@ const TrackingCurrentPage = () => {
                 <Typography variant="caption" color="text.secondary">Currently Enrolled</Typography>
               </TableCell>
 
-              {/* Total Recruitment Cell */}
-              <TableCell align="center">
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-                    <Typography variant="h6" color="primary">{filteredStats.totalRecruitment}</Typography>
-                    {studyTargets.totalTarget > 0 && (
-                      <Typography variant="caption" color="text.secondary">/ {studyTargets.totalTarget}</Typography>
-                    )}
-                  </Box>
-                  {studyTargets.totalTarget > 0 && (
-                    <LinearProgress
-                      variant="determinate"
-                      value={Math.min((filteredStats.totalRecruitment / studyTargets.totalTarget) * 100, 100)}
-                      sx={{ width: '80%', height: 4, borderRadius: 2, mt: 0.5 }}
-                    />
-                  )}
-                </Box>
-              </TableCell>
 
               {/* Group Recruitment Cells */}
               {Object.keys(filteredStats.byGroup || {}).map((group, index) => {
@@ -2162,6 +2144,25 @@ const TrackingCurrentPage = () => {
                 );
               })
               }
+              
+              {/* Total Recruitment Cell */}
+              <TableCell align="center">
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                    <Typography variant="h6" color="primary">{filteredStats.totalRecruitment}</Typography>
+                    {studyTargets.totalTarget > 0 && (
+                      <Typography variant="caption" color="text.secondary">/ {studyTargets.totalTarget}</Typography>
+                    )}
+                  </Box>
+                  {studyTargets.totalTarget > 0 && (
+                    <LinearProgress
+                      variant="determinate"
+                      value={Math.min((filteredStats.totalRecruitment / studyTargets.totalTarget) * 100, 100)}
+                      sx={{ width: '80%', height: 4, borderRadius: 2, mt: 0.5 }}
+                    />
+                  )}
+                </Box>
+              </TableCell>
             </TableRow>
           </TableBody>
         </Table>

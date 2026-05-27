@@ -3,7 +3,7 @@ import axios from 'axios';
 
 // const API_URL = 'https://e2f74625-eb0f-41fd-8375-fa0fa15b0654.mock.pstmn.io'; // mock API base URL
 // const API_URL=process.env.REACT_APP_MODE === 'deploy' ? process.env.REACT_APP_API_URL_DEPLOY:process.env.REACT_APP_API_URL_MOCK ;
-const API_URL='http://localhost:3001'; // Local development API base URL
+const API_URL='https://vital-log.oucru.org/tracking-api'; // Local development API base URL
 // console.log('API_URL:', API_URL);
 // Create an axios instance
 const apiClient = axios.create({

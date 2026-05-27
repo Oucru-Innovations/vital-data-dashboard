@@ -147,7 +147,7 @@ const routes = (isAuthenticated, onLogin) => [
     title: 'Vital Study',
   },
   {
-    path: '/tracking/weekly',
+    path: '/weekly',
     element: (
       <ProtectedRoute isAuthenticated={isAuthenticated}>
         <Suspense fallback={<Loading />}>
@@ -158,7 +158,7 @@ const routes = (isAuthenticated, onLogin) => [
     title: 'Weekly Tracking',
   },
   {
-    path: '/tracking/current',
+    path: '/current',
     element: (
       <ProtectedRoute isAuthenticated={isAuthenticated}>
         <Suspense fallback={<Loading />}>
@@ -180,7 +180,7 @@ const routes = (isAuthenticated, onLogin) => [
   //   title: 'Vital Study Recruitment',
   // },
   {
-    path: '/tracking/history',
+    path: '/history',
     element: (
       <ProtectedRoute isAuthenticated={isAuthenticated}>
         <Suspense fallback={<Loading />}>

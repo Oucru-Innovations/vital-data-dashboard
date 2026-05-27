@@ -102,7 +102,7 @@ const TrackingHistory = () => {
   // Loading state (used for initial page load spinner)
   const [loading] = useState(false);
 
-  // Patient data from mock tracking files
+  // Participant data from mock tracking files
   const [patientData, setPatientData] = useState({
     patients: [],
     monthlyStats: [],
@@ -517,25 +517,25 @@ const TrackingHistory = () => {
       field: 'screeningId',
       headerName: 'Screening ID',
       width: 140,
-      description: 'Patient screening identifier',
+      description: 'Participant screening identifier',
     },
     {
       field: 'name',
       headerName: 'Name',
       width: 130,
-      description: 'Patient name',
+      description: 'Participant name',
     },
     {
       field: 'studyId',
       headerName: 'Study ID',
       width: 180,
-      description: 'Patient study identifier (enrolled patients)',
+      description: 'Participant study identifier (enrolled patients)',
     },
     {
       field: 'groups',
       headerName: 'Group',
       width: 130,
-      description: 'Patient group (e.g., CAP, VAP)',
+      description: 'Participant group (e.g., CAP, VAP)',
       renderCell: (params) => {
         const groups = params.value || [];
         return groups.length > 0 ? (
@@ -589,7 +589,7 @@ const TrackingHistory = () => {
       field: 'birthYear',
       headerName: 'Birth Year',
       width: 100,
-      description: 'Patient birth year',
+      description: 'Participant birth year',
     },
   ], []);
 
@@ -857,12 +857,12 @@ const TrackingHistory = () => {
         </Box>
       )} */}
 
-      {/* Patient Detail Table (DataGrid) */}
+      {/* Participant Detail Table (DataGrid) */}
       {/* {selectedStudy && (
         <Box sx={{ mt: 4 }}>
           <Divider sx={{ mb: 3 }} />
           <Typography variant="h6" gutterBottom>
-            Patient Details ({filteredPatients.length} patients)
+            Participant Details ({filteredPatients.length} patients)
           </Typography>
           <Paper elevation={2} sx={{ p: 2 }}>
             <DataGrid

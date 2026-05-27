@@ -309,7 +309,7 @@ export const selectCurrentGroup = (state) => state.study.currentGroup;
  * // This will filter patients matching the alias pattern
  *
  * The alias is used to match against:
- * - Patient.identifier.value in FHIR resources
+ * - Participant.identifier.value in FHIR resources
  * - Ward Organization.alias arrays
  * - File naming patterns in data storage
  *

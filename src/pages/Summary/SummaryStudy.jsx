@@ -85,10 +85,10 @@ const SummaryStudyPage = () => {
             {renderSummaryCards(summaryData)}
           </Grid>
           <Grid item xs={12} md={6}>
-            <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.patient} titleText="Patient Distribution" />
+            <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.patient} titleText="Participant Distribution" />
           </Grid>
           <Grid item xs={12} md={6}>
-            <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.session} titleText="Patient Day Distribution" />
+            <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.session} titleText="Participant Day Distribution" />
           </Grid>
           <Grid item xs={12}>
             <Accordion>

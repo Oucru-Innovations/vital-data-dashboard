@@ -581,7 +581,7 @@ export const getProcessedStudies = async () => {
  * ===============
  * Calls FHIR API: GET /ResearchSubject with parameters:
  * - study: ResearchStudy/{studyId}
- * - subject:Patient.organization: Organization/{wardId}
+ * - subject:Participant.organization: Organization/{wardId}
  * - condition-extension: {conditionCode}
  * - status:not: retired
  *
@@ -613,7 +613,7 @@ export const inferRecruitmentQuery = async (filters) => {
   // 1. Organization Filter (Ward or Site)
   if (wardCode && organization?.id) {
     // If ward is selected, filter by ward organization
-    queryParams.push(`subject:Patient.organization=Organization/${organization.id}`);
+    queryParams.push(`subject:Participant.organization=Organization/${organization.id}`);
   } else if (siteCode && organization?.id) {
     // If only site is selected
     // Check if there are wards (departments) using alias check
@@ -621,7 +621,7 @@ export const inferRecruitmentQuery = async (filters) => {
 
     // const ward = study.currentWard || null;
     // if (study.currentWard) {
-    //     queryParams.push(`subject:Patient.organization=Organization/${ward.id}`);
+    //     queryParams.push(`subject:Participant.organization=Organization/${ward.id}`);
     // }
     // else {
     //     const site = study.currentSite || null;
@@ -629,10 +629,10 @@ export const inferRecruitmentQuery = async (filters) => {
     //         const bundle = await client.request('Organization?type=dept&_content:contains=' + alias.replace('-', ','));
     //         const availableWardCount = bundle.total || 0;
     //         if (availableWardCount > 0) {
-    //             queryParams.push(`subject:Patient.organization.partof=Organization/${site.id}`);
+    //             queryParams.push(`subject:Participant.organization.partof=Organization/${site.id}`);
     //         }
     //         else {
-    //             queryParams.push(`subject:Patient.organization=Organization/${site.id}`);
+    //             queryParams.push(`subject:Participant.organization=Organization/${site.id}`);
     //         }
     //     }
     // }
@@ -652,9 +652,9 @@ export const inferRecruitmentQuery = async (filters) => {
     // }
 
     if (hasWards) {
-      queryParams.push(`subject:Patient.organization.partof=Organization/${organization.id}`);
+      queryParams.push(`subject:Participant.organization.partof=Organization/${organization.id}`);
     } else {
-      queryParams.push(`subject:Patient.organization=Organization/${organization.id}`);
+      queryParams.push(`subject:Participant.organization=Organization/${organization.id}`);
     }
   }
 
@@ -780,7 +780,7 @@ export const getRecruitmentDetail = async (filters) => {
  * suitable for display in tables and charts.
  *
  * Extracts key information:
- * - Patient identification (screening ID, name, study ID)
+ * - Participant identification (screening ID, name, study ID)
  * - Condition and comparison groups
  * - Current status and progress history
  * - Timeline of state changes with reasons
@@ -1012,7 +1012,7 @@ export const groupPatientsByStatus = (patients) => {
 };
 
 /**
- * Generate Screening Summary Data from Patient Array
+ * Generate Screening Summary Data from Participant Array
  *
  * Creates a screening summary in the format expected by ScreeningTable component.
  * Groups patients by condition and calculates screening metrics.
@@ -1227,7 +1227,7 @@ const getPeriodDateRange = (dateStr, timepoint) => {
 };
 
 /**
- * Generate Recruitment Details Data from Patient Array
+ * Generate Recruitment Details Data from Participant Array
  *
  * Creates recruitment tracking data in the format expected by RecruitmentTable component.
  * Calculates recruitment numbers and cumulative totals based on selected timepoint.

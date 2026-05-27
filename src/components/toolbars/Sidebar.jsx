@@ -158,7 +158,7 @@ const Sidebar = () => {
     {
       text: 'VITAL-LOG',
       icon: <AssessmentIcon />,
-      path: VITAL_LOG_URL
+      path: `${VITAL_LOG_URL}/login`,
 
     }
   ];

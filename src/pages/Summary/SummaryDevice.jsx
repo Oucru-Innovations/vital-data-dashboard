@@ -97,7 +97,7 @@ const SummaryDevicePage = () => {
             {renderSummaryCards(summaryData, uniquePatientData)}
           </Grid>
           <Grid item xs={12} md={6}>
-            <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.patient} titleText="Patient Distribution by Devices" />
+            <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.patient} titleText="Participant Distribution by Devices" />
           </Grid>
           <Grid item xs={12} md={6}>
             <TransitionPlot summaryData={summaryData} summaryDataValues={summaryData.session} titleText="Devices Session Distribution" />

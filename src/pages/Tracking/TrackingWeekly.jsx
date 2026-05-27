@@ -130,7 +130,7 @@ import {
  * - selectedStudy: Study code for API calls
  * - endDate: Report end date filter
  * - recruitmentData: All data for display components
- * - patientData: Patient-level data for generation
+ * - patientData: Participant-level data for generation
  * - usingMockGeneration: Flag to track data source
  *
  * WHY LOCAL + REDUX:
@@ -183,7 +183,7 @@ const TrackingWeeklyPage = () => {
     });
 
     /**
-     * Patient detail data state (internal use only)
+     * Participant detail data state (internal use only)
      *
      * Used for generating screening and recruitment data from patient-level mock data.
      * Not directly displayed in UI - only used for data generation in development mode.
@@ -226,7 +226,7 @@ const TrackingWeeklyPage = () => {
      * CRITICAL for mixed mode support (studies with/without mock data):
      *
      * true = Using mock generation
-     *   - Patient data was loaded from mock files
+     *   - Participant data was loaded from mock files
      *   - Tables generated from patient data
      *   - Block API updates to prevent overwriting
      *
@@ -588,7 +588,7 @@ const TrackingWeeklyPage = () => {
      * FLOW:
      * 1. User changes filter (e.g., selects site "003")
      * 2. This effect triggers fetchRecruitmentDetail
-     * 3. Patient data loads with new filter
+     * 3. Participant data loads with new filter
      * 4. If patients found: Generate tables, set usingMockGeneration=true
      * 5. If no patients: Clear tables, set usingMockGeneration=false
      */

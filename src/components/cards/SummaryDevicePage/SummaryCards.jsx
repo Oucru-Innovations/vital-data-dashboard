@@ -25,8 +25,8 @@ export const renderSummaryCards = (summaryData, uniquePatientData) => {
   const cards = [
     { title: 'Total Duration', value: formatDuration(totalDuration), color: { 50: '#e3f2fd', 700: '#1976d2', 800: '#0d47a1' } },
     { title: 'Total Device Session', value: totalSessions, color: { 50: '#ffebee', 700: '#d32f2f', 800: '#b71c1c' } },
-    { title: 'Duration per Patient', value: formatDuration(avgDurationPerPatient), color: { 50: '#ede7f6', 700: '#673ab7', 800: '#311b92' } },
-    { title: 'Device Session per Patient', value: avgSessionPerPatient.toFixed(2), color: { 50: '#fff8e1', 700: '#f57c00', 800: '#e65100' } },
+    { title: 'Duration per Participant', value: formatDuration(avgDurationPerPatient), color: { 50: '#ede7f6', 700: '#673ab7', 800: '#311b92' } },
+    { title: 'Device Session per Participant', value: avgSessionPerPatient.toFixed(2), color: { 50: '#fff8e1', 700: '#f57c00', 800: '#e65100' } },
   ];
 
   return (

@@ -8,7 +8,7 @@ const SummaryTable = ({ summaryData }) => {
   const columns = [
     { field: 'category', headerName: 'Category', flex: 1 },
     { field: 'condition', headerName: 'Condition', flex: 1 },
-    { field: 'patient', headerName: 'Patient', flex: 1, type: 'number' },
+    { field: 'patient', headerName: 'Participant', flex: 1, type: 'number' },
     { field: 'session', headerName: 'Session', flex: 1, type: 'number' },
   ];
 
