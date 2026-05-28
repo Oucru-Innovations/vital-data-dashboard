@@ -413,9 +413,10 @@ const TrackingHistory = () => {
     // Derive site from ward (e.g. WardHTDED → HTD, HTDED → HTD)
     const wardToSite = (ward) => {
       if (!ward || ward === 'Unknown') return 'Unknown';
-      const code = String(ward).replace(/^Ward/i, '');
-      const match = code.match(/^([A-Z]{3,4})/i);
-      return match ? match[1].toUpperCase() : (code.slice(0, 4) || 'Unknown');
+      // const code = String(ward).replace(/^Ward/i, '');
+      // const match = code.match(/^([A-Z]{3,4})/i);
+      const match = String(ward).match(/Ward(HTD|NHTD|TVH|NTTH)/);
+      return match ? match[1].toUpperCase() : (ward.slice(0, 4) || 'Unknown');
     };
 
     const init = () => ({ screened: 0, enrolled: 0, ineligible: 0, declined: 0, other: 0 });
@@ -425,6 +426,7 @@ const TrackingHistory = () => {
     const total = init();
 
     filteredPatients.forEach(p => {
+      console.log('hehe',p);
       const status = classify(p);
       total.screened++;
       total[status]++;

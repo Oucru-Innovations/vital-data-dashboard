@@ -222,13 +222,14 @@ const extractSite = (subject) => {
     // Extract site code: uppercase letters at the start before common ward suffixes
     // e.g., "HTDED" → "HTD", "HTDNhiemD" → "HTD", "NTTHED" → "NTTH"
     // Look for pattern: uppercase letters followed by (ED|ICU|NhiemD|lowercase)
-    const siteMatch = fullWardCode.match(/^([A-Z]+?)(?:ED|ICU|Nhiem|[a-z]|$)/);
-    if (siteMatch) {
-      return siteMatch[1].toUpperCase();
-    }
+    // const siteMatch = fullWardCode.match(/^([A-Z]+?)(?:ED|ICU|Nhiem|[a-z]|$)/);
+    // if (siteMatch) {
+    //   return siteMatch[1].toUpperCase();
+    // }
 
-    // Fallback: take first 3-4 uppercase characters
-    const uppercaseMatch = fullWardCode.match(/^([A-Z]{3,4})/);
+    const uppercaseMatch = String(fullWardCode).match(/(HTD|NHTD|TVH|NTTH)/);
+    // console.log('fullWardCode', uppercaseMatch);
+    
     if (uppercaseMatch) {
       return uppercaseMatch[1];
     }
@@ -836,6 +837,7 @@ const TrackingCurrentPage = () => {
           newStats.recruitmentByWardGroup[ward][g] = (newStats.recruitmentByWardGroup[ward][g] || 0) + 1;
         });
 
+        // console.log('label labels', labels);
         // Process EACH label for recruitment stats
         labels.forEach(label => {
           // Count by label (recruited)
@@ -1091,59 +1093,94 @@ const TrackingCurrentPage = () => {
    * Pie Chart - Group Distribution (dynamic from data)
    * Shows the percentage breakdown of all groups
    */
-  const groupPieChartOption = {
-    title: {
-      text: 'Group Distribution',
-      left: 'center',
-      textStyle: {
-        fontSize: 16,
-        fontWeight: 'bold',
-      },
-    },
-    tooltip: {
-      trigger: 'item',
-      formatter: '{a} <br/>{b}: {c} ({d}%)',
-    },
-    legend: {
-      orient: 'horizontal',
-      bottom: '5%',
-      left: 'center',
-    },
-    series: [
-      {
-        name: 'Group',
-        type: 'pie',
-        radius: ['40%', '70%'],
-        avoidLabelOverlap: false,
-        itemStyle: {
-          borderRadius: 10,
-          borderColor: '#fff',
-          borderWidth: 2,
+const rawGroups = filteredStats.recruitmentByGroup || {};
+
+const groupPieChartData = Object.entries(rawGroups)
+  .filter(([group]) => group !== 'VAP+')
+  .map(([group, count], index) => {
+    const baseItem = {
+      value: count,
+      name: group,
+      itemStyle: { color: getChartColor(index) },
+    };
+
+    if (group === 'VAP' && rawGroups['VAP+']) {
+      baseItem.children = [
+        {
+          value: rawGroups['VAP+'],
+          name: 'VAP+',
+          itemStyle: { color: getChartColor(index + 1) },
         },
+      ];
+    }
+
+    return baseItem;
+  });
+
+const groupPieChartOption = {
+  title: {
+    text: 'Group Distribution',
+    left: 'center',
+    textStyle: {
+      fontSize: 16,
+      fontWeight: 'bold',
+    },
+  },
+  tooltip: {
+    trigger: 'item',
+    formatter: '{b}: {c}',
+  },
+  legend: {
+    orient: 'horizontal',
+    bottom: '5%',
+    left: 'center',
+  },
+  series: [
+    {
+      name: 'Group',
+      type: 'sunburst',
+      radius: ['40%', '70%'],
+
+      itemStyle: {
+        borderRadius: 10,
+        borderColor: '#fff',
+        borderWidth: 2,
+      },
+
+      label: {
+        show: true,
+        formatter: '{b}: {c}',
+      },
+
+      emphasis: {
+        focus: 'ancestor',
         label: {
           show: true,
-          formatter: '{b}: {c}',
-          position: 'outside',
+          fontSize: 14,
+          fontWeight: 'bold',
         },
-        emphasis: {
-          label: {
-            show: true,
-            fontSize: 14,
-            fontWeight: 'bold',
-          },
-        },
-        labelLine: {
-          show: true,
-        },
-        // Dynamically generate data from all groups
-        data: Object.entries(filteredStats.recruitmentByGroup || {}).map(([group, count], index) => ({
-          value: count,
-          name: group,
-          itemStyle: { color: getChartColor(index) },
-        })),
       },
-    ],
-  };
+
+      labelLine: {
+        show: true,
+      },
+
+      levels: [
+        {},
+        {
+          r0: '40%',
+          r: '70%',
+        },
+        {
+          r0: '70%',
+          r: '90%',
+        },
+      ],
+
+      data: groupPieChartData,
+    },
+  ],
+};
   // ============ EDIT END: Dynamic group pie chart ============
 
   /**
@@ -1918,6 +1955,7 @@ const TrackingCurrentPage = () => {
   }
 
   console.log('stat got is ', stats);
+  console.log('target got is ', studyTargets);
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" gutterBottom>
@@ -2249,7 +2287,7 @@ const TrackingCurrentPage = () => {
                         },
                       },
                       ...Object.keys(studyTargets.byGroup || {}).map((group, index) => ({
-                        value: filteredStats.byGroup?.[group] || 0,
+                        value: filteredStats.recruitmentByGroup?.[group] || 0,
                         itemStyle: {
                           color: getChartColor(index),
                           borderRadius: [0, 4, 4, 0],
