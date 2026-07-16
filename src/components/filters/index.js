@@ -13,6 +13,7 @@
  * import ConditionFilter from '../components/filters/ConditionFilter';
  */
 
+export { default as StudySelection } from './StudySelection';
 export { default as SiteSelection } from './SiteSelection';
 export { default as WardSelection } from './WardSelection';
 export { default as ConditionFilter } from './ConditionFilter';

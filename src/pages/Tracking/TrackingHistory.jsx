@@ -6,7 +6,11 @@
  *
  * Cloned from MonthlyReport.jsx with simplified data flow:
  * - Uses only fhirService functions for data loading
- * - Local ward/group filters derived from actual patient data
+ * - Site/Ward/Group filters use the shared, Redux-integrated SiteSelection/
+ *   WardSelection/GroupFilter components (same pattern as TrackingCurrent.jsx -
+ *   "condition" has been migrated to "group" throughout; ConditionFilter/
+ *   currentCondition are the legacy CAP/VAP-only concept and should not be used),
+ *   so selections are dispatched to Redux and reach the fetch (see fetchPatientData)
  * - No backend API fallbacks (getStudyTracking, getPeriodTotalScreening, etc.)
  *
  * DATA FLOW:
@@ -30,6 +34,7 @@ import {
   Box,
   Typography,
   CircularProgress,
+  LinearProgress,
   Divider,
   Select,
   MenuItem,
@@ -44,60 +49,82 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Button,
 } from '@mui/material';
+import DownloadIcon from '@mui/icons-material/Download';
 import { DataGrid } from '@mui/x-data-grid';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFnsV3';
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector } from 'react-redux';
 import ReactECharts from 'echarts-for-react';
 
 // Layout components
 import Footer from '../../components/toolbars/Footer';
 
-// Shared filter components (SiteSelection works correctly with alias matching)
-import { SiteSelection } from '../../components/filters';
+// Shared filter components (Redux-integrated: all read currentStudy/currentSite/
+// currentWard directly from Redux rather than via props; GroupFilter/currentGroup
+// is the current concept - "condition" was migrated to "group")
+import { StudySelection, SiteSelection, WardSelection, GroupFilter } from '../../components/filters';
 
 // Existing reusable components from MonthlyReport
 import RecruitmentTable from '../../components/tables/TrackingMonthlyPage/RecruitmentTable';
 
 // Redux state management
 import {
-  setStudy,
   selectCurrentStudy,
   selectCurrentSite,
+  selectCurrentWard,
+  selectCurrentGroup,
+  selectAlias,
 } from '../../store/studySlice';
 
 // FHIR service functions for data loading and processing
 import {
-  getProcessedStudies,
   getProcessedScreeningDetail,
   calculateMonthlyStats,
   generateRecruitmentDetails,
 } from '../../services/fhirService';
 
 
-const TrackingHistory = () => {
-  const dispatch = useDispatch();
+// Percentage a reason token's count represents of a row's total screened patients
+const reasonPercent = (count, screened) => (screened > 0 ? (count / screened) * 100 : 0);
 
-  // Redux state (only site is used for data loading)
-  // eslint-disable-next-line no-unused-vars -- selectCurrentStudy needed for SiteSelection component dependency
+// Sequential single-hue (blue) ramp for heat-mapping reason-column cells by percent:
+// lightest step reads as "near zero", darkest as "dominant reason" for that row.
+const REASON_HEAT_STEPS = [
+  { max: 0, color: 'transparent', dark: false },
+  { max: 5, color: '#cde2fb', dark: false },
+  { max: 10, color: '#9ec5f4', dark: false },
+  { max: 20, color: '#6da7ec', dark: false },
+  { max: 30, color: '#3987e5', dark: false },
+  { max: 45, color: '#256abf', dark: true },
+  { max: 65, color: '#184f95', dark: true },
+  { max: 100, color: '#0d366b', dark: true },
+];
+const reasonHeatColor = (percent) => {
+  const step = REASON_HEAT_STEPS.find(s => percent <= s.max) || REASON_HEAT_STEPS[REASON_HEAT_STEPS.length - 1];
+  return step;
+};
+
+const TrackingHistory = () => {
+  // Redux state - Study/Site/Ward/Group are all owned by the shared StudySelection/
+  // SiteSelection/WardSelection/GroupFilter components, which dispatch them to Redux.
+  // currentGroup is a full group object (e.g. {name: "CAP", ...}), not a plain string.
   const currentStudy = useSelector(selectCurrentStudy);
   const currentSite = useSelector(selectCurrentSite);
+  const currentWard = useSelector(selectCurrentWard);
+  const currentGroup = useSelector(selectCurrentGroup);
+  // Computed alias pattern ("{studyCode}-{siteCode}-{wardAlias}"), used for the
+  // CSV export filename instead of re-deriving study/site/ward manually there.
+  const alias = useSelector(selectAlias);
 
-  // Study list and selection
-  const [studies, setStudies] = useState([]);
-  const [selectedStudy, setSelectedStudy] = useState(() => {
-    return localStorage.getItem('selectedStudyCode') || '';
-  });
+  // Study code derived from Redux (StudySelection owns fetching/persisting/dispatching it)
+  const selectedStudy = currentStudy?.studyCode || '';
 
   // Time period and date selection
   const [selectedTimepoint, setSelectedTimepoint] = useState('weekly');
   const [endDate, setEndDate] = useState(new Date());
-
-  // Local ward and group filters (derived from patient data, not organization resources)
-  const [localWardFilter, setLocalWardFilter] = useState('');
-  const [localGroupFilter, setLocalGroupFilter] = useState('');
 
   // Loading state (used for initial page load spinner)
   const [loading] = useState(false);
@@ -109,60 +136,65 @@ const TrackingHistory = () => {
     loading: false,
   });
 
+  // Real attained/total progress for the slow, per-patient reference-resolution loop in
+  // getRecruitmentDetail's production-mode path (see fhirService.js). null when not fetching
+  // or in mock mode (that path has no per-item loop, so no progress events are emitted).
+  const [fetchProgress, setFetchProgress] = useState(null);
+
   // Generated recruitment/screening data for charts and tables
   const [recruitmentData, setRecruitmentData] = useState({
     studyData: [],          // For RecruitmentTable and charts
     screeningData: [],      // For screening summary
   });
 
-  // Derive unique wards and groups from patient data for local filters
-  const availableWards = useMemo(() => {
-    const wards = new Set();
-    patientData.patients.forEach(p => {
-      if (p.ward) wards.add(p.ward);
-    });
-    return Array.from(wards).sort();
-  }, [patientData.patients]);
-
-  const availableGroups = useMemo(() => {
-    const groups = new Set();
-    patientData.patients.forEach(p => {
-      if (p.condition) groups.add(p.condition);
-      if (p.groups) p.groups.forEach(g => groups.add(g));
-    });
-    return Array.from(groups).sort();
-  }, [patientData.patients]);
-
-  // Filter patients client-side based on local ward/group selections
+  // Primary client-side ward/group filter: fetchPatientData only scopes its fetch by
+  // study/site (see comment there), so Ward and Group narrowing happens entirely here
+  // against the already-loaded dataset - no extra fetch per Ward/Group change. Ward
+  // Organization `id` (e.g. "WardHTDED", from getOrganizationWard.json) matches the raw
+  // `p.ward` string on patient records (both ultimately come from the same
+  // managingOrganization reference id), so it's a reliable client-side filter.
   const filteredPatients = useMemo(() => {
     let filtered = patientData.patients;
-    if (localWardFilter) {
-      filtered = filtered.filter(p => p.ward === localWardFilter);
+    if (currentWard?.id) {
+      filtered = filtered.filter(p => p.ward === currentWard.id);
     }
-    if (localGroupFilter) {
+    const groupName = currentGroup?.name;
+    if (groupName) {
       filtered = filtered.filter(p =>
-        p.condition === localGroupFilter ||
-        (p.groups && p.groups.includes(localGroupFilter))
+        p.condition === groupName ||
+        (p.groups && p.groups.includes(groupName))
       );
     }
     return filtered;
-  }, [patientData.patients, localWardFilter, localGroupFilter]);
+  }, [patientData.patients, currentWard, currentGroup]);
 
-  /**
-   * Load studies list for the dropdown
-   */
-  const loadStudies = useCallback(async () => {
-    try {
-      const studyList = await getProcessedStudies();
-      setStudies(studyList);
-    } catch (error) {
-      console.error('[TrackingHistory] Error loading studies:', error);
-    }
-  }, []);
+  // Local fallback options for WardSelection/GroupFilter, derived from the already-loaded
+  // (Study+Site-scoped) patient data - see LOCAL FALLBACK docs on those components. Sourced
+  // from the unfiltered patientData.patients (not filteredPatients) so the dropdown keeps
+  // showing every ward/group option even after narrowing the current selection to one.
+  // Ward codes strip the "Ward" prefix (matching WardSelection's `id: Ward${code}`
+  // synthesis) so the reconstructed id equals the raw p.ward string filteredPatients matches against.
+  const localWardOptions = useMemo(() => {
+    const counts = {};
+    patientData.patients.forEach((p) => {
+      if (!p.ward) return;
+      const code = p.ward.replace(/^Ward/i, '');
+      counts[code] = (counts[code] || 0) + 1;
+    });
+    return Object.entries(counts).map(([code, count]) => ({ code, count }));
+  }, [patientData.patients]);
 
   /**
    * Fetch patient-level data from mock tracking files
-   * Uses getProcessedRecruitmentDetail which auto-selects mock file based on filters
+   * Uses getProcessedRecruitmentDetail which auto-selects mock file based on filters.
+   *
+   * IMPORTANT: This only fetches by Study + Site. Ward and Group are deliberately
+   * NOT passed here and NOT in the dependency array - in mock mode, getScreeningDetail
+   * picks an increasingly specific mock file per ward/group combination, which means
+   * including them here would re-fetch a whole new dataset on every Ward/Group change
+   * instead of filtering the data already loaded. Ward/Group narrowing is handled
+   * entirely client-side by `filteredPatients` below, matching TrackingCurrent's
+   * fetch-by-Site-then-filter-locally pattern.
    */
   const fetchPatientData = useCallback(async () => {
     if (!selectedStudy) {
@@ -177,22 +209,20 @@ const TrackingHistory = () => {
       const filters = {
         studyCode: selectedStudy,
         siteCode: currentSite?.code,
-        wardCode: null,
-        condition: null,
       };
 
-      const patients = await getProcessedScreeningDetail(filters);
+      const patients = await getProcessedScreeningDetail(filters, (attained, total) =>
+        setFetchProgress({ attained, total })
+      );
       const monthlyStats = calculateMonthlyStats(patients);
 
       setPatientData({ patients, monthlyStats, loading: false });
 
-      // Reset local filters when data source changes
-      setLocalWardFilter('');
-      setLocalGroupFilter('');
-
     } catch (error) {
       console.error('[TrackingHistory] Error fetching patient data:', error);
       setPatientData({ patients: [], monthlyStats: [], loading: false });
+    } finally {
+      setFetchProgress(null);
     }
   }, [selectedStudy, currentSite]);
 
@@ -222,40 +252,12 @@ const TrackingHistory = () => {
     }
   }, [filteredPatients, selectedStudy, selectedTimepoint, endDate]);
 
-  // Initial load
-  useEffect(() => {
-    loadStudies();
-  }, [loadStudies]);
-
   // Fetch patient data when study or site changes
+  // (fetchPatientData changes identity when either changes, see its deps above;
+  // Ward/Group narrowing is applied client-side via filteredPatients, not by re-fetching)
   useEffect(() => {
     fetchPatientData();
   }, [fetchPatientData]);
-
-  /**
-   * Handle study selection change
-   */
-  const handleStudyChange = (event) => {
-    const studyCode = event.target.value;
-    setSelectedStudy(studyCode);
-    localStorage.setItem('selectedStudyCode', studyCode);
-
-    if (studyCode) {
-      const studyObj = studies.find(s => s.studyCode === studyCode);
-      if (studyObj) {
-        dispatch(setStudy({
-          id: studyObj.id,
-          name: studyObj.name,
-          studyCode: studyObj.studyCode,
-          status: studyObj.status || 'active',
-          site: studyObj.site || [],
-          comparisonGroup: studyObj.comparisonGroup || [],
-        }));
-      }
-    } else {
-      dispatch(setStudy(null));
-    }
-  };
 
   // ===== CHART OPTIONS (derived from recruitmentData.studyData) =====
 
@@ -280,25 +282,33 @@ const TrackingHistory = () => {
     const totalPeriods = periods.length;
     const cumRecruited = periods.map(p => byPeriod[p].cumRecruited);
 
-    // Static target: linear distribution (total / periods, evenly spread)
+    // The visible window (periods) may only be the most recent slice of a longer study
+    // (see generateRecruitmentDetails' `limit` option). totalPeriodsCount/windowOffset let us
+    // position the target lines at their true place in the overall study instead of resetting
+    // them to "period 1" at the left edge of the chart.
+    const totalPeriodsCount = recruitmentData.studyData.find(r => r.total_periods)?.total_periods || totalPeriods;
+    const windowOffset = Math.max(0, totalPeriodsCount - totalPeriods);
+
+    // Static target: linear distribution (total / overall periods, evenly spread)
     const cumTarget = periods.map((_, i) =>
-      Math.round(totalTarget * (i + 1) / totalPeriods)
+      Math.round(totalTarget * (windowOffset + i + 1) / totalPeriodsCount)
     );
 
-    // Adaptive target: recalculates each period based on actual recruitment
-    // e.g. target=50, 10 periods. Period 1 target = ceil(50/10) = 5.
-    // If period 1 actual = 10, then period 2 target = ceil((50-10)/9) = 5, cumulative = 10+5 = 15
+    // Adaptive target: recalculates each period based on actual recruitment.
+    // actualBeforeWindow is the true cumulative recruited immediately before the visible window
+    // (derived from the already-cumulative cumRecruited data), so the adaptive line starts from
+    // where the study actually stands rather than assuming a fresh start at the window's edge.
+    const actualBeforeWindow = cumRecruited.length > 0
+      ? cumRecruited[0] - (byPeriod[periods[0]].recruited || 0)
+      : 0;
     const adaptiveCumTarget = [];
     for (let i = 0; i < periods.length; i++) {
-      if (i === 0) {
-        adaptiveCumTarget.push(Math.ceil(totalTarget / totalPeriods));
-      } else {
-        const actualPrev = cumRecruited[i - 1];
-        const remaining = Math.max(0, totalTarget - actualPrev);
-        const remainingPeriods = totalPeriods - i;
-        const needed = remainingPeriods > 0 ? Math.ceil(remaining / remainingPeriods) : remaining;
-        adaptiveCumTarget.push(actualPrev + needed);
-      }
+      const absoluteIndex = windowOffset + i;
+      const actualPrev = i === 0 ? actualBeforeWindow : cumRecruited[i - 1];
+      const remaining = Math.max(0, totalTarget - actualPrev);
+      const remainingPeriods = totalPeriodsCount - absoluteIndex;
+      const needed = remainingPeriods > 0 ? Math.ceil(remaining / remainingPeriods) : remaining;
+      adaptiveCumTarget.push(actualPrev + needed);
     }
 
     console.log('[TrackingHistory] chartData output - periods:', periods.length, 'target:', totalTarget);
@@ -419,36 +429,77 @@ const TrackingHistory = () => {
       return match ? match[1].toUpperCase() : (ward.slice(0, 4) || 'Unknown');
     };
 
-    const init = () => ({ screened: 0, enrolled: 0, ineligible: 0, declined: 0, other: 0 });
+    // Catch-all/non-informative reason tokens that shouldn't get their own breakdown column
+    const EXCLUDED_REASON_TOKENS = ['no exclusion reason', 'others', 'enrolled'];
+
+    // A patient's reason may already be a single string or an array of reasons.
+    // 1. Concatenate whatever we have into one comma-joined string, then split it back
+    //    apart so both shapes end up normalized to the same flat list of trimmed tokens.
+    const getReasonTokens = (patient) => {
+      const raw = Array.isArray(patient.reason) ? patient.reason.join(',') : (patient.reason || '');
+      return raw.split(',')
+        .map(r => r.trim())
+        .filter(r => r && !EXCLUDED_REASON_TOKENS.some(token => r.toLowerCase().includes(token)));
+    };
+
+    const init = () => ({ screened: 0, enrolled: 0, ineligible: 0, declined: 0, other: 0, reasons: {} });
+    const incrementReasonCounts = (bucket, tokens) => {
+      tokens.forEach(token => {
+        bucket.reasons[token] = (bucket.reasons[token] || 0) + 1;
+      });
+    };
     const byGroup = {};
     const bySite = {};
     const byWard = {};
     const total = init();
+    // 2. Set of every unique reason token seen, used as the dynamic breakdown header
+    const reasonSet = new Set();
 
     filteredPatients.forEach(p => {
-      console.log('hehe',p);
+      // console.log('hehe',p);
       const status = classify(p);
+      const reasonTokens = getReasonTokens(p);
+      reasonTokens.forEach(token => reasonSet.add(token));
+
       total.screened++;
       total[status]++;
+      // 3. Count of occurrence per reason token
+      incrementReasonCounts(total, reasonTokens);
 
       (p.groups || []).forEach(g => {
         if (!byGroup[g]) byGroup[g] = init();
         byGroup[g].screened++;
         byGroup[g][status]++;
+        incrementReasonCounts(byGroup[g], reasonTokens);
       });
 
       const site = wardToSite(p.ward);
       if (!bySite[site]) bySite[site] = init();
       bySite[site].screened++;
       bySite[site][status]++;
+      incrementReasonCounts(bySite[site], reasonTokens);
 
       const ward = p.ward || 'Unknown';
       if (!byWard[ward]) byWard[ward] = init();
       byWard[ward].screened++;
       byWard[ward][status]++;
+      incrementReasonCounts(byWard[ward], reasonTokens);
     });
 
-    // Build table rows: by Group, by Site, by Ward, then Total
+    // "No INC #N" (non-inclusion) reasons are listed before "EXC #N" (exclusion) reasons,
+    // with any other reason token trailing after both; numeric-aware within each group
+    // so "#2" sorts before "#10".
+    const reasonGroupPriority = (token) => {
+      if (/^no\s*inc/i.test(token)) return 0;
+      if (/^exc/i.test(token)) return 1;
+      return 2;
+    };
+    const reasonHeaders = Array.from(reasonSet).sort((a, b) => {
+      const priorityDiff = reasonGroupPriority(a) - reasonGroupPriority(b);
+      return priorityDiff !== 0 ? priorityDiff : a.localeCompare(b, undefined, { numeric: true });
+    });
+
+    // Build table rows: by Group, by Site, then Total (Ward gets its own table below)
     const rows = [];
     Object.keys(byGroup).sort().forEach(g => {
       rows.push({ id: `group-${g}`, category: g, type: 'Group', ...byGroup[g] });
@@ -456,40 +507,109 @@ const TrackingHistory = () => {
     Object.keys(bySite).sort().forEach(s => {
       rows.push({ id: `site-${s}`, category: s, type: 'Site', ...bySite[s] });
     });
-    Object.keys(byWard).sort().forEach(w => {
-      rows.push({ id: `ward-${w}`, category: w, type: 'Ward', ...byWard[w] });
-    });
     rows.push({ id: 'total', category: 'Total', type: '', ...total });
 
-    // Build chart data - combined groups, sites & wards
+    // Build chart data - groups & sites only
     const chartCategories = [
       ...Object.keys(byGroup).sort().map(g => `[G] ${g}`),
       ...Object.keys(bySite).sort().map(s => `[S] ${s}`),
-      ...Object.keys(byWard).sort().map(w => `[W] ${w}`),
     ];
     const chartEnrolled = [
       ...Object.keys(byGroup).sort().map(g => byGroup[g].enrolled),
       ...Object.keys(bySite).sort().map(s => bySite[s].enrolled),
-      ...Object.keys(byWard).sort().map(w => byWard[w].enrolled),
     ];
     const chartIneligible = [
       ...Object.keys(byGroup).sort().map(g => byGroup[g].ineligible),
       ...Object.keys(bySite).sort().map(s => bySite[s].ineligible),
-      ...Object.keys(byWard).sort().map(w => byWard[w].ineligible),
     ];
     const chartDeclined = [
       ...Object.keys(byGroup).sort().map(g => byGroup[g].declined),
       ...Object.keys(bySite).sort().map(s => bySite[s].declined),
-      ...Object.keys(byWard).sort().map(w => byWard[w].declined),
     ];
     const chartOther = [
       ...Object.keys(byGroup).sort().map(g => byGroup[g].other),
       ...Object.keys(bySite).sort().map(s => bySite[s].other),
-      ...Object.keys(byWard).sort().map(w => byWard[w].other),
     ];
 
-    return { rows, chartCategories, chartEnrolled, chartIneligible, chartDeclined, chartOther, total };
+    // Ward table rows + chart data, kept separate so the ward breakdown gets its own summary section
+    const wardTotal = init();
+    Object.keys(byWard).forEach(w => {
+      wardTotal.screened += byWard[w].screened;
+      wardTotal.enrolled += byWard[w].enrolled;
+      wardTotal.ineligible += byWard[w].ineligible;
+      wardTotal.declined += byWard[w].declined;
+      wardTotal.other += byWard[w].other;
+      Object.entries(byWard[w].reasons).forEach(([token, count]) => {
+        wardTotal.reasons[token] = (wardTotal.reasons[token] || 0) + count;
+      });
+    });
+    const wardRows = Object.keys(byWard).sort().map(w => ({ id: `ward-${w}`, category: w, type: 'Ward', ...byWard[w] }));
+    wardRows.push({ id: 'ward-total', category: 'Total', type: '', ...wardTotal });
+
+    const wardChartCategories = Object.keys(byWard).sort();
+    const wardChartEnrolled = Object.keys(byWard).sort().map(w => byWard[w].enrolled);
+    const wardChartIneligible = Object.keys(byWard).sort().map(w => byWard[w].ineligible);
+    const wardChartDeclined = Object.keys(byWard).sort().map(w => byWard[w].declined);
+    const wardChartOther = Object.keys(byWard).sort().map(w => byWard[w].other);
+
+    return {
+      rows, chartCategories, chartEnrolled, chartIneligible, chartDeclined, chartOther, total,
+      wardRows, wardChartCategories, wardChartEnrolled, wardChartIneligible, wardChartDeclined, wardChartOther, wardTotal,
+      reasonHeaders,
+    };
   }, [filteredPatients]);
+
+  /**
+   * Export a screening summary table (rows + dynamic reason columns) as a CSV download
+   */
+  const downloadScreeningSummaryCsv = useCallback((rows, reasonHeaders, filename) => {
+    const headers = ['Type', 'Category', 'Screened', 'Enrolled', 'Ineligible', 'Declined', 'Other', ...reasonHeaders];
+    const escapeCsv = (value) => {
+      const str = String(value ?? '');
+      return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+    };
+    const csvRows = rows.map(row => [
+      row.type || '',
+      row.category,
+      row.screened,
+      row.enrolled,
+      row.ineligible,
+      row.declined,
+      row.other,
+      ...reasonHeaders.map(reason => row.reasons?.[reason] || 0),
+    ]);
+    const csvContent = [headers, ...csvRows].map(r => r.map(escapeCsv).join(',')).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, []);
+
+  /**
+   * Build the CSV filename: ScreeningTable_{StudyId[-Site][-Ward][-Group]}_{dd.MM.YYYY.hh.mm.ss}_.csv
+   * Uses the `alias` computed selector (already composes study/site/ward into one
+   * pattern, e.g. "13NV-003-4") instead of re-inferring each part here, plus the
+   * current group appended separately since alias doesn't include it.
+   */
+  const buildScreeningCsvFilename = useCallback(() => {
+    const idParts = [alias || selectedStudy || 'Study'];
+    if (currentGroup?.name) idParts.push(currentGroup.name);
+
+    const pad = (n) => String(n).padStart(2, '0');
+    const now = new Date();
+    const timestamp = [
+      pad(now.getDate()), pad(now.getMonth() + 1), now.getFullYear(),
+      pad(now.getHours()), pad(now.getMinutes()), pad(now.getSeconds()),
+    ].join('.');
+
+    return `ScreeningTable_${idParts.join('-')}_${timestamp}_.csv`;
+  }, [alias, selectedStudy, currentGroup]);
 
   const screeningSummaryChartOption = useMemo(() => ({
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
@@ -500,8 +620,9 @@ const TrackingHistory = () => {
     },
     yAxis: {
       type: 'category',
+      inverse: true, // Render top-to-bottom in the same order as chartCategories (and the table), instead of ECharts' default bottom-up
       data: screeningStats.chartCategories,
-      axisLabel: { width: 100, overflow: 'truncate' },
+      axisLabel: { fontSize: 11, interval: 0 }, // interval: 0 forces every category tick to show, none skipped
     },
     series: [
       { name: 'Enrolled', type: 'bar', stack: 'total', data: screeningStats.chartEnrolled, itemStyle: { color: '#2e7d32' } },
@@ -509,8 +630,36 @@ const TrackingHistory = () => {
       { name: 'Declined', type: 'bar', stack: 'total', data: screeningStats.chartDeclined, itemStyle: { color: '#d32f2f' } },
       { name: 'Other', type: 'bar', stack: 'total', data: screeningStats.chartOther, itemStyle: { color: '#9e9e9e' } },
     ],
-    grid: { left: 120, right: 20, bottom: 30, top: 40 },
+    grid: { left: '3%', right: '5%', bottom: 30, top: 40, containLabel: true },
   }), [screeningStats]);
+
+  // Shared height for the Screening Summary table + chart so neither clips rows the other one shows
+  const screeningChartHeight = Math.max(360, screeningStats.chartCategories.length * 32);
+
+  const wardScreeningChartOption = useMemo(() => ({
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    legend: { data: ['Enrolled', 'Ineligible', 'Declined', 'Other'] },
+    xAxis: {
+      type: 'value',
+      name: 'Patients',
+    },
+    yAxis: {
+      type: 'category',
+      inverse: true, // Render top-to-bottom in the same order as wardChartCategories (and the ward table)
+      data: screeningStats.wardChartCategories,
+      axisLabel: { fontSize: 11, interval: 0 }, // interval: 0 forces every category tick to show, none skipped
+    },
+    series: [
+      { name: 'Enrolled', type: 'bar', stack: 'total', data: screeningStats.wardChartEnrolled, itemStyle: { color: '#2e7d32' } },
+      { name: 'Ineligible', type: 'bar', stack: 'total', data: screeningStats.wardChartIneligible, itemStyle: { color: '#ed6c02' } },
+      { name: 'Declined', type: 'bar', stack: 'total', data: screeningStats.wardChartDeclined, itemStyle: { color: '#d32f2f' } },
+      { name: 'Other', type: 'bar', stack: 'total', data: screeningStats.wardChartOther, itemStyle: { color: '#9e9e9e' } },
+    ],
+    grid: { left: '3%', right: '5%', bottom: 30, top: 40, containLabel: true },
+  }), [screeningStats]);
+
+  // Shared height for the Ward Screening Summary table + chart
+  const wardScreeningChartHeight = Math.max(360, screeningStats.wardChartCategories.length * 32);
 
   // ===== PATIENT DATAGRID COLUMNS =====
 
@@ -613,23 +762,9 @@ const TrackingHistory = () => {
 
       {/* Filter Controls */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        {/* Study Selection */}
+        {/* Study Selection (shared component - fetches list, persists, dispatches setStudy) */}
         <Grid item xs={12} md={3}>
-          <FormControl fullWidth>
-            <InputLabel>Select Study</InputLabel>
-            <Select
-              value={selectedStudy}
-              onChange={handleStudyChange}
-              label="Select Study"
-            >
-              <MenuItem value="">All Studies</MenuItem>
-              {studies.map((study) => (
-                <MenuItem key={study.id || study.studyCode} value={study.studyCode}>
-                  {study.studyCode}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <StudySelection fullWidth />
         </Grid>
 
         {/* Site Selection (shared component - works correctly with alias matching) */}
@@ -639,49 +774,18 @@ const TrackingHistory = () => {
           </Grid>
         )}
 
-        {/* Ward filter - local, derived from patient data */}
-        {selectedStudy && availableWards.length > 0 && (
+        {/* Ward Selection (shared component - Redux-integrated, alias matching,
+            with local, patient-data-derived options as a fallback) */}
+        {selectedStudy && (
           <Grid item xs={12} md={2}>
-            <FormControl fullWidth size="medium">
-              <InputLabel>Ward</InputLabel>
-              <Select
-                value={localWardFilter}
-                onChange={(e) => setLocalWardFilter(e.target.value)}
-                label="Ward"
-              >
-                <MenuItem value="">
-                  <em>All Wards</em>
-                </MenuItem>
-                {availableWards.map((ward) => (
-                  <MenuItem key={ward} value={ward}>
-                    {ward}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <WardSelection size="medium" fullWidth localWards={localWardOptions} />
           </Grid>
         )}
 
-        {/* Group filter - local, derived from patient data */}
-        {selectedStudy && availableGroups.length > 0 && (
+        {/* Group filter (shared component - dispatches to currentGroup, independent of Ward/Site) */}
+        {selectedStudy && (
           <Grid item xs={12} md={2}>
-            <FormControl fullWidth size="medium">
-              <InputLabel>Group</InputLabel>
-              <Select
-                value={localGroupFilter}
-                onChange={(e) => setLocalGroupFilter(e.target.value)}
-                label="Group"
-              >
-                <MenuItem value="">
-                  <em>All Groups</em>
-                </MenuItem>
-                {availableGroups.map((group) => (
-                  <MenuItem key={group} value={group}>
-                    {group}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <GroupFilter size="medium" showLabel sx={{ width: '100%' }} />
           </Grid>
         )}
 
@@ -716,6 +820,20 @@ const TrackingHistory = () => {
           </LocalizationProvider>
         </Grid>
       </Grid>
+
+      {/* Real attained/total progress for the slow, per-patient reference-resolution loop
+          in getRecruitmentDetail's production-mode path (see fhirService.js) */}
+      {fetchProgress && (
+        <Box sx={{ mb: 3 }}>
+          <LinearProgress
+            variant="determinate"
+            value={(fetchProgress.attained / fetchProgress.total) * 100}
+          />
+          <Typography variant="caption" color="text.secondary">
+            Loading patients: {fetchProgress.attained} / {fetchProgress.total}
+          </Typography>
+        </Box>
+      )}
 
       {/* Recruitment Progress Charts */}
       {recruitmentData.studyData.length > 0 && (
@@ -795,15 +913,24 @@ const TrackingHistory = () => {
         </Box>
       )}
 
-      {/* Screening Summary: table by group / site / ward + chart */}
+      {/* Screening Summary: table by group / site + chart */}
       {filteredPatients.length > 0 && (
         <Box sx={{ mt: 4 }}>
-          <Typography variant="h6" gutterBottom>
-            Screening Summary
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+            <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
+              Screening Summary by Group / Site
+            </Typography>
+            <Button
+              size="small"
+              startIcon={<DownloadIcon />}
+              onClick={() => downloadScreeningSummaryCsv(screeningStats.rows, screeningStats.reasonHeaders, buildScreeningCsvFilename())}
+            >
+              Download CSV
+            </Button>
+          </Box>
           <Grid container spacing={2}>
             <Grid item xs={12} md={5}>
-              <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 400 }}>
+              <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: screeningChartHeight }}>
                 <Table size="small" stickyHeader>
                   <TableHead>
                     <TableRow>
@@ -814,6 +941,9 @@ const TrackingHistory = () => {
                       <TableCell align="right"><strong>Ineligible</strong></TableCell>
                       <TableCell align="right"><strong>Declined</strong></TableCell>
                       <TableCell align="right"><strong>Other</strong></TableCell>
+                      {screeningStats.reasonHeaders.map((reason) => (
+                        <TableCell align="right" key={reason}><strong>{reason}</strong></TableCell>
+                      ))}
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -826,6 +956,20 @@ const TrackingHistory = () => {
                         <TableCell align="right">{row.ineligible}</TableCell>
                         <TableCell align="right">{row.declined}</TableCell>
                         <TableCell align="right">{row.other}</TableCell>
+                        {screeningStats.reasonHeaders.map((reason) => {
+                          const count = row.reasons?.[reason] || 0;
+                          const percent = reasonPercent(count, row.screened);
+                          const heat = reasonHeatColor(percent);
+                          return (
+                            <TableCell
+                              align="right"
+                              key={reason}
+                              sx={{ backgroundColor: heat.color, color: heat.dark ? '#fff' : 'inherit' }}
+                            >
+                              {percent.toFixed(0)}%
+                            </TableCell>
+                          );
+                        })}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -835,11 +979,91 @@ const TrackingHistory = () => {
             <Grid item xs={12} md={7}>
               <Paper elevation={2} sx={{ p: 2 }}>
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  Screening outcome by Group / Site / Ward
+                  Screening outcome by Group / Site
                 </Typography>
                 <ReactECharts
                   option={screeningSummaryChartOption}
-                  style={{ height: '360px', width: '100%' }}
+                  style={{ height: `${screeningChartHeight}px`, width: '100%' }}
+                  opts={{ renderer: 'canvas' }}
+                  notMerge={true}
+                />
+              </Paper>
+            </Grid>
+          </Grid>
+        </Box>
+      )}
+
+      {/* Ward Screening Summary: table by ward + chart (split out from Group/Site summary above) */}
+      {filteredPatients.length > 0 && (
+        <Box sx={{ mt: 4 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+            <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
+              Screening Summary by Ward
+            </Typography>
+            <Button
+              size="small"
+              startIcon={<DownloadIcon />}
+              onClick={() => downloadScreeningSummaryCsv(screeningStats.wardRows, screeningStats.reasonHeaders, buildScreeningCsvFilename())}
+            >
+              Download CSV
+            </Button>
+          </Box>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={5}>
+              <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: wardScreeningChartHeight }}>
+                <Table size="small" stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell><strong>Type</strong></TableCell>
+                      <TableCell><strong>Category</strong></TableCell>
+                      <TableCell align="right"><strong>Screened</strong></TableCell>
+                      <TableCell align="right"><strong>Enrolled</strong></TableCell>
+                      <TableCell align="right"><strong>Ineligible</strong></TableCell>
+                      <TableCell align="right"><strong>Declined</strong></TableCell>
+                      <TableCell align="right"><strong>Other</strong></TableCell>
+                      {screeningStats.reasonHeaders.map((reason) => (
+                        <TableCell align="right" key={reason}><strong>{reason}</strong></TableCell>
+                      ))}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {screeningStats.wardRows.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell>{row.type || '—'}</TableCell>
+                        <TableCell>{row.category}</TableCell>
+                        <TableCell align="right">{row.screened}</TableCell>
+                        <TableCell align="right">{row.enrolled}</TableCell>
+                        <TableCell align="right">{row.ineligible}</TableCell>
+                        <TableCell align="right">{row.declined}</TableCell>
+                        <TableCell align="right">{row.other}</TableCell>
+                        {screeningStats.reasonHeaders.map((reason) => {
+                          const count = row.reasons?.[reason] || 0;
+                          const percent = reasonPercent(count, row.screened);
+                          const heat = reasonHeatColor(percent);
+                          return (
+                            <TableCell
+                              align="right"
+                              key={reason}
+                              sx={{ backgroundColor: heat.color, color: heat.dark ? '#fff' : 'inherit' }}
+                            >
+                              {percent.toFixed(0)}%
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Grid>
+            <Grid item xs={12} md={7}>
+              <Paper elevation={2} sx={{ p: 2 }}>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  Screening outcome by Ward
+                </Typography>
+                <ReactECharts
+                  option={wardScreeningChartOption}
+                  style={{ height: `${wardScreeningChartHeight}px`, width: '100%' }}
                   opts={{ renderer: 'canvas' }}
                   notMerge={true}
                 />

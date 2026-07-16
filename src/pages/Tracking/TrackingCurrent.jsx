@@ -60,6 +60,7 @@ import {
   Checkbox,
   ListItemText,
   OutlinedInput,
+  IconButton,
   TableContainer,
   Table,
   TableHead,
@@ -68,29 +69,26 @@ import {
   TableCell,
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
-import { useSelector, useDispatch } from 'react-redux';
+import FlipCameraAndroidIcon from '@mui/icons-material/FlipCameraAndroid';
+import { useSelector } from 'react-redux';
 import ReactECharts from 'echarts-for-react';
 
 // Layout components
 import Footer from '../../components/toolbars/Footer';
 
 // Shared filter components
-// eslint-disable-next-line no-unused-vars -- merged from fhir-summary (7b7f4b0), may be used later
-import { SiteSelection, WardSelection, GroupFilter } from '../../components/filters';
+import { StudySelection, SiteSelection, WardSelection, GroupFilter } from '../../components/filters';
 
 // Redux state management
 import {
-  setStudy,
   selectCurrentSite,
   selectCurrentWard,
-  selectCurrentCondition,
   selectCurrentStudy,
   selectCurrentGroup,
 } from '../../store/studySlice';
 
 // FHIR service for studies list and API calls
 import {
-  getProcessedStudies,
   isDevelopmentMode,
   // eslint-disable-next-line no-unused-vars -- merged from fhir-summary (7b7f4b0), may be used later
   getCurrentRecruitmentData,
@@ -106,10 +104,36 @@ import {
  * @param {string} code - Full hierarchical code from dictionary value
  * @returns {string} Leaf label (last segment)
  */
-const getLeafLabel = (code) => {
+
+const labelOrder = ['N/A', 'mild-cap', 'severe-cap', 'no-vap+', 'vap+']
+
+// Study13NV emits bare severity leaves ("mild"/"severe") instead of the
+// canonical "mild-cap"/"severe-cap" used by labelOrder. Normalize once, here,
+// at extraction time so every downstream stat/chart sees the same label.
+// Only applied for Study13NV — other studies may legitimately use "mild"/"severe" as-is.
+const LEAF_LABEL_ALIASES = { mild: 'mild-cap', severe: 'severe-cap' };
+const STUDY_WITH_LEAF_ALIASES = '13NV';
+
+const sortLabelsByOrder = (labelsArray) => {
+  return labelsArray.sort((a, b) => {
+    const idxA = labelOrder.indexOf(a);
+    const idxB = labelOrder.indexOf(b);
+    if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+    if (idxA === -1) return 1;
+    if (idxB === -1) return -1;
+    return idxA - idxB;
+  });
+};
+
+const getLeafLabel = (code, studyCode) => {
   if (!code || typeof code !== 'string') return code || '';
-  const parts = code.trim().split('.');
-  return parts.length > 1 ? parts[parts.length - 1] : code;
+  let modifiedCode = code.trim();
+  if (code.includes("CAP.triage")) {
+    modifiedCode = code+"-cap"
+  }
+  const parts = modifiedCode.trim().split('.');
+  const leaf = parts.length > 1 ? parts[parts.length - 1] : modifiedCode;
+  return studyCode === STUDY_WITH_LEAF_ALIASES ? (LEAF_LABEL_ALIASES[leaf] || leaf) : leaf;
 };
 
 /**
@@ -118,9 +142,10 @@ const getLeafLabel = (code) => {
  * children leaf only (e.g. "cap-1") to match MockStudy13NV label hierarchy.
  *
  * @param {Object} vitalPatient - The linked VitalPatient resource
+ * @param {string} studyCode - Current study code (e.g. "13NV"), used to gate label aliasing
  * @returns {string[]} Array of leaf label values (e.g., ["cap-1", "cap-2", "cap-3"]) or ["N/A"] if none
  */
-const extractLabels = (vitalPatient) => {
+const extractLabels = (vitalPatient, studyCode) => {
   if (!vitalPatient?.extension) return ['N/A'];
 
   const labels = [];
@@ -137,12 +162,12 @@ const extractLabels = (vitalPatient) => {
     const valueExt = dictionaryExt.extension.find(e => e.url === 'value');
 
     if (keyExt?.valueString === 'label' && valueExt?.valueString) {
-      const leaf = getLeafLabel(valueExt.valueString);
+      const leaf = getLeafLabel(valueExt.valueString, studyCode);
       if (leaf && !labels.includes(leaf)) labels.push(leaf);
     }
   });
 
-  return labels.length > 0 ? labels : ['N/A'];
+  return labels.length > 0 ? sortLabelsByOrder(labels) : ['N/A'];
 };
 
 /**
@@ -259,16 +284,17 @@ const extractSite = (subject) => {
  * - labels: Array of all labels for stats calculation
  *
  * @param {Object} bundle - The FHIR Bundle from mockLabel.json
+ * @param {string} studyCode - Current study code (e.g. "13NV"), used to gate label aliasing
  * @returns {Array} Processed rows for DataGrid
  */
-const processLabelData = (bundle) => {
+const processLabelData = (bundle, studyCode) => {
   if (!bundle?.entry) return [];
 
   return bundle.entry.map((entry, index) => {
     const resource = entry.resource;
     const subject = resource.subject;
     const linkedPatient = subject?.link?.[0]?.other;
-    const allLabels = extractLabels(linkedPatient);
+    const allLabels = extractLabels(linkedPatient, studyCode);
     // Study ID from VitalPatient name (e.g. "13NV-003-0002-C") per commit fbec530
     const studyId = linkedPatient?.name?.[0]?.given?.[0] || (resource.study?.reference || '').split('/').pop() || 'N/A';
     const siteCode = extractSite(subject) || 'N/A';
@@ -296,39 +322,39 @@ const processLabelData = (bundle) => {
 };
 
 /**
- * Get date range from last Friday to Today (inclusive)
- * "This week" usually refers to the reporting week starting from last Friday.
- * If today is Friday, it includes today.
+ * Get date range from last Monday to Today (inclusive)
+ * "This week" usually refers to the reporting week starting from last Monday.
+ * If today is Monday, it includes today.
  * @returns {Object} { start: Date, end: Date }
  */
-const getDateRangeFromLastFriday = () => {
+const getDateRangeFromLastMonday = () => {
   const today = new Date();
   today.setHours(23, 59, 59, 999); // End of today
 
-  const lastFriday = new Date(today);
-  const day = lastFriday.getDay(); // 0 (Sun) - 6 (Sat)
+  const lastMonday = new Date(today);
+  const day = lastMonday.getDay(); // 0 (Sun) - 6 (Sat)
 
-  // Calculate days to subtract to get to the *previous* Friday
-  // If today is Fri (5), we want to go back 0 days (if we count today as start) 
-  // OR 7 days if "last Friday" strictly means the previous week's Friday.
-  // Requirement: "from last Friday to today". Warning: Ambiguous.
-  // Assumption: "Last Friday" means the most recent Friday (or today if today is Friday).
-  // Actually, usually "Last Friday" implies the start of the week.
-  // If today is Friday, start is probably LAST week's Friday?
-  // Let's assume standard reporting: Start = Most recent past Friday.
+  // Calculate days to subtract to get to the *previous* Monday
+  // If today is Mon (1), we want to go back 0 days (if we count today as start)
+  // OR 7 days if "last Monday" strictly means the previous week's Monday.
+  // Requirement: "from last Monday to today". Warning: Ambiguous.
+  // Assumption: "Last Monday" means the most recent Monday (or today if today is Monday).
+  // Actually, usually "Last Monday" implies the start of the week.
+  // If today is Monday, start is probably LAST week's Monday?
+  // Let's assume standard reporting: Start = Most recent past Monday.
 
-  // Logic: Go back until day is 5 (Friday)
-  // If day is 5 (Fri), diff is 0.
-  // If day is 6 (Sat), diff is 1.
-  // If day is 0 (Sun), diff is 2.
-  // If day is 1 (Mon), diff is 3.
+  // Logic: Go back until day is 1 (Monday)
+  // If day is 1 (Mon), diff is 0.
+  // If day is 0 (Sun), diff is 1.
+  // If day is 2 (Tue), diff is 2.
+  // If day is 3 (Wed), diff is 3.
   const diff = (day + 2) % 7;
   // Wait: (5+2)%7 = 0. (6+2)%7 = 1. (0+2)%7 = 2. (1+2)%7 = 3. Correct.
 
-  lastFriday.setDate(lastFriday.getDate() - diff);
-  lastFriday.setHours(0, 0, 0, 0); // Start of last Friday
+  lastMonday.setDate(lastMonday.getDate() - diff);
+  lastMonday.setHours(0, 0, 0, 0); // Start of last Monday
 
-  return { start: lastFriday, end: today };
+  return { start: lastMonday, end: today };
 };
 
 /**
@@ -448,32 +474,24 @@ const filterMockData = (bundle, filters = {}) => {
  * Displays current recruitment data with patient-level details and labels.
  */
 const TrackingCurrentPage = () => {
-  const dispatch = useDispatch();
-
-  // Redux state for filters
-  // eslint-disable-next-line no-unused-vars -- merged from fhir-summary (7b7f4b0), may be used later
+  // Redux state for filters - StudySelection/SiteSelection/WardSelection/GroupFilter
+  // own their own dispatches; this page just reads the resulting selections.
   const currentStudy = useSelector(selectCurrentStudy);
   const currentSite = useSelector(selectCurrentSite);
-  // eslint-disable-next-line no-unused-vars -- merged from fhir-summary (7b7f4b0), WardSelection uses Redux but this page uses local ward/group filters
   const currentWard = useSelector(selectCurrentWard);
-  // eslint-disable-next-line no-unused-vars -- merged from fhir-summary (7b7f4b0), may be used later
-  // const currentCondition = useSelector(selectCurrentCondition);
-  // eslint-disable-next-line no-unused-vars -- merged from fhir-summary (7b7f4b0), GroupFilter uses Redux but this page uses local ward/group filters
   const currentGroup = useSelector(selectCurrentGroup);
+
+  // Study code derived from Redux (StudySelection owns fetching/persisting/dispatching it)
+  const selectedStudy = currentStudy?.studyCode || '';
 
   // Local state
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [tableData, setTableData] = useState([]);
-  const [studies, setStudies] = useState([]);
-  const [selectedStudy, setSelectedStudy] = useState(() => {
-    return localStorage.getItem('selectedStudyCode') || '';
-  });
-
-  // Local ward and group filters (derived from actual patient data, not organization resources)
-  // These replace the shared WardSelection/GroupFilter components which use different data sources
-  const [localWardFilter, setLocalWardFilter] = useState('');   // '' means all wards
-  const [localGroupFilter, setLocalGroupFilter] = useState(''); // '' means all groups
+  // Real attained/total progress for the slow, per-patient reference-resolution loop in
+  // getRecruitmentDetail's production-mode path (see fhirService.js). null when not fetching
+  // or in mock mode (that path has no per-item loop, so no progress events are emitted).
+  const [fetchProgress, setFetchProgress] = useState(null);
 
   // Summary statistics
   // ============ EDIT START: Dynamic initial state - no hard-coded groups (2026-01-28) ============
@@ -524,7 +542,15 @@ const TrackingCurrentPage = () => {
   // Chart type selection - allows switching between bar and pie charts
   const [wardChartType, setWardChartType] = useState('bar'); // 'bar' (labels), 'group' (groups), or 'pie'
   const [siteChartType, setSiteChartType] = useState('bar'); // 'bar' (labels), 'group' (groups), or 'pie'
+  // ============ EDIT START: Percentage-stacked flip toggles for Ward/Site charts (2026-07-09) ============
+  const [wardChartPercentMode, setWardChartPercentMode] = useState(false);
+  const [siteChartPercentMode, setSiteChartPercentMode] = useState(false);
+  // ============ EDIT END: Percentage-stacked flip toggles for Ward/Site charts ============
   // ============ EDIT END: Chart filter selections ============
+
+  // ============ EDIT START: Flip state for Label Distribution card ============
+  const [labelCardFlipped, setLabelCardFlipped] = useState(false);
+  // ============ EDIT END: Flip state for Label Distribution card ============
 
   /**
    * Load study data to get recruitment targets and label definitions
@@ -586,7 +612,9 @@ const TrackingCurrentPage = () => {
               text,
               group: parts[0] || '',           // e.g., "CAP" or "VAP"
               category: parts.length > 2 ? parts[1] : null, // e.g., "serverity" or null
-              label: parts[parts.length - 1] || '',  // e.g., "cap-1" or "vap-1"
+              // Route through getLeafLabel so the same "mild"/"severe" -> "-cap" aliasing
+              // used for patient data is also applied to the study's own label list.
+              label: getLeafLabel(code, studyCode) || '',  // e.g., "cap-1", "mild-cap" or "vap-1"
             });
           }
         });
@@ -648,10 +676,13 @@ const TrackingCurrentPage = () => {
       console.log('[TrackingCurrent] API filters:', filters);
 
       // Call FHIR service to get current recruitment data
-      const data = await getRecruitmentDetail({
-        studyCode: selectedStudy || undefined,
-        ...filters, // Pass filters to API
-      });
+      const data = await getRecruitmentDetail(
+        {
+          studyCode: selectedStudy || undefined,
+          ...filters, // Pass filters to API
+        },
+        (attained, total) => setFetchProgress({ attained, total })
+      );
 
       console.log(`[TrackingCurrent] Loaded ${data?.total || 0} subjects from FHIR API`);
       return data;
@@ -659,6 +690,8 @@ const TrackingCurrentPage = () => {
     } catch (error) {
       console.error('[TrackingCurrent] Error loading from FHIR API:', error);
       return null;
+    } finally {
+      setFetchProgress(null);
     }
   }, [selectedStudy]);
 
@@ -700,10 +733,6 @@ const TrackingCurrentPage = () => {
 
       setData(data);
 
-      // Reset local ward/group filters when data source changes
-      setLocalWardFilter('');
-      setLocalGroupFilter('');
-
     } catch (error) {
       console.error('[TrackingCurrent] Error loading recruitment data:', error);
       setData(null);
@@ -711,20 +740,6 @@ const TrackingCurrentPage = () => {
       setLoading(false);
     }
   }, [loadMockData, loadFromAPI, currentSite]);
-
-  /**
-   * Load studies list for dropdown
-   */
-  const loadStudies = useCallback(async () => {
-    try {
-      // if (isDevelopmentMode()) {
-      const studyList = await getProcessedStudies();
-      setStudies(studyList);
-      // }
-    } catch (error) {
-      console.error('[TrackingCurrent] Error loading studies:', error);
-    }
-  }, []);
 
   /**
    * Calculate statistics from a list of rows
@@ -768,7 +783,7 @@ const TrackingCurrentPage = () => {
       recruitmentBySiteLabel: {},
     };
 
-    const { start: weekStart, end: weekEnd } = getDateRangeFromLastFriday();
+    const { start: weekStart, end: weekEnd } = getDateRangeFromLastMonday();
 
     rows.forEach(row => {
       // Extract groups first to use in all metrics
@@ -946,7 +961,7 @@ const TrackingCurrentPage = () => {
     if (!data) return;
 
     // Process the pre-filtered data into table rows
-    const processed = processLabelData(data);
+    const processed = processLabelData(data, selectedStudy);
     setTableData(processed);
 
     console.log(`[TrackingCurrent] Processed ${processed.length} rows for display`);
@@ -955,19 +970,24 @@ const TrackingCurrentPage = () => {
     const newStats = calculateStats(processed);
     setStats(newStats);
 
-  }, [data, calculateStats]); // Only re-process when data changes
+  }, [data, calculateStats, selectedStudy]); // Only re-process when data or study changes
 
-  // Client-side filtering for ward and group (derived from actual patient data)
+  // Client-side filtering for ward and group, driven by the shared Redux
+  // WardSelection/GroupFilter components. Ward matching strips the "Ward"
+  // prefix from currentWard.id (e.g. "WardHTDED") since row.ward is derived
+  // from the same managingOrganization reference without that prefix (see
+  // extractWard above) - both ultimately come from the same Organization id.
   const filteredTableData = useMemo(() => {
     let filtered = tableData;
-    if (localWardFilter) {
-      filtered = filtered.filter(row => row.ward === localWardFilter);
+    if (currentWard?.id) {
+      const wardCode = currentWard.id.replace(/^Ward/i, '');
+      filtered = filtered.filter(row => row.ward === wardCode);
     }
-    if (localGroupFilter) {
-      filtered = filtered.filter(row => (row.groups || []).includes(localGroupFilter));
+    if (currentGroup?.name) {
+      filtered = filtered.filter(row => (row.groups || []).includes(currentGroup.name));
     }
     return filtered;
-  }, [tableData, localWardFilter, localGroupFilter]);
+  }, [tableData, currentWard, currentGroup]);
 
   // Filter for the TABLE to only show RECRUITED patients (enrolledDate is valid)
   const recruitedTableData = useMemo(() => {
@@ -980,6 +1000,14 @@ const TrackingCurrentPage = () => {
     return calculateStats(filteredTableData);
   }, [filteredTableData, calculateStats]);
 
+  // Local fallback options for WardSelection/GroupFilter, derived from the already-loaded
+  // (Site-scoped) patient data - see LOCAL FALLBACK docs on those components. Sourced from
+  // the unfiltered `stats` (not `filteredStats`) so the dropdown keeps showing every ward/
+  // group option even after the user has narrowed the current selection to one of them.
+  const localWardOptions = useMemo(
+    () => Object.entries(stats.byWard || {}).map(([code, count]) => ({ code, count })),
+    [stats.byWard]
+  );
   // Client-side filtering for ward and group (derived from actual patient data)
   // This replaces the server-side filtering that WardSelection/GroupFilter would trigger
 
@@ -988,13 +1016,15 @@ const TrackingCurrentPage = () => {
   // Uses loadRecruitmentData which automatically chooses between mock (dev) and API (prod)
   useEffect(() => {
     loadRecruitmentData();
-    loadStudies();
-  }, [loadRecruitmentData, loadStudies]);
+  }, [loadRecruitmentData]);
 
   // Load study targets when selectedStudy changes or on initial load
   useEffect(() => {
     if (selectedStudy) {
       loadStudyData(selectedStudy);
+    } else {
+      // Clear targets when no study selected
+      setStudyTargets({ totalTarget: 0, byGroup: {}, labelHierarchy: [] });
     }
   }, [selectedStudy, loadStudyData]);
 
@@ -1014,29 +1044,6 @@ const TrackingCurrentPage = () => {
     );
   }, [filteredStats.byWard, filteredStats.bySite]);
   // ============ EDIT END: Initialize chart selections when data changes ============
-
-  /**
-   * Handle study selection change
-   * Also loads study targets when a study is selected
-   */
-  const handleStudyChange = (event) => {
-    const studyCode = event.target.value;
-    setSelectedStudy(studyCode);
-    localStorage.setItem('selectedStudyCode', studyCode);
-
-    const selectedStudyObj = studies.find(s => s.studyCode === studyCode);
-    if (selectedStudyObj) {
-      dispatch(setStudy(selectedStudyObj));
-    }
-
-    // Load study targets when study is selected
-    if (studyCode) {
-      loadStudyData(studyCode);
-    } else {
-      // Clear targets when no study selected
-      setStudyTargets({ totalTarget: 0, byGroup: {}, labelHierarchy: [] });
-    }
-  };
 
   // ============================================
   // COLOR PALETTES & HELPER FUNCTIONS
@@ -1066,11 +1073,26 @@ const TrackingCurrentPage = () => {
   const getChartColor = (index) => chartColors[index % chartColors.length];
 
   /**
+   * Get a color for a label that stays consistent across every chart.
+   * Colors are keyed off the canonical `labelOrder` position (module-level,
+   * fixed) rather than each chart's own filtered/derived label list, so the
+   * same label always gets the same color regardless of which labels happen
+   * to be present in a given chart. Labels outside labelOrder fall back to
+   * their position in the provided list, offset past the canonical colors.
+   */
+  const getPersistentLabelColor = (label, fallbackList = []) => {
+    const canonicalIndex = labelOrder.indexOf(label);
+    if (canonicalIndex >= 0) return getChartColor(canonicalIndex);
+    const fallbackIndex = fallbackList.indexOf(label);
+    return getChartColor(fallbackIndex >= 0 ? labelOrder.length + fallbackIndex : 0);
+  };
+
+  /**
    * Get chip color based on label (dynamic - based on label index)
    */
   const getLabelColor = (label) => {
     // Use filteredStats for consistent coloring in charts
-    const labelList = Object.keys(filteredStats.byLabel || {}).sort();
+    const labelList = sortLabelsByOrder(Object.keys(filteredStats.byLabel || {}));
     const index = labelList.indexOf(label);
     return index >= 0 ? chipColorMap[index % chipColorMap.length] : 'default';
   };
@@ -1127,33 +1149,45 @@ const groupPieChartOption = {
     },
   },
   tooltip: {
-    trigger: 'item',
-    formatter: '{b}: {c}',
+    trigger: 'axis',
+    axisPointer: { type: 'shadow' },
+    formatter: (params) => `${params[0].name}: ${params[0].value}`,
   },
-  legend: {
-    orient: 'horizontal',
-    bottom: '5%',
-    left: 'center',
+  grid: {
+    left: '3%',
+    right: '4%',
+    top: '15%',
+    bottom: '10%',
+    containLabel: true,
+  },
+  xAxis: {
+    type: 'category',
+    data: groupPieChartData.map((item) => item.name),
+    axisLabel: {
+      interval: 0,
+      rotate: groupPieChartData.length > 6 ? 30 : 0,
+    },
+  },
+  yAxis: {
+    type: 'value',
   },
   series: [
     {
       name: 'Group',
-      type: 'sunburst',
-      radius: ['40%', '70%'],
+      type: 'bar',
+      barMaxWidth: 40,
 
       itemStyle: {
-        borderRadius: 10,
-        borderColor: '#fff',
-        borderWidth: 2,
+        borderRadius: [6, 6, 0, 0],
+        color: (params) => groupPieChartData[params.dataIndex].itemStyle.color,
       },
 
       label: {
         show: true,
-        formatter: '{b}: {c}',
+        position: 'top',
       },
 
       emphasis: {
-        focus: 'ancestor',
         label: {
           show: true,
           fontSize: 14,
@@ -1161,27 +1195,11 @@ const groupPieChartOption = {
         },
       },
 
-      labelLine: {
-        show: true,
-      },
-
-      levels: [
-        {},
-        {
-          r0: '40%',
-          r: '70%',
-        },
-        {
-          r0: '70%',
-          r: '90%',
-        },
-      ],
-
-      data: groupPieChartData,
+      data: groupPieChartData.map((item) => item.value),
     },
   ],
 };
-  // ============ EDIT END: Dynamic group pie chart ============
+  // ============ EDIT END: Dynamic group bar chart ============
 
   /**
    * Bar Chart - Label Distribution
@@ -1210,9 +1228,9 @@ const groupPieChartOption = {
     },
     xAxis: {
       type: 'category',
-      data: Object.keys(filteredStats.byLabel || {}).sort(),
+      data: sortLabelsByOrder(Object.keys(filteredStats.byLabel || {})),
       axisLabel: {
-        rotate: 0,
+        rotate: 30,
         fontSize: 12,
       },
     },
@@ -1225,8 +1243,7 @@ const groupPieChartOption = {
         name: 'Subjects',
         type: 'bar',
         barWidth: '60%',
-        data: Object.keys(filteredStats.recruitmentByLabel || {})
-          .sort()
+        data: sortLabelsByOrder(Object.keys(filteredStats.recruitmentByLabel || {}))
           .map((label, index) => ({
             value: filteredStats.recruitmentByLabel?.[label] || 0,
             itemStyle: {
@@ -1244,6 +1261,98 @@ const groupPieChartOption = {
       },
     ],
   };
+
+  // ============ EDIT START: Stacked % bar chart - label breakdown per group (2026-07-09) ============
+  /**
+   * Horizontal/Vertical Stacked Bar Chart - Label breakdown per group, as percentage
+   * Uses filteredStats.recruitmentByLabelGroup, e.g.:
+   * { VAP: { 'vap+': 6, 'no-vap+': 9, 'N/A': 22 }, CAP: { mild: 31, severe: 11, 'N/A': 3 } }
+   */
+  const labelGroupPercentData = filteredStats.recruitmentByLabelGroup || {};
+  const labelGroupPercentGroups = Object.keys(labelGroupPercentData);
+  // Union of all labels across all groups, sorted using the canonical labelOrder
+  const labelGroupPercentLabels = sortLabelsByOrder(
+    Array.from(
+      labelGroupPercentGroups.reduce((set, group) => {
+        Object.keys(labelGroupPercentData[group] || {}).forEach((label) => set.add(label));
+        return set;
+      }, new Set())
+    )
+  );
+  const labelGroupPercentTotals = labelGroupPercentGroups.reduce((acc, group) => {
+    acc[group] = Object.values(labelGroupPercentData[group] || {}).reduce((sum, v) => sum + v, 0);
+    return acc;
+  }, {});
+
+  const labelGroupStackedPercentBarChartOption = {
+    title: {
+      text: 'Label Distribution by Group (%)',
+      left: 'center',
+      textStyle: { fontSize: 16, fontWeight: 'bold' },
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      formatter: (params) => {
+        const group = params[0]?.axisValue;
+        const total = labelGroupPercentTotals[group] || 0;
+        let tooltip = `<strong>${group}</strong> (Total: ${total})<br/>`;
+        params.forEach((p) => {
+          const count = labelGroupPercentData[group]?.[p.seriesName] || 0;
+          if (count > 0) {
+            tooltip += `${p.marker} ${p.seriesName}: ${count} (${p.value}%)<br/>`;
+          }
+        });
+        return tooltip;
+      },
+    },
+    legend: {
+      data: labelGroupPercentLabels,
+      bottom: '0%',
+      type: 'scroll',
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '15%',
+      top: '15%',
+      containLabel: true,
+    },
+    xAxis: {
+      type: 'category',
+      data: labelGroupPercentGroups,
+      axisLabel: { fontSize: 12 },
+    },
+    yAxis: {
+      type: 'value',
+      name: '%',
+      max: 100,
+      axisLabel: { formatter: '{value}%' },
+    },
+    // Stack N/A last so it renders as the topmost segment (legend order stays canonical)
+    series: [...labelGroupPercentLabels.filter((l) => l !== 'N/A'), ...labelGroupPercentLabels.filter((l) => l === 'N/A')]
+      .map((label) => {
+        return {
+          name: label,
+          type: 'bar',
+          stack: 'total',
+          barMaxWidth: 60,
+          emphasis: { focus: 'series' },
+          itemStyle: { color: label === 'N/A' ? '#9e9e9e' : getPersistentLabelColor(label, labelGroupPercentLabels) },
+          label: {
+            show: true,
+            formatter: (params) => (params.value > 0 ? `${params.value}%` : ''),
+            fontSize: 10,
+          },
+          data: labelGroupPercentGroups.map((group) => {
+            const total = labelGroupPercentTotals[group] || 0;
+            const count = labelGroupPercentData[group]?.[label] || 0;
+            return total > 0 ? Math.round((count / total) * 1000) / 10 : 0;
+          }),
+        };
+      }),
+  };
+  // ============ EDIT END: Stacked % bar chart - label breakdown per group ============
 
   // ============ EDIT START: Stacked bar chart by ward and group (2026-01-28) ============
   // Get all wards sorted by total count (descending)
@@ -1300,7 +1409,7 @@ const groupPieChartOption = {
 
     // Sort labels within each group
     Object.keys(hierarchy).forEach(group => {
-      hierarchy[group].sort();
+      sortLabelsByOrder(hierarchy[group]);
     });
 
     return hierarchy;
@@ -1308,7 +1417,7 @@ const groupPieChartOption = {
 
   // Get ALL labels from hierarchy (includes study-defined labels with 0 count)
   const allLabelsFromHierarchy = useMemo(() => {
-    return Object.values(labelHierarchy).flat().sort();
+    return sortLabelsByOrder(Object.values(labelHierarchy).flat());
   }, [labelHierarchy]);
 
   // Initialize label selections when hierarchy changes (includes study-defined labels)
@@ -1325,8 +1434,10 @@ const groupPieChartOption = {
   }, [allLabelsFromHierarchy]);
 
   // ============ EDIT START: Filter wards and groups based on user selection (2026-02-04) ============
-  // Filter to only selected wards (maintain sort order)
-  const filteredWardsForChart = allWardsAvailable.filter(w => selectedWardsForChart.includes(w));
+  // Filter to only selected wards, then reorder alphabetically for the chart y-axis
+  const filteredWardsForChart = allWardsAvailable
+    .filter(w => selectedWardsForChart.includes(w))
+    .sort((a, b) => a.localeCompare(b));
   // Filter to only selected labels for ward chart (using all labels from hierarchy, including study-defined)
   const filteredLabelsForWardChart = allLabelsFromHierarchy.filter(l => selectedLabelsForWardChart.includes(l));
   // ============ EDIT END: Filter wards and groups based on user selection ============
@@ -1346,12 +1457,16 @@ const groupPieChartOption = {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
       formatter: (params) => {
-        let tooltip = `<strong>${params[0].axisValue}</strong><br/>`;
+        const ward = params[0]?.axisValue;
+        let tooltip = `<strong>${ward}</strong><br/>`;
         let total = 0;
         params.forEach(p => {
-          if (p.value > 0) {
-            tooltip += `${p.marker} ${p.seriesName}: ${p.value}<br/>`;
-            total += p.value;
+          if (p.seriesName === 'Total') return;
+          const raw = filteredStats.recruitmentByWardLabel?.[ward]?.[p.seriesName] || 0;
+          if (raw > 0) {
+            const pctStr = wardChartPercentMode ? ` (${p.value}%)` : '';
+            tooltip += `${p.marker} ${p.seriesName}: ${raw}${pctStr}<br/>`;
+            total += raw;
           }
         });
         tooltip += `<strong>Total: ${total}</strong>`;
@@ -1370,7 +1485,12 @@ const groupPieChartOption = {
       top: '15%',
       containLabel: true,
     },
-    xAxis: { type: 'value', name: 'Subjects' },
+    xAxis: {
+      type: 'value',
+      name: wardChartPercentMode ? '%' : 'Subjects',
+      max: wardChartPercentMode ? 100 : undefined,
+      axisLabel: wardChartPercentMode ? { formatter: '{value}%' } : undefined,
+    },
     yAxis: {
       type: 'category',
       data: filteredWardsForChart,
@@ -1383,11 +1503,23 @@ const groupPieChartOption = {
         type: 'bar',
         stack: 'total',
         emphasis: { focus: 'series' },
-        data: filteredWardsForChart.map(ward => filteredStats.recruitmentByWardLabel?.[ward]?.[label] || 0),
+        data: filteredWardsForChart.map(ward => {
+          const raw = filteredStats.recruitmentByWardLabel?.[ward]?.[label] || 0;
+          if (!wardChartPercentMode) return raw;
+          const total = filteredLabelsForWardChart.reduce(
+            (sum, l) => sum + (filteredStats.recruitmentByWardLabel?.[ward]?.[l] || 0), 0
+          );
+          return total > 0 ? Math.round((raw / total) * 1000) / 10 : 0;
+        }),
         itemStyle: {
-          color: getChartColor(allLabelsFromHierarchy.indexOf(label)), // Consistent colors
+          color: getPersistentLabelColor(label, allLabelsFromHierarchy), // Consistent colors across all charts
         },
-        label: { show: false },
+        label: {
+          show: wardChartPercentMode,
+          position: 'inside',
+          fontSize: 10,
+          formatter: (params) => (params.value > 0 ? `${params.value}%` : ''),
+        },
       })),
       // Total label
       {
@@ -1402,9 +1534,10 @@ const groupPieChartOption = {
           fontWeight: 'bold',
           formatter: (params) => {
             const ward = filteredWardsForChart[params.dataIndex];
-            return filteredLabelsForWardChart.reduce(
+            const total = filteredLabelsForWardChart.reduce(
               (sum, l) => sum + (filteredStats.recruitmentByWardLabel?.[ward]?.[l] || 0), 0
             );
+            return wardChartPercentMode ? '' : total;
           },
         },
         data: filteredWardsForChart.map(() => 0),
@@ -1482,12 +1615,16 @@ const groupPieChartOption = {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
       formatter: (params) => {
-        let tooltip = `<strong>${params[0].axisValue}</strong><br/>`;
+        const ward = params[0]?.axisValue;
+        let tooltip = `<strong>${ward}</strong><br/>`;
         let total = 0;
         params.forEach(p => {
-          if (p.value > 0) {
-            tooltip += `${p.marker} ${p.seriesName}: ${p.value}<br/>`;
-            total += p.value;
+          if (p.seriesName === 'Total') return;
+          const raw = filteredStats.recruitmentByWardGroup?.[ward]?.[p.seriesName] || 0;
+          if (raw > 0) {
+            const pctStr = wardChartPercentMode ? ` (${p.value}%)` : '';
+            tooltip += `${p.marker} ${p.seriesName}: ${raw}${pctStr}<br/>`;
+            total += raw;
           }
         });
         tooltip += `<strong>Total: ${total}</strong>`;
@@ -1506,7 +1643,12 @@ const groupPieChartOption = {
       top: '15%',
       containLabel: true,
     },
-    xAxis: { type: 'value', name: 'Subjects' },
+    xAxis: {
+      type: 'value',
+      name: wardChartPercentMode ? '%' : 'Subjects',
+      max: wardChartPercentMode ? 100 : undefined,
+      axisLabel: wardChartPercentMode ? { formatter: '{value}%' } : undefined,
+    },
     yAxis: {
       type: 'category',
       data: filteredWardsForChart,
@@ -1519,11 +1661,23 @@ const groupPieChartOption = {
         type: 'bar',
         stack: 'total',
         emphasis: { focus: 'series' },
-        data: filteredWardsForChart.map(ward => filteredStats.recruitmentByWardGroup?.[ward]?.[group] || 0),
+        data: filteredWardsForChart.map(ward => {
+          const raw = filteredStats.recruitmentByWardGroup?.[ward]?.[group] || 0;
+          if (!wardChartPercentMode) return raw;
+          const total = allGroups.reduce(
+            (sum, g) => sum + (filteredStats.recruitmentByWardGroup?.[ward]?.[g] || 0), 0
+          );
+          return total > 0 ? Math.round((raw / total) * 1000) / 10 : 0;
+        }),
         itemStyle: {
           color: getChartColor(index),
         },
-        label: { show: false },
+        label: {
+          show: wardChartPercentMode,
+          position: 'inside',
+          fontSize: 10,
+          formatter: (params) => (params.value > 0 ? `${params.value}%` : ''),
+        },
       })),
       // Total label
       {
@@ -1538,9 +1692,10 @@ const groupPieChartOption = {
           fontWeight: 'bold',
           formatter: (params) => {
             const ward = filteredWardsForChart[params.dataIndex];
-            return allGroups.reduce(
+            const total = allGroups.reduce(
               (sum, g) => sum + (filteredStats.recruitmentByWardGroup?.[ward]?.[g] || 0), 0
             );
+            return wardChartPercentMode ? '' : total;
           },
         },
         data: filteredWardsForChart.map(() => 0),
@@ -1554,19 +1709,21 @@ const groupPieChartOption = {
   // const allGroups = Object.keys(filteredStats.byGroup || {});
 
   // Get all unique labels across all groups
-  const allLabels = [...new Set(
+  const allLabels = sortLabelsByOrder([...new Set(
     allGroups.flatMap(group =>
       Object.keys(filteredStats.recruitmentByLabelGroup?.[group] || {})
     )
-  )].sort();
+  )]);
 
   // Get all sites sorted by total count (descending)
   const allSitesAvailable = Object.keys(filteredStats.recruitmentBySite || {})
     .sort((a, b) => (filteredStats.recruitmentBySite?.[b] || 0) - (filteredStats.recruitmentBySite?.[a] || 0));
 
   // ============ EDIT START: Filter sites and groups based on user selection (2026-02-04) ============
-  // Filter to only selected sites (maintain sort order)
-  const filteredSitesForChart = allSitesAvailable.filter(s => selectedSitesForChart.includes(s));
+  // Filter to only selected sites, then reorder alphabetically for the chart y-axis
+  const filteredSitesForChart = allSitesAvailable
+    .filter(s => selectedSitesForChart.includes(s))
+    .sort((a, b) => a.localeCompare(b));
   // Filter to only selected labels for site chart (hierarchical filtering)
   const filteredLabelsForSiteChart = allLabelsFromHierarchy.filter(l => selectedLabelsForSiteChart.includes(l));
   // ============ EDIT END: Filter sites and groups based on user selection ============
@@ -1587,12 +1744,16 @@ const groupPieChartOption = {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
       formatter: (params) => {
-        let tooltip = `<strong>Site: ${params[0].axisValue}</strong><br/>`;
+        const site = params[0]?.axisValue;
+        let tooltip = `<strong>Site: ${site}</strong><br/>`;
         let total = 0;
         params.forEach(p => {
-          if (p.value > 0) {
-            tooltip += `${p.marker} ${p.seriesName}: ${p.value}<br/>`;
-            total += p.value;
+          if (p.seriesName === 'Total') return;
+          const raw = filteredStats.recruitmentBySiteLabel?.[site]?.[p.seriesName] || 0;
+          if (raw > 0) {
+            const pctStr = siteChartPercentMode ? ` (${p.value}%)` : '';
+            tooltip += `${p.marker} ${p.seriesName}: ${raw}${pctStr}<br/>`;
+            total += raw;
           }
         });
         tooltip += `<strong>Total: ${total}</strong>`;
@@ -1611,7 +1772,12 @@ const groupPieChartOption = {
       top: '15%',
       containLabel: true,
     },
-    xAxis: { type: 'value', name: 'Subjects' },
+    xAxis: {
+      type: 'value',
+      name: siteChartPercentMode ? '%' : 'Subjects',
+      max: siteChartPercentMode ? 100 : undefined,
+      axisLabel: siteChartPercentMode ? { formatter: '{value}%' } : undefined,
+    },
     yAxis: {
       type: 'category',
       data: filteredSitesForChart,
@@ -1624,11 +1790,23 @@ const groupPieChartOption = {
         type: 'bar',
         stack: 'total',
         emphasis: { focus: 'series' },
-        data: filteredSitesForChart.map(site => filteredStats.recruitmentBySiteLabel?.[site]?.[label] || 0),
+        data: filteredSitesForChart.map(site => {
+          const raw = filteredStats.recruitmentBySiteLabel?.[site]?.[label] || 0;
+          if (!siteChartPercentMode) return raw;
+          const total = filteredLabelsForSiteChart.reduce(
+            (sum, l) => sum + (filteredStats.recruitmentBySiteLabel?.[site]?.[l] || 0), 0
+          );
+          return total > 0 ? Math.round((raw / total) * 1000) / 10 : 0;
+        }),
         itemStyle: {
-          color: getChartColor(allLabelsFromHierarchy.indexOf(label)), // Consistent colors
+          color: getPersistentLabelColor(label, allLabelsFromHierarchy), // Consistent colors across all charts
         },
-        label: { show: false },
+        label: {
+          show: siteChartPercentMode,
+          position: 'inside',
+          fontSize: 10,
+          formatter: (params) => (params.value > 0 ? `${params.value}%` : ''),
+        },
       })),
       // Total label
       {
@@ -1643,9 +1821,10 @@ const groupPieChartOption = {
           fontWeight: 'bold',
           formatter: (params) => {
             const site = filteredSitesForChart[params.dataIndex];
-            return filteredLabelsForSiteChart.reduce(
+            const total = filteredLabelsForSiteChart.reduce(
               (sum, l) => sum + (filteredStats.recruitmentBySiteLabel?.[site]?.[l] || 0), 0
             );
+            return siteChartPercentMode ? '' : total;
           },
         },
         data: filteredSitesForChart.map(() => 0),
@@ -1723,12 +1902,16 @@ const groupPieChartOption = {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
       formatter: (params) => {
-        let tooltip = `<strong>Site: ${params[0].axisValue}</strong><br/>`;
+        const site = params[0]?.axisValue;
+        let tooltip = `<strong>Site: ${site}</strong><br/>`;
         let total = 0;
         params.forEach(p => {
-          if (p.value > 0) {
-            tooltip += `${p.marker} ${p.seriesName}: ${p.value}<br/>`;
-            total += p.value;
+          if (p.seriesName === 'Total') return;
+          const raw = filteredStats.recruitmentBySiteGroup?.[site]?.[p.seriesName] || 0;
+          if (raw > 0) {
+            const pctStr = siteChartPercentMode ? ` (${p.value}%)` : '';
+            tooltip += `${p.marker} ${p.seriesName}: ${raw}${pctStr}<br/>`;
+            total += raw;
           }
         });
         tooltip += `<strong>Total: ${total}</strong>`;
@@ -1747,7 +1930,12 @@ const groupPieChartOption = {
       top: '15%',
       containLabel: true,
     },
-    xAxis: { type: 'value', name: 'Subjects' },
+    xAxis: {
+      type: 'value',
+      name: siteChartPercentMode ? '%' : 'Subjects',
+      max: siteChartPercentMode ? 100 : undefined,
+      axisLabel: siteChartPercentMode ? { formatter: '{value}%' } : undefined,
+    },
     yAxis: {
       type: 'category',
       data: filteredSitesForChart,
@@ -1755,17 +1943,28 @@ const groupPieChartOption = {
     },
     series: [
       // One series per group (stacked)
-      // ...allGroups.map((group, index) => ({
       ...allGroups.map((group, index) => ({
         name: group,
         type: 'bar',
         stack: 'total',
         emphasis: { focus: 'series' },
-        data: filteredSitesForChart.map(site => filteredStats.recruitmentBySiteGroup?.[site]?.[group] || 0),
+        data: filteredSitesForChart.map(site => {
+          const raw = filteredStats.recruitmentBySiteGroup?.[site]?.[group] || 0;
+          if (!siteChartPercentMode) return raw;
+          const total = allGroups.reduce(
+            (sum, g) => sum + (filteredStats.recruitmentBySiteGroup?.[site]?.[g] || 0), 0
+          );
+          return total > 0 ? Math.round((raw / total) * 1000) / 10 : 0;
+        }),
         itemStyle: {
           color: getChartColor(index),
         },
-        label: { show: false },
+        label: {
+          show: siteChartPercentMode,
+          position: 'inside',
+          fontSize: 10,
+          formatter: (params) => (params.value > 0 ? `${params.value}%` : ''),
+        },
       })),
       // Total label
       {
@@ -1780,9 +1979,10 @@ const groupPieChartOption = {
           fontWeight: 'bold',
           formatter: (params) => {
             const site = filteredSitesForChart[params.dataIndex];
-            return allGroups.reduce(
+            const total = allGroups.reduce(
               (sum, g) => sum + (filteredStats.recruitmentBySiteGroup?.[site]?.[g] || 0), 0
             );
+            return siteChartPercentMode ? '' : total;
           },
         },
         data: filteredSitesForChart.map(() => 0),
@@ -1945,11 +2145,26 @@ const groupPieChartOption = {
     },
   ];
 
-  // Loading state
+  // Loading state - shows a real attained/total progress bar while the production-mode
+  // per-patient reference-resolution loop (see getRecruitmentDetail in fhirService.js) is
+  // in flight; falls back to an indeterminate spinner otherwise (e.g. mock mode, which has
+  // no per-item loop and is already fast).
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
-        <CircularProgress />
+      <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" minHeight="100vh" gap={2}>
+        {fetchProgress ? (
+          <Box sx={{ width: 320 }}>
+            <LinearProgress
+              variant="determinate"
+              value={(fetchProgress.attained / fetchProgress.total) * 100}
+            />
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 1 }}>
+              Loading patients: {fetchProgress.attained} / {fetchProgress.total}
+            </Typography>
+          </Box>
+        ) : (
+          <CircularProgress />
+        )}
       </Box>
     );
   }
@@ -1970,23 +2185,7 @@ const groupPieChartOption = {
       <Box sx={{ mb: 3 }}>
         <Grid container spacing={2}>
           <Grid item xs={12} md={3}>
-            <FormControl fullWidth>
-              <InputLabel>Select Study</InputLabel>
-              <Select
-                value={selectedStudy}
-                onChange={handleStudyChange}
-                label="Select Study"
-              >
-                <MenuItem value="">
-                  <em>All Studies</em>
-                </MenuItem>
-                {studies.map((study) => (
-                  <MenuItem key={study.id || study.studyCode} value={study.studyCode}>
-                    {study.studyCode}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <StudySelection />
           </Grid>
 
           {selectedStudy && (
@@ -1995,51 +2194,18 @@ const groupPieChartOption = {
             </Grid>
           )}
 
-          {/* Ward filter - populated from actual patient data (not organization resources) */}
-          {selectedStudy && Object.keys(stats.byWard || {}).length > 0 && (
+          {/* Ward filter - shared Redux-backed component (requires study + site),
+              with local, patient-data-derived options as a fallback */}
+          {selectedStudy && (
             <Grid item xs={12} md={2}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Ward</InputLabel>
-                <Select
-                  value={localWardFilter}
-                  onChange={(e) => setLocalWardFilter(e.target.value)}
-                  label="Ward"
-                >
-                  <MenuItem value="">
-                    <em>All Wards</em>
-                  </MenuItem>
-                  {Object.entries(stats.byWard || {})
-                    .sort(([, a], [, b]) => b - a)
-                    .map(([ward, count]) => (
-                      <MenuItem key={ward} value={ward}>
-                        {ward} ({count})
-                      </MenuItem>
-                    ))}
-                </Select>
-              </FormControl>
+              <WardSelection size="small" localWards={localWardOptions} />
             </Grid>
           )}
 
-          {/* Group filter - populated from actual patient data */}
-          {selectedStudy && Object.keys(stats.byGroup || {}).length > 0 && (
+          {/* Group filter - shared Redux-backed component, independent of Ward/Site */}
+          {selectedStudy && (
             <Grid item xs={12} md={2}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Group</InputLabel>
-                <Select
-                  value={localGroupFilter}
-                  onChange={(e) => setLocalGroupFilter(e.target.value)}
-                  label="Group"
-                >
-                  <MenuItem value="">
-                    <em>All Groups</em>
-                  </MenuItem>
-                  {Object.entries(stats.byGroup || {}).map(([group, count]) => (
-                    <MenuItem key={group} value={group}>
-                      {group} ({count})
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <GroupFilter size="small" />
             </Grid>
           )}
         </Grid>
@@ -2050,7 +2216,7 @@ const groupPieChartOption = {
       {/* ============ Refactored Statistics Rows (4 Rows) - COMMENTED OUT FOR COMPACT VIEW ============ */}
       {/* 
       <Typography variant="subtitle1" gutterBottom sx={{ mt: 2, fontWeight: 'bold' }}>
-        This Week Screening <Typography component="span" variant="caption" color="text.secondary">(from last Friday to today)</Typography>
+        This Week Screening <Typography component="span" variant="caption" color="text.secondary">(from last Monday to today)</Typography>
       </Typography>
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={3}>
@@ -2093,7 +2259,7 @@ const groupPieChartOption = {
             <TableRow>
               <TableCell component="th" scope="row">
                 <Typography variant="body2" fontWeight="bold">This Week Screening</Typography>
-                <Typography variant="caption" color="text.secondary">from last Friday to today</Typography>
+                <Typography variant="caption" color="text.secondary">from last Monday to today</Typography>
               </TableCell>
               {Object.keys(filteredStats.byGroup || {}).map((group, index) => (
                 <TableCell key={group} align="center">
@@ -2129,7 +2295,7 @@ const groupPieChartOption = {
             <TableRow>
               <TableCell component="th" scope="row">
                 <Typography variant="body2" fontWeight="bold">This Week Recruitment</Typography>
-                <Typography variant="caption" color="text.secondary">from last Friday to today</Typography>
+                <Typography variant="caption" color="text.secondary">from last Monday to today</Typography>
               </TableCell>
               {Object.keys(filteredStats.byGroup || {}).map((group, index) => (
                 <TableCell key={group} align="center">
@@ -2470,36 +2636,116 @@ const groupPieChartOption = {
           </Paper>
         </Grid>
 
-        {/* Label Distribution Bar Chart */}
+        {/* ============ EDIT START: Label Distribution flip card (2026-07-09) ============ */}
+        {/* Label Distribution - flip card: front = % stacked bar by group, back = original count bar chart */}
         <Grid item xs={12} md={4}>
-          <Paper elevation={2} sx={{ p: 2 }}>
-            {Object.keys(stats.recruitmentByLabel || {}).length > 0 ? (
-              <ReactECharts
-                option={labelBarChartOption}
-                style={{ height: '300px', width: '100%' }}
-                opts={{ renderer: 'canvas' }}
-                notMerge={true}
-              />
-            ) : (
-              <Box
+          <Box sx={{ perspective: '1200px', height: '332px' }}>
+            <Box
+              sx={{
+                position: 'relative',
+                width: '100%',
+                height: '100%',
+                transformStyle: 'preserve-3d',
+                transition: 'transform 0.6s',
+                transform: labelCardFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+              }}
+            >
+              {/* Front face - stacked % bar chart */}
+              <Paper
+                elevation={2}
                 sx={{
-                  height: '300px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  alignItems: 'center'
+                  position: 'absolute',
+                  inset: 0,
+                  p: 2,
+                  backfaceVisibility: 'hidden',
+                  overflow: 'hidden',
                 }}
               >
-                <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
-                  Label Distribution
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  No data available for selected filters
-                </Typography>
-              </Box>
-            )}
-          </Paper>
+                <IconButton
+                  size="small"
+                  onClick={() => setLabelCardFlipped(true)}
+                  sx={{ position: 'absolute', top: 4, right: 4, zIndex: 1 }}
+                  title="Show label count chart"
+                >
+                  <FlipCameraAndroidIcon fontSize="small" />
+                </IconButton>
+                {labelGroupPercentGroups.length > 0 ? (
+                  <ReactECharts
+                    option={labelGroupStackedPercentBarChartOption}
+                    style={{ height: '300px', width: '100%' }}
+                    opts={{ renderer: 'canvas' }}
+                    notMerge={true}
+                  />
+                ) : (
+                  <Box
+                    sx={{
+                      height: '300px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
+                      Label Distribution by Group (%)
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      No data available for selected filters
+                    </Typography>
+                  </Box>
+                )}
+              </Paper>
+
+              {/* Back face - original label count bar chart */}
+              <Paper
+                elevation={2}
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  p: 2,
+                  backfaceVisibility: 'hidden',
+                  transform: 'rotateY(180deg)',
+                  overflow: 'hidden',
+                }}
+              >
+                <IconButton
+                  size="small"
+                  onClick={() => setLabelCardFlipped(false)}
+                  sx={{ position: 'absolute', top: 4, right: 4, zIndex: 1 }}
+                  title="Show % breakdown chart"
+                >
+                  <FlipCameraAndroidIcon fontSize="small" />
+                </IconButton>
+                {Object.keys(stats.recruitmentByLabel || {}).length > 0 ? (
+                  <ReactECharts
+                    option={labelBarChartOption}
+                    style={{ height: '300px', width: '100%' }}
+                    opts={{ renderer: 'canvas' }}
+                    notMerge={true}
+                  />
+                ) : (
+                  <Box
+                    sx={{
+                      height: '300px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
+                      Label Distribution
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      No data available for selected filters
+                    </Typography>
+                  </Box>
+                )}
+              </Paper>
+            </Box>
+          </Box>
         </Grid>
+        {/* ============ EDIT END: Label Distribution flip card ============ */}
 
         {/* Recruitment Overview Radar Chart - moved to third column */}
         <Grid item xs={12} md={4}>
@@ -2649,6 +2895,19 @@ const groupPieChartOption = {
                   <MenuItem value="pie">Pie Chart</MenuItem>
                 </Select>
               </FormControl>
+              {/* Flip to percentage-stacked view */}
+              <Tooltip title={wardChartType === 'pie' ? 'Not available for pie chart' : (wardChartPercentMode ? 'Show subject counts' : 'Show as percentage')}>
+                <span>
+                  <IconButton
+                    size="small"
+                    disabled={wardChartType === 'pie'}
+                    onClick={() => setWardChartPercentMode((prev) => !prev)}
+                    color={wardChartPercentMode ? 'primary' : 'default'}
+                  >
+                    <FlipCameraAndroidIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
             </Box>
             {/* Chart - uses label-based or group-based data depending on selection */}
             {filteredWardsForChart.length > 0 && (wardChartType === 'group' || filteredLabelsForWardChart.length > 0) ? (
@@ -2802,6 +3061,19 @@ const groupPieChartOption = {
                   <MenuItem value="pie">Pie Chart</MenuItem>
                 </Select>
               </FormControl>
+              {/* Flip to percentage-stacked view */}
+              <Tooltip title={siteChartType === 'pie' ? 'Not available for pie chart' : (siteChartPercentMode ? 'Show subject counts' : 'Show as percentage')}>
+                <span>
+                  <IconButton
+                    size="small"
+                    disabled={siteChartType === 'pie'}
+                    onClick={() => setSiteChartPercentMode((prev) => !prev)}
+                    color={siteChartPercentMode ? 'primary' : 'default'}
+                  >
+                    <FlipCameraAndroidIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
             </Box>
             {/* Chart - uses label-based or group-based data depending on selection */}
             {filteredSitesForChart.length > 0 && (siteChartType === 'group' || filteredLabelsForSiteChart.length > 0) ? (
@@ -2836,7 +3108,7 @@ const groupPieChartOption = {
       </Grid>
 
       {/* Recruitment Details Table */}
-      <Paper elevation={3}>
+      {/* <Paper elevation={3}>
         <Typography
           variant="h6"
           sx={{
@@ -2875,12 +3147,12 @@ const groupPieChartOption = {
             }}
           />
         </Box>
-      </Paper>
+      </Paper> */}
 
       {/* Data Source Info */}
       <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
         <Typography variant="caption" color="text.secondary">
-          Total records: {data?.total || 0}{(localWardFilter || localGroupFilter) ? ` | Filtered Screening: ${filteredTableData.length}` : ''} |
+          Total records: {data?.total || 0}{(currentWard || currentGroup) ? ` | Filtered Screening: ${filteredTableData.length}` : ''} |
           Recruited listed: {recruitedTableData.length} |
           Last updated: {data?.meta?.lastUpdated || 'N/A'}
         </Typography>

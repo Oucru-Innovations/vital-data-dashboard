@@ -51,6 +51,11 @@ import {
 // FHIR API service for fetching ward data
 import { getProcessedWards, isDevelopmentMode } from '../../services/fhirService';
 
+// Stable reference for the `localWards` default so callers that omit the prop
+// (TrackingWeekly, MonthlyReport) don't cause the alias-matching effect below
+// to re-run every render just because a fresh `[]` literal was the default.
+const EMPTY_LOCAL_WARDS = [];
+
 /**
  * WardSelection Component
  *
@@ -60,6 +65,13 @@ import { getProcessedWards, isDevelopmentMode } from '../../services/fhirService
  * @param {string} props.size - MUI Select size: 'small' | 'medium' (default: 'small')
  * @param {string} props.variant - MUI Select variant: 'outlined' | 'filled' | 'standard' (default: 'outlined')
  * @param {boolean} props.showMatchedAlias - Whether to show matched alias as chip (default: true)
+ * @param {Array<{code: string, count?: number}>} [props.localWards] - Wards derived from
+ *   already-loaded patient data (e.g. Object.entries(stats.byWard).map(([code, count]) => ({code, count}))),
+ *   merged with the Organization-alias-matched wards as a fallback for when Organization
+ *   data doesn't have a matching alias. Purely additive/optional - callers that don't pass
+ *   it (TrackingWeekly, MonthlyReport) are unaffected. Synthesized entries use
+ *   id: `Ward${code}` so downstream `.id`-based matching (selectAlias, TrackingCurrent's
+ *   `currentWard.id.replace(/^Ward/i, '')` filter) keeps working unchanged.
  * @returns {JSX.Element} Ward selection dropdown
  */
 const WardSelection = ({
@@ -68,6 +80,7 @@ const WardSelection = ({
   size = 'small',
   variant = 'outlined',
   showMatchedAlias = true,
+  localWards = EMPTY_LOCAL_WARDS,
 }) => {
   // ===== STATE MANAGEMENT =====
 
@@ -262,7 +275,27 @@ const WardSelection = ({
       `[WardSelection] Filtered to ${wardsToShow.length} wards for ${aliasPrefix}*`
     );
 
-    setFilteredWards(wardsToShow);
+    /**
+     * Merge in local, patient-data-derived wards for any code not already
+     * matched via Organization alias (e.g. the real server has no matching
+     * Organization/alias for this study-site combo, but the loaded patient
+     * data clearly has wards). Deduped by code so an alias-matched ward
+     * always wins over its synthesized local counterpart.
+     */
+    const matchedCodes = new Set(wardsToShow.map((w) => (w.id || '').replace(/^Ward/i, '')));
+    const localOnlyWards = localWards
+      .filter((w) => w.code && !matchedCodes.has(w.code))
+      .map((w) => ({
+        id: `Ward${w.code}`,
+        name: w.count != null ? `${w.code} (${w.count})` : w.code,
+        code: w.code,
+        alias: [],
+        matchedAlias: null,
+      }));
+
+    const mergedWards = [...wardsToShow, ...localOnlyWards];
+
+    setFilteredWards(mergedWards);
 
     /**
      * Validation: Check if current ward is still valid
@@ -272,7 +305,7 @@ const WardSelection = ({
      * If not, clear the selection.
      */
     if (currentWard && allWards.length > 0) {
-      const isWardStillValid = wardsToShow.some((ward) => ward.id === currentWard.id);
+      const isWardStillValid = mergedWards.some((ward) => ward.id === currentWard.id);
 
       if (!isWardStillValid) {
         console.log(
@@ -281,7 +314,7 @@ const WardSelection = ({
         dispatch(setCurrentWard(null));
       }
     }
-  }, [currentStudy, currentSite, allWards, currentWard, dispatch]);
+  }, [currentStudy, currentSite, allWards, currentWard, localWards, dispatch]);
 
   // ===== EVENT HANDLERS =====
 

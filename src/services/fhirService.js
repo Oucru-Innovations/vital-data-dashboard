@@ -88,7 +88,13 @@ if (FHIR) {
  * @returns {boolean} True if should use mock data, false for real API
  */
 const shouldUseMockData = () => {
+  // Explicit opt-in override for the Playwright e2e suite (?e2eMock=1), so tests can
+  // run against deterministic local mock data without touching the line below.
+  if (typeof window !== 'undefined' && window.location.search.includes('e2eMock=1')) {
+    return true;
+  }
   return false;
+  // eslint-disable-next-line no-unreachable
   return FHIR_API_URL.includes('localhost');
 };
 
@@ -457,7 +463,8 @@ export const getResearchStudy = async (studyId) => {
     }
 
     console.log(`[FHIR Service] Fetching study ${studyId} from FHIR API:`, FHIR_API_URL);
-    const response = await fhirClient.get(`/ResearchStudy/${studyId}?_count=2000&status=active&_sort=_id&_id=Study13NV,Study00EI,Study55TB`);
+    const response = await fhirClient.get(`/ResearchStudy/${studyId}`);
+    console.log(`[FHIR Service] Received study ${studyId} data:`, response);
     return response.data;
   } catch (error) {
     console.error(`[FHIR Service] Error fetching study ${studyId}:`, error);
@@ -687,7 +694,14 @@ export const inferRecruitmentQuery = async (filters) => {
   return queryParams.join('&');
 };
 
-export const getRecruitmentDetail = async (filters) => {
+/**
+ * @param {Object} filters
+ * @param {(attained: number, total: number) => void} [onProgress] - Called after each
+ *   patient's linked-reference resolution completes in the production-mode loop below,
+ *   so callers can show a real "attained/total" progress bar for what is otherwise a
+ *   slow, sequential per-patient fetch. Not invoked in mock mode (already fast).
+ */
+export const getRecruitmentDetail = async (filters, onProgress) => {
   const { studyCode, siteCode, wardCode, group } = filters;
   // console.log('organization', organization);
   console.log('[FHIR Service] getScreeningDetail filters:', filters);
@@ -748,6 +762,8 @@ export const getRecruitmentDetail = async (filters) => {
     );
 
     if (bundle.entry) {
+      const total = bundle.entry.length;
+      let attained = 0;
       for (const entry of bundle.entry) {
         const subject = entry.resource?.subject;
         if (subject?.link && Array.isArray(subject.link)) {
@@ -763,6 +779,8 @@ export const getRecruitmentDetail = async (filters) => {
             }
           }
         }
+        attained += 1;
+        onProgress?.(attained, total);
       }
     }
     console.log('[FHIR Service] hehe bundle receiving', bundle);
@@ -919,8 +937,8 @@ export const preprocessScreeningDetail = (bundle) => {
  *   condition: "CAP"
  * });
  */
-export const getProcessedScreeningDetail = async (filters) => {
-  const bundle = await getRecruitmentDetail(filters);
+export const getProcessedScreeningDetail = async (filters, onProgress) => {
+  const bundle = await getRecruitmentDetail(filters, onProgress);
   return preprocessScreeningDetail(bundle);
 };
 
@@ -1388,6 +1406,7 @@ export const generateRecruitmentDetails = (patients, study, options = {}) => {
         cumulative_screened: cumulatives[groupKey].screened,
         target: target,
         remaining_days: remainingDays,
+        total_periods: allPeriodKeys.length,
       });
     });
   });

@@ -52,10 +52,16 @@ const studySlice = createSlice({
   initialState,
   reducers: {
     /**
-     * Set the current study selection
+     * Set the current study selection: Study{studyCode, group} is the top of the
+     * Study -> Site -> Ward -> Group cascade, and `group` (comparisonGroup, sourced
+     * from processed studies) lives on the study object itself.
      *
-     * This action clears all dependent selections (site and ward) to ensure
-     * that only valid combinations are maintained.
+     * Cascade-clears Site/Ward/Group only when the studyCode actually changes. This
+     * makes setStudy safe to call a SECOND time for the SAME studyCode to patch/refine
+     * the study object in place (e.g. StudySelection backfilling the authoritative
+     * `group` list once a slower full-resource fetch resolves, after the user has
+     * already picked a Site/Ward against the initial, possibly abbreviated, object) -
+     * that second call won't wipe out selections made in the meantime.
      *
      * @param {Object} state - Current Redux state
      * @param {Object} action.payload - Study object from API or null to clear
@@ -64,16 +70,24 @@ const studySlice = createSlice({
      * @param {string} action.payload.studyCode - Study code (e.g., "54EI")
      * @param {string} action.payload.status - Study status ("active", "completed", etc.)
      * @param {Array} action.payload.site - Array of site references [{reference: "Organization/ID"}]
+     * @param {Array} action.payload.group - comparisonGroup entries ({name, description?}), the
+     *   available Group filter options for this study
      */
     setStudy: (state, action) => {
-      state.currentStudy = action.payload;
+      const incoming = action.payload;
+      const isSameStudy =
+        incoming && state.currentStudy && incoming.studyCode === state.currentStudy.studyCode;
 
-      // Clear dependent selections when study changes
-      // This ensures site, ward, condition, and group are always valid for the selected study
-      state.currentSite = null;
-      state.currentWard = null;
-      state.currentCondition = null;
-      state.currentGroup = null;
+      state.currentStudy = incoming;
+
+      // Only cascade-clear when the study actually changed - a same-studyCode
+      // refinement must leave Site/Ward/Group selections alone (see above).
+      if (!isSameStudy) {
+        state.currentSite = null;
+        state.currentWard = null;
+        state.currentCondition = null;
+        state.currentGroup = null;
+      }
     },
 
     /**
@@ -331,16 +345,21 @@ export const selectAlias = (state) => {
   }
 
   // Study and site selected, check if ward is also selected
-  if (currentWard && currentWard.alias && currentWard.alias.length > 0) {
-    // Return the first alias from ward.alias array
+  if (currentWard) {
+    // Prefer matchedAlias (the alias WardSelection actually matched against
+    // the current study+site prefix) over the raw alias[0], since a ward's
+    // alias array can contain non-study-specific entries first (e.g. "HTD AICU").
     // Format: "56EI-003-1" (studyCode-siteCode-wardNumber)
-    // This provides the most specific filter
-    return currentWard.alias[0];
+    const wardAlias = currentWard.matchedAlias || currentWard.alias?.[0];
+    if (wardAlias) {
+      return wardAlias;
+    }
   }
 
   // Study and site selected, but no ward
   // Build study-site pattern: "56EI-003"
   // This matches all patients from this study at this specific site
+  console.log('selecting current', currentStudy, currentSite);
   return `${currentStudy.studyCode}-${currentSite.code}`;
 };
 
