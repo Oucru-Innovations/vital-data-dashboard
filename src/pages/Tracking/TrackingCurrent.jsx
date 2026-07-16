@@ -2204,7 +2204,7 @@ const groupPieChartOption = {
 
           {/* Group filter - shared Redux-backed component, independent of Ward/Site */}
           {selectedStudy && (
-            <Grid item xs={12} md={2}>
+            <Grid item xs={12} md={3}>
               <GroupFilter size="small" />
             </Grid>
           )}

@@ -153,6 +153,11 @@ const GroupFilter = ({
         label={showLabel ? 'Group' : undefined}
         onChange={handleGroupChange}
         displayEmpty={!showLabel}
+        MenuProps={{
+          anchorOrigin: { vertical: 'bottom', horizontal: 'left' },
+          transformOrigin: { vertical: 'top', horizontal: 'left' },
+          PaperProps: { sx: { minWidth: 280 } },
+        }}
         renderValue={(selected) => {
           // Custom render for the selected value
           if (!selected || selected === 'all') {

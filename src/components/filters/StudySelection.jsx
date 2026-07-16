@@ -72,6 +72,44 @@ const StudySelection = ({ sx = {}, fullWidth = true, onChange }) => {
     loadStudies();
   }, []);
 
+  // Fetches the full ResearchStudy resource and patches the authoritative
+  // comparisonGroup into currentStudy.group (see COMPARISONGROUP BACKFILL
+  // above). Shared by handleChange (user picks a study) and the mount effect
+  // below (study was restored from localStorage/redux-persist), since both
+  // cases need the same freshness guarantee - a persisted currentStudy can be
+  // arbitrarily old and never gets re-fetched otherwise.
+  const backfillStudyGroups = (studyCode, studyObj) => {
+    if (!studyObj) return;
+
+    getResearchStudy(`Study${studyCode}`)
+      .then((fullDetail) => {
+        if (!fullDetail?.comparisonGroup || latestStudyCodeRef.current !== studyCode) return;
+        // Same studyCode as the dispatch above, so setStudy's same-study check
+        // leaves Site/Ward/Group alone - this only refines currentStudy.group.
+        dispatch(setStudy({ ...studyObj, group: fullDetail.comparisonGroup }));
+      })
+      .catch((error) => {
+        console.error(`[StudySelection] Error backfilling comparisonGroup for ${studyCode}:`, error);
+      });
+  };
+
+  // Once the studies list has loaded, if a study was already selected
+  // (restored from localStorage on mount, with currentStudy rehydrated by
+  // redux-persist), refresh its comparisonGroup. Without this, a study
+  // selected in a previous session keeps whatever group list happened to be
+  // persisted back then and never picks up server-side changes.
+  useEffect(() => {
+    if (!selectedStudy || studies.length === 0) return;
+
+    const studyObj = studies.find((s) => s.studyCode === selectedStudy) || null;
+    if (studyObj) {
+      backfillStudyGroups(selectedStudy, studyObj);
+    }
+    // Only run this once per studies-load, not on every selectedStudy change -
+    // handleChange already covers user-initiated selection changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studies]);
+
   const handleChange = (event) => {
     const studyCode = event.target.value;
     setSelectedStudy(studyCode);
@@ -83,18 +121,7 @@ const StudySelection = ({ sx = {}, fullWidth = true, onChange }) => {
 
     onChange?.(studyCode, studyObj);
 
-    if (studyObj) {
-      getResearchStudy(`Study${studyCode}`)
-        .then((fullDetail) => {
-          if (!fullDetail?.comparisonGroup || latestStudyCodeRef.current !== studyCode) return;
-          // Same studyCode as the dispatch above, so setStudy's same-study check
-          // leaves Site/Ward/Group alone - this only refines currentStudy.group.
-          dispatch(setStudy({ ...studyObj, group: fullDetail.comparisonGroup }));
-        })
-        .catch((error) => {
-          console.error(`[StudySelection] Error backfilling comparisonGroup for ${studyCode}:`, error);
-        });
-    }
+    backfillStudyGroups(studyCode, studyObj);
   };
 
   return (
