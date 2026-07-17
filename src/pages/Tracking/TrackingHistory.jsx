@@ -86,26 +86,11 @@ import {
   generateRecruitmentDetails,
 } from '../../services/fhirService';
 
+// Shared chart color palette utilities
+import { STATUS_COLORS, heatColorForPercent } from '../../utils/colorPalette';
 
 // Percentage a reason token's count represents of a row's total screened patients
 const reasonPercent = (count, screened) => (screened > 0 ? (count / screened) * 100 : 0);
-
-// Sequential single-hue (blue) ramp for heat-mapping reason-column cells by percent:
-// lightest step reads as "near zero", darkest as "dominant reason" for that row.
-const REASON_HEAT_STEPS = [
-  { max: 0, color: 'transparent', dark: false },
-  { max: 5, color: '#cde2fb', dark: false },
-  { max: 10, color: '#9ec5f4', dark: false },
-  { max: 20, color: '#6da7ec', dark: false },
-  { max: 30, color: '#3987e5', dark: false },
-  { max: 45, color: '#256abf', dark: true },
-  { max: 65, color: '#184f95', dark: true },
-  { max: 100, color: '#0d366b', dark: true },
-];
-const reasonHeatColor = (percent) => {
-  const step = REASON_HEAT_STEPS.find(s => percent <= s.max) || REASON_HEAT_STEPS[REASON_HEAT_STEPS.length - 1];
-  return step;
-};
 
 const TrackingHistory = () => {
   // Redux state - Study/Site/Ward/Group are all owned by the shared StudySelection/
@@ -209,6 +194,11 @@ const TrackingHistory = () => {
       const filters = {
         studyCode: selectedStudy,
         siteCode: currentSite?.code,
+        // Required by inferRecruitmentQuery's production-mode site filter, which only
+        // scopes the query when BOTH siteCode and organization.id are present (see
+        // fhirService.js). Without this, the site filter is silently skipped and every
+        // site's data is returned. Ward stays client-side filtered (see filteredPatients).
+        organization: currentSite || null,
       };
 
       const patients = await getProcessedScreeningDetail(filters, (attained, total) =>
@@ -625,10 +615,10 @@ const TrackingHistory = () => {
       axisLabel: { fontSize: 11, interval: 0 }, // interval: 0 forces every category tick to show, none skipped
     },
     series: [
-      { name: 'Enrolled', type: 'bar', stack: 'total', data: screeningStats.chartEnrolled, itemStyle: { color: '#2e7d32' } },
-      { name: 'Ineligible', type: 'bar', stack: 'total', data: screeningStats.chartIneligible, itemStyle: { color: '#ed6c02' } },
-      { name: 'Declined', type: 'bar', stack: 'total', data: screeningStats.chartDeclined, itemStyle: { color: '#d32f2f' } },
-      { name: 'Other', type: 'bar', stack: 'total', data: screeningStats.chartOther, itemStyle: { color: '#9e9e9e' } },
+      { name: 'Enrolled', type: 'bar', stack: 'total', data: screeningStats.chartEnrolled, itemStyle: { color: STATUS_COLORS.enrolled } },
+      { name: 'Ineligible', type: 'bar', stack: 'total', data: screeningStats.chartIneligible, itemStyle: { color: STATUS_COLORS.ineligible } },
+      { name: 'Declined', type: 'bar', stack: 'total', data: screeningStats.chartDeclined, itemStyle: { color: STATUS_COLORS.declined } },
+      { name: 'Other', type: 'bar', stack: 'total', data: screeningStats.chartOther, itemStyle: { color: STATUS_COLORS.other } },
     ],
     grid: { left: '3%', right: '5%', bottom: 30, top: 40, containLabel: true },
   }), [screeningStats]);
@@ -650,10 +640,10 @@ const TrackingHistory = () => {
       axisLabel: { fontSize: 11, interval: 0 }, // interval: 0 forces every category tick to show, none skipped
     },
     series: [
-      { name: 'Enrolled', type: 'bar', stack: 'total', data: screeningStats.wardChartEnrolled, itemStyle: { color: '#2e7d32' } },
-      { name: 'Ineligible', type: 'bar', stack: 'total', data: screeningStats.wardChartIneligible, itemStyle: { color: '#ed6c02' } },
-      { name: 'Declined', type: 'bar', stack: 'total', data: screeningStats.wardChartDeclined, itemStyle: { color: '#d32f2f' } },
-      { name: 'Other', type: 'bar', stack: 'total', data: screeningStats.wardChartOther, itemStyle: { color: '#9e9e9e' } },
+      { name: 'Enrolled', type: 'bar', stack: 'total', data: screeningStats.wardChartEnrolled, itemStyle: { color: STATUS_COLORS.enrolled } },
+      { name: 'Ineligible', type: 'bar', stack: 'total', data: screeningStats.wardChartIneligible, itemStyle: { color: STATUS_COLORS.ineligible } },
+      { name: 'Declined', type: 'bar', stack: 'total', data: screeningStats.wardChartDeclined, itemStyle: { color: STATUS_COLORS.declined } },
+      { name: 'Other', type: 'bar', stack: 'total', data: screeningStats.wardChartOther, itemStyle: { color: STATUS_COLORS.other } },
     ],
     grid: { left: '3%', right: '5%', bottom: 30, top: 40, containLabel: true },
   }), [screeningStats]);
@@ -959,7 +949,7 @@ const TrackingHistory = () => {
                         {screeningStats.reasonHeaders.map((reason) => {
                           const count = row.reasons?.[reason] || 0;
                           const percent = reasonPercent(count, row.screened);
-                          const heat = reasonHeatColor(percent);
+                          const heat = heatColorForPercent(percent);
                           return (
                             <TableCell
                               align="right"
@@ -1039,7 +1029,7 @@ const TrackingHistory = () => {
                         {screeningStats.reasonHeaders.map((reason) => {
                           const count = row.reasons?.[reason] || 0;
                           const percent = reasonPercent(count, row.screened);
-                          const heat = reasonHeatColor(percent);
+                          const heat = heatColorForPercent(percent);
                           return (
                             <TableCell
                               align="right"

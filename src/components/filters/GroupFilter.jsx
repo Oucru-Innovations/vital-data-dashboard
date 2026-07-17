@@ -35,6 +35,7 @@ import {
   clearCurrentGroup,
   selectCurrentStudy,
 } from '../../store/studySlice';
+import { getChartColor, NEUTRAL_LABEL_COLOR } from '../../utils/colorPalette';
 
 /**
  * GroupFilter Component
@@ -82,14 +83,14 @@ const GroupFilter = ({
       value: 'all',
       label: 'All Groups',
       description: 'Show all patients regardless of group',
-      color: 'default',
+      color: NEUTRAL_LABEL_COLOR,
     },
     ...studyGroups.map((group, index) => ({
       value: group.name,
       label: group.name,
       description: group.description || `Study group: ${group.name}`,
-      // Cycle through some colors for variety
-      color: index % 2 === 0 ? 'primary' : 'secondary',
+      // Shared chart color palette, so group colors match charts elsewhere
+      color: getChartColor(index),
       originalGroup: group, // Keep reference to original object
     })),
   ];
@@ -170,8 +171,11 @@ const GroupFilter = ({
               <Chip
                 label={option?.label}
                 size="small"
-                color={option?.color || 'primary'}
-                sx={{ height: 20 }}
+                sx={{
+                  height: 20,
+                  bgcolor: option?.color || NEUTRAL_LABEL_COLOR,
+                  color: '#fff',
+                }}
               />
             </Box>
           );
@@ -184,8 +188,7 @@ const GroupFilter = ({
               <Chip
                 label="All Groups"
                 size="small"
-                color="default"
-                sx={{ height: 20 }}
+                sx={{ height: 20, bgcolor: NEUTRAL_LABEL_COLOR, color: '#fff' }}
               />
             </Box>
             <Box
@@ -219,8 +222,7 @@ const GroupFilter = ({
                 <Chip
                   label={option.label}
                   size="small"
-                  color={option.color}
-                  sx={{ height: 20 }}
+                  sx={{ height: 20, bgcolor: option.color, color: '#fff' }}
                 />
               </Box>
 

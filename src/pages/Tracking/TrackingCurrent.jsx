@@ -96,6 +96,15 @@ import {
   getResearchStudy // Imported service
 } from '../../services/fhirService';
 
+// Shared chart color palette utilities
+import {
+  COLD_PANEL,
+  getOrderedGroups,
+  getChartColor,
+  buildColorAssignments,
+  NEUTRAL_LABEL_COLOR,
+} from '../../utils/colorPalette';
+
 /**
  * Extract the leaf label from a multi-level code (study label hierarchy).
  * MockStudy13NV uses dot-separated codes: "Group.Category.Label" or "Group.Label".
@@ -331,30 +340,11 @@ const getDateRangeFromLastMonday = () => {
   const today = new Date();
   today.setHours(23, 59, 59, 999); // End of today
 
-  const lastMonday = new Date(today);
-  const day = lastMonday.getDay(); // 0 (Sun) - 6 (Sat)
+  const monday = new Date(today);
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7)); // back to Monday
+  monday.setHours(0, 0, 0, 0); // Start of Monday
 
-  // Calculate days to subtract to get to the *previous* Monday
-  // If today is Mon (1), we want to go back 0 days (if we count today as start)
-  // OR 7 days if "last Monday" strictly means the previous week's Monday.
-  // Requirement: "from last Monday to today". Warning: Ambiguous.
-  // Assumption: "Last Monday" means the most recent Monday (or today if today is Monday).
-  // Actually, usually "Last Monday" implies the start of the week.
-  // If today is Monday, start is probably LAST week's Monday?
-  // Let's assume standard reporting: Start = Most recent past Monday.
-
-  // Logic: Go back until day is 1 (Monday)
-  // If day is 1 (Mon), diff is 0.
-  // If day is 0 (Sun), diff is 1.
-  // If day is 2 (Tue), diff is 2.
-  // If day is 3 (Wed), diff is 3.
-  const diff = (day + 2) % 7;
-  // Wait: (5+2)%7 = 0. (6+2)%7 = 1. (0+2)%7 = 2. (1+2)%7 = 3. Correct.
-
-  lastMonday.setDate(lastMonday.getDate() - diff);
-  lastMonday.setHours(0, 0, 0, 0); // Start of last Monday
-
-  return { start: lastMonday, end: today };
+  return { start: monday, end: today };
 };
 
 /**
@@ -1050,60 +1040,31 @@ const TrackingCurrentPage = () => {
   // ============================================
 
   // ============ EDIT START: Unified color palette for all charts (2026-01-28) ============
-  // Single color palette used consistently across all charts - rotates if more items than colors
-  const chartColors = [
-    '#0288d1', // Blue
-    '#ed6c02', // Orange
-    '#4caf50', // Green
-    '#9c27b0', // Purple
-    '#f44336', // Red
-    '#ff9800', // Amber
-    '#00bcd4', // Cyan
-    '#e91e63', // Pink
-    '#3f51b5', // Indigo
-    '#795548', // Brown
-  ];
-
-  // MUI chip colors for dynamic items - rotates if more items than colors
-  const chipColorMap = ['info', 'warning', 'success', 'error', 'primary', 'secondary'];
+  /**
+   * Single source of truth for group/label colors, computed once per data
+   * change (not recomputed inline per chart). See buildColorAssignments in
+   * utils/colorPalette.js for the cold->warm gradient scheme.
+   */
+  const colorAssignments = useMemo(() => (
+    buildColorAssignments(
+      Object.keys(filteredStats.recruitmentByGroup || {}),
+      studyTargets.labelHierarchy,
+      filteredStats.labelToGroup
+    )
+  ), [filteredStats.recruitmentByGroup, studyTargets.labelHierarchy, filteredStats.labelToGroup]);
 
   /**
-   * Get chart color by index (rotates through palette)
+   * Get a persistent color for a group - an O(1) lookup into colorAssignments.
    */
-  const getChartColor = (index) => chartColors[index % chartColors.length];
+  const getPersistentGroupColor = (group) => colorAssignments.groupColors[group] || COLD_PANEL[0];
 
   /**
-   * Get a color for a label that stays consistent across every chart.
-   * Colors are keyed off the canonical `labelOrder` position (module-level,
-   * fixed) rather than each chart's own filtered/derived label list, so the
-   * same label always gets the same color regardless of which labels happen
-   * to be present in a given chart. Labels outside labelOrder fall back to
-   * their position in the provided list, offset past the canonical colors.
+   * Get a color for a label that stays consistent across every chart - an
+   * O(1) lookup into colorAssignments. 'N/A' is always gray.
    */
-  const getPersistentLabelColor = (label, fallbackList = []) => {
-    const canonicalIndex = labelOrder.indexOf(label);
-    if (canonicalIndex >= 0) return getChartColor(canonicalIndex);
-    const fallbackIndex = fallbackList.indexOf(label);
-    return getChartColor(fallbackIndex >= 0 ? labelOrder.length + fallbackIndex : 0);
-  };
-
-  /**
-   * Get chip color based on label (dynamic - based on label index)
-   */
-  const getLabelColor = (label) => {
-    // Use filteredStats for consistent coloring in charts
-    const labelList = sortLabelsByOrder(Object.keys(filteredStats.byLabel || {}));
-    const index = labelList.indexOf(label);
-    return index >= 0 ? chipColorMap[index % chipColorMap.length] : 'default';
-  };
-
-  /**
-   * Get chip color based on group (dynamic - based on group index)
-   */
-  const getGroupColor = (group) => {
-    const groupList = Object.keys(filteredStats.recruitmentByGroup || {});
-    const index = groupList.indexOf(group);
-    return index >= 0 ? chipColorMap[index % chipColorMap.length] : 'default';
+  const getPersistentLabelColor = (label) => {
+    if (label === 'N/A') return NEUTRAL_LABEL_COLOR;
+    return colorAssignments.labelColors[label] || NEUTRAL_LABEL_COLOR;
   };
   // ============ EDIT END: Unified color palette for all charts ============
 
@@ -1117,13 +1078,14 @@ const TrackingCurrentPage = () => {
    */
 const rawGroups = filteredStats.recruitmentByGroup || {};
 
-const groupPieChartData = Object.entries(rawGroups)
-  .filter(([group]) => group !== 'VAP+')
-  .map(([group, count], index) => {
+const groupPieChartData = getOrderedGroups(Object.keys(rawGroups))
+  .filter((group) => group !== 'VAP+')
+  .map((group) => {
+    const count = rawGroups[group];
     const baseItem = {
       value: count,
       name: group,
-      itemStyle: { color: getChartColor(index) },
+      itemStyle: { color: getPersistentGroupColor(group) },
     };
 
     if (group === 'VAP' && rawGroups['VAP+']) {
@@ -1131,7 +1093,7 @@ const groupPieChartData = Object.entries(rawGroups)
         {
           value: rawGroups['VAP+'],
           name: 'VAP+',
-          itemStyle: { color: getChartColor(index + 1) },
+          itemStyle: { color: getPersistentGroupColor('VAP') },
         },
       ];
     }
@@ -1244,11 +1206,10 @@ const groupPieChartOption = {
         type: 'bar',
         barWidth: '60%',
         data: sortLabelsByOrder(Object.keys(filteredStats.recruitmentByLabel || {}))
-          .map((label, index) => ({
+          .map((label) => ({
             value: filteredStats.recruitmentByLabel?.[label] || 0,
             itemStyle: {
-              // Dynamic color based on label index (rotates through palette)
-              color: getChartColor(index),
+              color: getPersistentLabelColor(label),
               borderRadius: [4, 4, 0, 0],
             },
           })),
@@ -1269,7 +1230,7 @@ const groupPieChartOption = {
    * { VAP: { 'vap+': 6, 'no-vap+': 9, 'N/A': 22 }, CAP: { mild: 31, severe: 11, 'N/A': 3 } }
    */
   const labelGroupPercentData = filteredStats.recruitmentByLabelGroup || {};
-  const labelGroupPercentGroups = Object.keys(labelGroupPercentData);
+  const labelGroupPercentGroups = getOrderedGroups(Object.keys(labelGroupPercentData));
   // Union of all labels across all groups, sorted using the canonical labelOrder
   const labelGroupPercentLabels = sortLabelsByOrder(
     Array.from(
@@ -1338,7 +1299,7 @@ const groupPieChartOption = {
           stack: 'total',
           barMaxWidth: 60,
           emphasis: { focus: 'series' },
-          itemStyle: { color: label === 'N/A' ? '#9e9e9e' : getPersistentLabelColor(label, labelGroupPercentLabels) },
+          itemStyle: { color: getPersistentLabelColor(label) },
           label: {
             show: true,
             formatter: (params) => (params.value > 0 ? `${params.value}%` : ''),
@@ -1362,7 +1323,16 @@ const groupPieChartOption = {
 
 
   // Get all unique groups for the ward chart
-  const allGroups = Object.keys(filteredStats.recruitmentByGroup || {});
+  const allGroups = getOrderedGroups(Object.keys(filteredStats.recruitmentByGroup || {}));
+
+  // Canonical group order for the Recruitment Progress vs Targets chart
+  const progressTargetGroups = getOrderedGroups(Object.keys(studyTargets.byGroup || {}));
+  // ECharts renders category index 0 at the bottom, last index at the top
+  // (default; 'inverse' flips render direction without reliably keeping
+  // itemStyle/label tied to the right bar). Reversed here once so building
+  // the chart bottom-up with 'Total' first reads top-to-bottom in ascending
+  // order above Total.
+  const progressChartGroupsBottomUp = [...progressTargetGroups].reverse();
 
   // Build hierarchical structure: group -> labels
   // Combines: 1) Study-defined labels (from study definition), 2) Data-derived labels (from actual data)
@@ -1512,7 +1482,7 @@ const groupPieChartOption = {
           return total > 0 ? Math.round((raw / total) * 1000) / 10 : 0;
         }),
         itemStyle: {
-          color: getPersistentLabelColor(label, allLabelsFromHierarchy), // Consistent colors across all charts
+          color: getPersistentLabelColor(label), // Consistent colors across all charts
         },
         label: {
           show: wardChartPercentMode,
@@ -1656,7 +1626,7 @@ const groupPieChartOption = {
     },
     series: [
       // One series per group (stacked)
-      ...allGroups.map((group, index) => ({
+      ...allGroups.map((group) => ({
         name: group,
         type: 'bar',
         stack: 'total',
@@ -1670,7 +1640,7 @@ const groupPieChartOption = {
           return total > 0 ? Math.round((raw / total) * 1000) / 10 : 0;
         }),
         itemStyle: {
-          color: getChartColor(index),
+          color: getPersistentGroupColor(group),
         },
         label: {
           show: wardChartPercentMode,
@@ -1706,7 +1676,7 @@ const groupPieChartOption = {
 
   // ============ EDIT START: Dynamic conditions from data (2026-01-28) ============
   // Get all unique groups dynamically from the data
-  // const allGroups = Object.keys(filteredStats.byGroup || {});
+  // const allGroups = getOrderedGroups(Object.keys(filteredStats.byGroup || {}));
 
   // Get all unique labels across all groups
   const allLabels = sortLabelsByOrder([...new Set(
@@ -1799,7 +1769,7 @@ const groupPieChartOption = {
           return total > 0 ? Math.round((raw / total) * 1000) / 10 : 0;
         }),
         itemStyle: {
-          color: getPersistentLabelColor(label, allLabelsFromHierarchy), // Consistent colors across all charts
+          color: getPersistentLabelColor(label), // Consistent colors across all charts
         },
         label: {
           show: siteChartPercentMode,
@@ -1943,7 +1913,7 @@ const groupPieChartOption = {
     },
     series: [
       // One series per group (stacked)
-      ...allGroups.map((group, index) => ({
+      ...allGroups.map((group) => ({
         name: group,
         type: 'bar',
         stack: 'total',
@@ -1957,7 +1927,7 @@ const groupPieChartOption = {
           return total > 0 ? Math.round((raw / total) * 1000) / 10 : 0;
         }),
         itemStyle: {
-          color: getChartColor(index),
+          color: getPersistentGroupColor(group),
         },
         label: {
           show: siteChartPercentMode,
@@ -2035,7 +2005,7 @@ const groupPieChartOption = {
     series: [
       {
         type: 'radar',
-        data: allGroups.map((group, index) => ({
+        data: allGroups.map((group) => ({
           value: [
             filteredStats.recruitmentByGroup?.[group] || 0,
             ...allLabels.slice(0, 3).map(label => filteredStats.recruitmentByLabelGroup?.[group]?.[label] || 0),
@@ -2045,7 +2015,7 @@ const groupPieChartOption = {
             ).length,
           ],
           name: group,
-          itemStyle: { color: getChartColor(index) },
+          itemStyle: { color: getPersistentGroupColor(group) },
           areaStyle: { opacity: 0.3 },
         })),
       },
@@ -2070,8 +2040,8 @@ const groupPieChartOption = {
         <Chip
           label={params.value}
           size="small"
-          color={getLabelColor(params.value)}
           variant="outlined"
+          sx={{ borderColor: getPersistentLabelColor(params.value), color: getPersistentLabelColor(params.value) }}
         />
       ),
     },
@@ -2087,7 +2057,7 @@ const groupPieChartOption = {
               key={g}
               label={g}
               size="small"
-              color={getGroupColor(g)}
+              sx={{ bgcolor: getPersistentGroupColor(g), color: '#fff' }}
             />
           ))}
         </Box>
@@ -2197,7 +2167,7 @@ const groupPieChartOption = {
           {/* Ward filter - shared Redux-backed component (requires study + site),
               with local, patient-data-derived options as a fallback */}
           {selectedStudy && (
-            <Grid item xs={12} md={2}>
+            <Grid item xs={12} md={3}>
               <WardSelection size="small" localWards={localWardOptions} />
             </Grid>
           )}
@@ -2227,7 +2197,7 @@ const groupPieChartOption = {
             </CardContent>
           </Card>
         </Grid>
-        {Object.keys(filteredStats.byGroup || {}).map((group, index) => (
+        {getOrderedGroups(Object.keys(filteredStats.byGroup || {})).map((group, index) => (
           <Grid item xs={12} sm={6} md={3} key={group}>
             <Card elevation={1}>
               <CardContent>
@@ -2248,7 +2218,7 @@ const groupPieChartOption = {
           <TableHead>
             <TableRow sx={{ bgcolor: 'background.default' }}>
               <TableCell sx={{ fontWeight: 'bold' }}>Metric</TableCell>
-              {Object.keys(filteredStats.byGroup || {}).map((group) => (
+              {getOrderedGroups(Object.keys(filteredStats.byGroup || {})).map((group) => (
                 <TableCell key={group} align="center" sx={{ fontWeight: 'bold' }}>{group}</TableCell>
               ))}
               <TableCell align="center" sx={{ fontWeight: 'bold' }}>Total</TableCell>
@@ -2259,17 +2229,17 @@ const groupPieChartOption = {
             <TableRow>
               <TableCell component="th" scope="row">
                 <Typography variant="body2" fontWeight="bold">This Week Screening</Typography>
-                <Typography variant="caption" color="text.secondary">from last Monday to today</Typography>
+                {/* <Typography variant="caption" color="text.secondary">from last Monday to today</Typography> */}
               </TableCell>
-              {Object.keys(filteredStats.byGroup || {}).map((group, index) => (
+              {getOrderedGroups(Object.keys(filteredStats.byGroup || {})).map((group) => (
                 <TableCell key={group} align="center">
-                  <Typography variant="h6" sx={{ color: getChartColor(index) }}>
+                  <Typography variant="h6" sx={{ color: getPersistentGroupColor(group) }}>
                     {filteredStats.thisWeekScreeningByGroup?.[group] || 0}
                   </Typography>
                 </TableCell>
               ))}
               <TableCell align="center">
-                <Typography variant="h6" color="primary">{filteredStats.thisWeekScreening}</Typography>
+                <Typography variant="h6" color="primary" fontWeight="bold">{filteredStats.thisWeekScreening}</Typography>
               </TableCell>
             </TableRow>
 
@@ -2279,15 +2249,15 @@ const groupPieChartOption = {
                 <Typography variant="body2" fontWeight="bold">Total Screening</Typography>
                 <Typography variant="caption" color="text.secondary">Cumulative</Typography>
               </TableCell>
-              {Object.keys(filteredStats.byGroup || {}).map((group, index) => (
+              {getOrderedGroups(Object.keys(filteredStats.byGroup || {})).map((group) => (
                 <TableCell key={group} align="center">
-                  <Typography variant="h6" sx={{ color: getChartColor(index) }}>
+                  <Typography variant="h6" sx={{ color: getPersistentGroupColor(group) }}>
                     {filteredStats.screeningByGroup?.[group] || 0}
                   </Typography>
                 </TableCell>
               ))}
               <TableCell align="center">
-                <Typography variant="h6" color="primary">{filteredStats.totalScreening}</Typography>
+                <Typography variant="h6" color="primary" fontWeight="bold">{filteredStats.totalScreening}</Typography>
               </TableCell>
             </TableRow>
 
@@ -2295,17 +2265,17 @@ const groupPieChartOption = {
             <TableRow>
               <TableCell component="th" scope="row">
                 <Typography variant="body2" fontWeight="bold">This Week Recruitment</Typography>
-                <Typography variant="caption" color="text.secondary">from last Monday to today</Typography>
+                {/* <Typography variant="caption" color="text.secondary">from last Monday to today</Typography> */}
               </TableCell>
-              {Object.keys(filteredStats.byGroup || {}).map((group, index) => (
+              {getOrderedGroups(Object.keys(filteredStats.byGroup || {})).map((group) => (
                 <TableCell key={group} align="center">
-                  <Typography variant="h6" sx={{ color: getChartColor(index) }}>
+                  <Typography variant="h6" sx={{ color: getPersistentGroupColor(group) }}>
                     {filteredStats.thisWeekRecruitmentByGroup?.[group] || 0}
                   </Typography>
                 </TableCell>
               ))}
               <TableCell align="center">
-                <Typography variant="h6" color="primary">{filteredStats.thisWeekRecruitment}</Typography>
+                <Typography variant="h6" color="primary" fontWeight="bold">{filteredStats.thisWeekRecruitment}</Typography>
               </TableCell>
             </TableRow>
 
@@ -2318,14 +2288,15 @@ const groupPieChartOption = {
 
 
               {/* Group Recruitment Cells */}
-              {Object.keys(filteredStats.byGroup || {}).map((group, index) => {
+              {getOrderedGroups(Object.keys(filteredStats.byGroup || {})).map((group) => {
                 const target = studyTargets.byGroup?.[group] || 0;
                 const count = filteredStats.recruitmentByGroup?.[group] || 0;
+                const groupColor = getPersistentGroupColor(group);
                 return (
                   <TableCell key={group} align="center">
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-                        <Typography variant="h6" sx={{ color: getChartColor(index) }}>{count}</Typography>
+                        <Typography variant="h6" fontWeight="bold" sx={{ color: groupColor }}>{count}</Typography>
                         {target > 0 && (
                           <Typography variant="caption" color="text.secondary">/ {target}</Typography>
                         )}
@@ -2339,7 +2310,7 @@ const groupPieChartOption = {
                             height: 4,
                             borderRadius: 2,
                             mt: 0.5,
-                            '& .MuiLinearProgress-bar': { backgroundColor: getChartColor(index) }
+                            '& .MuiLinearProgress-bar': { backgroundColor: groupColor }
                           }}
                         />
                       )}
@@ -2353,7 +2324,7 @@ const groupPieChartOption = {
               <TableCell align="center">
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-                    <Typography variant="h6" color="primary">{filteredStats.totalRecruitment}</Typography>
+                    <Typography variant="h6" color="primary" fontWeight="bold">{filteredStats.totalRecruitment}</Typography>
                     {studyTargets.totalTarget > 0 && (
                       <Typography variant="caption" color="text.secondary">/ {studyTargets.totalTarget}</Typography>
                     )}
@@ -2386,8 +2357,8 @@ const groupPieChartOption = {
                     key={label}
                     label={`${label}: ${count}`}
                     size="small"
-                    color={getLabelColor(label)}
                     variant="outlined"
+                    sx={{ borderColor: getPersistentLabelColor(label), color: getPersistentLabelColor(label) }}
                   />
                 ))}
               </Box>
@@ -2436,7 +2407,7 @@ const groupPieChartOption = {
                 },
                 yAxis: {
                   type: 'category',
-                  data: ['Total', ...Object.keys(studyTargets.byGroup || {})],
+                  data: ['Total', ...progressChartGroupsBottomUp],
                   axisLabel: { fontSize: 12, fontWeight: 'bold' },
                 },
                 series: [
@@ -2452,10 +2423,10 @@ const groupPieChartOption = {
                           borderRadius: [0, 4, 4, 0],
                         },
                       },
-                      ...Object.keys(studyTargets.byGroup || {}).map((group, index) => ({
+                      ...progressChartGroupsBottomUp.map((group) => ({
                         value: filteredStats.recruitmentByGroup?.[group] || 0,
                         itemStyle: {
-                          color: getChartColor(index),
+                          color: getPersistentGroupColor(group),
                           borderRadius: [0, 4, 4, 0],
                         },
                       })),
@@ -2469,7 +2440,7 @@ const groupPieChartOption = {
                         const current = params.value;
                         const target = idx === 0
                           ? studyTargets.totalTarget
-                          : Object.values(studyTargets.byGroup || {})[idx - 1] || 0;
+                          : studyTargets.byGroup?.[progressChartGroupsBottomUp[idx - 1]] || 0;
                         const percentage = target > 0 ? Math.round((current / target) * 100) : 0;
                         return `${current} / ${target} (${percentage}%)`;
                       },
@@ -2484,7 +2455,7 @@ const groupPieChartOption = {
                     type: 'bar',
                     data: [
                       studyTargets.totalTarget,
-                      ...Object.values(studyTargets.byGroup || {}),
+                      ...progressChartGroupsBottomUp.map((group) => studyTargets.byGroup?.[group] || 0),
                     ],
                     barWidth: '50%',
                     barGap: '-100%',
@@ -2499,7 +2470,7 @@ const groupPieChartOption = {
                   },
                 ],
               }}
-              style={{ height: `${Math.max(200, (Object.keys(studyTargets.byGroup || {}).length + 1) * 60)}px`, width: '100%' }}
+              style={{ height: `${Math.max(200, (progressTargetGroups.length + 1) * 60)}px`, width: '100%' }}
               opts={{ renderer: 'canvas' }}
               notMerge={true}
             />
@@ -2532,9 +2503,8 @@ const groupPieChartOption = {
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
                         <Chip
                           label={group}
-                          color={getGroupColor(group)}
                           size="small"
-                          sx={{ fontWeight: 'bold' }}
+                          sx={{ bgcolor: getPersistentGroupColor(group), color: '#fff', fontWeight: 'bold' }}
                         />
                         <Typography variant="subtitle2" color="text.secondary">
                           {labels.length} label{labels.length > 1 ? 's' : ''}
@@ -2582,8 +2552,11 @@ const groupPieChartOption = {
                                   label={labelItem.label}
                                   size="small"
                                   variant="outlined"
-                                  color={getLabelColor(labelItem.label)}
-                                  sx={{ cursor: 'help' }}
+                                  sx={{
+                                    cursor: 'help',
+                                    borderColor: getPersistentLabelColor(labelItem.label),
+                                    color: getPersistentLabelColor(labelItem.label),
+                                  }}
                                 />
                               </Tooltip>
                             ))}
