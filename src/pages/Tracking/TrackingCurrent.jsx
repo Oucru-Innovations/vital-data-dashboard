@@ -105,6 +105,9 @@ import {
   NEUTRAL_LABEL_COLOR,
 } from '../../utils/colorPalette';
 
+// Shared ward/site organization-hierarchy helpers
+import { extractWardCode, extractSiteCode } from '../../utils/orgHierarchy';
+
 /**
  * Extract the leaf label from a multi-level code (study label hierarchy).
  * MockStudy13NV uses dot-separated codes: "Group.Category.Label" or "Group.Label".
@@ -215,76 +218,11 @@ const extractProgressDate = (progress, stateCode) => {
   return progressItem?.startDate || 'N/A';
 };
 
-/**
- * Extract ward code from managingOrganization reference
- * @param {Object} subject - The subject Patient resource
- * @returns {string} The ward code or "Unknown"
- */
-const extractWard = (subject) => {
-  const orgRef = subject?.managingOrganization?.reference || '';
-  // Extract ward code from "Organization/WardHTDED" or "Organization/HTDED" format
-  const match = orgRef.match(/Organization\/(?:Ward)?(.+)/);
-  return match ? match[1] : null;
-};
-
-/**
- * Extract site (hospital) code from managingOrganization reference
- * Site is derived from the ward organization reference
- *
- * Organization reference format: "Organization/WardXXXYY"
- * Where XXX = site/hospital code (e.g., "HTD", "NTTH")
- *       YY = ward code within that site (e.g., "ED" = Emergency Department)
- *
- * SITE CODE PATTERNS:
- * - HTD: Hospital for Tropical Diseases (3 chars)
- * - NTTH: Nguyen Thi Thap Hospital (4 chars)
- * - NTT: Alternative for NTTH (3 chars)
- *
- * The function extracts uppercase letters before lowercase letters or "ED"/"ICU" suffixes.
- *
- * @param {Object} subject - The subject Patient resource
- * @returns {string} The site code or "Unknown"
- */
-const extractSite = (subject) => {
-  const orgRef = subject?.managingOrganization?.reference || '';
-
-  // Extract ward code from "Organization/WardXXXYY" format
-  const wardMatch = orgRef.match(/Organization\/Ward(.+)/i);
-  if (wardMatch) {
-    const fullWardCode = wardMatch[1];
-
-    // Extract site code: uppercase letters at the start before common ward suffixes
-    // e.g., "HTDED" → "HTD", "HTDNhiemD" → "HTD", "NTTHED" → "NTTH"
-    // Look for pattern: uppercase letters followed by (ED|ICU|NhiemD|lowercase)
-    // const siteMatch = fullWardCode.match(/^([A-Z]+?)(?:ED|ICU|Nhiem|[a-z]|$)/);
-    // if (siteMatch) {
-    //   return siteMatch[1].toUpperCase();
-    // }
-
-    const uppercaseMatch = String(fullWardCode).match(/(HTD|NHTD|TVH|NTTH)/);
-    // console.log('fullWardCode', uppercaseMatch);
-    
-    if (uppercaseMatch) {
-      return uppercaseMatch[1];
-    }
-  }
-
-
-  // Fallback: Try to get from "Organization/SiteXXX" format
-  const siteMatch = orgRef.match(/Organization\/Site([A-Z0-9]+)/i);
-  if (siteMatch) {
-    return siteMatch[1];
-  }
-
-
-  // Last fallback: Try organization display name if available
-  const orgDisplay = subject?.managingOrganization?.display;
-  if (orgDisplay) {
-    return orgDisplay;
-  }
-
-  return 'Unknown';
-};
+// Ward/site code extraction from managingOrganization references now lives in
+// src/utils/orgHierarchy.js (extractWard/extractSite aliases below keep call
+// sites in this file unchanged).
+const extractWard = extractWardCode;
+const extractSite = extractSiteCode;
 
 /**
  * Process mockLabel.json data into table rows
@@ -457,6 +395,387 @@ const filterMockData = (bundle, filters = {}) => {
   };
 };
 // ============ EDIT END: Filter mock data function ============
+
+// ============ Shared chart-option factories for Ward/Site dimension charts ============
+// The Ward and Site charts (bar-by-label, pie-by-label, bar-by-group) are structurally
+// identical, differing only in which stats key they read and their titles/tooltip text.
+// These factories collapse that duplication; each is called once per dimension below.
+
+/**
+ * Horizontal stacked bar chart - dimension (ward/site) distribution by individual label.
+ */
+const buildDimensionBarByLabelOption = ({
+  title, items, labels, statsByItemLabel, percentMode, getLabelColor, formatItemLabel = (item) => item,
+}) => ({
+  title: { text: title, left: 'center', textStyle: { fontSize: 16, fontWeight: 'bold' } },
+  tooltip: {
+    trigger: 'axis',
+    axisPointer: { type: 'shadow' },
+    formatter: (params) => {
+      const item = params[0]?.axisValue;
+      let tooltip = `<strong>${formatItemLabel(item)}</strong><br/>`;
+      let total = 0;
+      params.forEach(p => {
+        if (p.seriesName === 'Total') return;
+        const raw = statsByItemLabel?.[item]?.[p.seriesName] || 0;
+        if (raw > 0) {
+          const pctStr = percentMode ? ` (${p.value}%)` : '';
+          tooltip += `${p.marker} ${p.seriesName}: ${raw}${pctStr}<br/>`;
+          total += raw;
+        }
+      });
+      tooltip += `<strong>Total: ${total}</strong>`;
+      return tooltip;
+    },
+  },
+  legend: { data: labels, bottom: '0%', type: 'scroll' },
+  grid: { left: '3%', right: '8%', bottom: '15%', top: '15%', containLabel: true },
+  xAxis: {
+    type: 'value',
+    name: percentMode ? '%' : 'Subjects',
+    max: percentMode ? 100 : undefined,
+    axisLabel: percentMode ? { formatter: '{value}%' } : undefined,
+  },
+  yAxis: { type: 'category', data: items, axisLabel: { fontSize: 11 } },
+  series: [
+    // One series per selected label (stacked)
+    ...labels.map((label) => ({
+      name: label,
+      type: 'bar',
+      stack: 'total',
+      emphasis: { focus: 'series' },
+      data: items.map(item => {
+        const raw = statsByItemLabel?.[item]?.[label] || 0;
+        if (!percentMode) return raw;
+        const total = labels.reduce((sum, l) => sum + (statsByItemLabel?.[item]?.[l] || 0), 0);
+        return total > 0 ? Math.round((raw / total) * 1000) / 10 : 0;
+      }),
+      itemStyle: { color: getLabelColor(label) },
+      label: {
+        show: percentMode,
+        position: 'inside',
+        fontSize: 10,
+        formatter: (params) => (params.value > 0 ? `${params.value}%` : ''),
+      },
+    })),
+    // Total label
+    {
+      name: 'Total',
+      type: 'bar',
+      stack: 'total',
+      itemStyle: { color: 'transparent' },
+      label: {
+        show: true,
+        position: 'right',
+        fontSize: 11,
+        fontWeight: 'bold',
+        formatter: (params) => {
+          const item = items[params.dataIndex];
+          const total = labels.reduce((sum, l) => sum + (statsByItemLabel?.[item]?.[l] || 0), 0);
+          return percentMode ? '' : total;
+        },
+      },
+      data: items.map(() => 0),
+    },
+  ],
+});
+
+/**
+ * Pie chart - dimension (ward/site) distribution by label.
+ */
+const buildDimensionPieOption = ({ title, seriesName, items, labels, statsByItemLabel, getChartColor }) => ({
+  title: { text: title, left: 'center', textStyle: { fontSize: 16, fontWeight: 'bold' } },
+  tooltip: {
+    trigger: 'item',
+    formatter: (params) => {
+      const { name, value, percent } = params;
+      const labelBreakdown = labels
+        .map(label => `${label}: ${statsByItemLabel?.[name]?.[label] || 0}`)
+        .filter(item => !item.endsWith(': 0'))
+        .join('<br/>');
+      return `<strong>${name}</strong>: ${value} (${percent}%)<br/>${labelBreakdown || 'No data'}`;
+    },
+  },
+  legend: { orient: 'horizontal', bottom: '0%', type: 'scroll' },
+  series: [
+    {
+      name: seriesName,
+      type: 'pie',
+      radius: ['30%', '60%'],
+      center: ['50%', '45%'],
+      avoidLabelOverlap: true,
+      itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
+      label: { show: true, formatter: '{b}: {c}', fontSize: 11 },
+      data: items.map((item, index) => ({
+        value: labels.reduce((sum, label) => sum + (statsByItemLabel?.[item]?.[label] || 0), 0),
+        name: item,
+        itemStyle: { color: getChartColor(index) },
+      })),
+    },
+  ],
+});
+
+/**
+ * Horizontal stacked bar chart - dimension (ward/site) distribution by group.
+ */
+const buildDimensionBarByGroupOption = ({
+  title, items, groups, statsByItemGroup, percentMode, getGroupColor, formatItemLabel = (item) => item,
+}) => ({
+  title: { text: title, left: 'center', textStyle: { fontSize: 16, fontWeight: 'bold' } },
+  tooltip: {
+    trigger: 'axis',
+    axisPointer: { type: 'shadow' },
+    formatter: (params) => {
+      const item = params[0]?.axisValue;
+      let tooltip = `<strong>${formatItemLabel(item)}</strong><br/>`;
+      let total = 0;
+      params.forEach(p => {
+        if (p.seriesName === 'Total') return;
+        const raw = statsByItemGroup?.[item]?.[p.seriesName] || 0;
+        if (raw > 0) {
+          const pctStr = percentMode ? ` (${p.value}%)` : '';
+          tooltip += `${p.marker} ${p.seriesName}: ${raw}${pctStr}<br/>`;
+          total += raw;
+        }
+      });
+      tooltip += `<strong>Total: ${total}</strong>`;
+      return tooltip;
+    },
+  },
+  legend: { data: groups, bottom: '0%', type: 'scroll' },
+  grid: { left: '3%', right: '8%', bottom: '12%', top: '15%', containLabel: true },
+  xAxis: {
+    type: 'value',
+    name: percentMode ? '%' : 'Subjects',
+    max: percentMode ? 100 : undefined,
+    axisLabel: percentMode ? { formatter: '{value}%' } : undefined,
+  },
+  yAxis: { type: 'category', data: items, axisLabel: { fontSize: 11 } },
+  series: [
+    // One series per group (stacked)
+    ...groups.map((group) => ({
+      name: group,
+      type: 'bar',
+      stack: 'total',
+      emphasis: { focus: 'series' },
+      data: items.map(item => {
+        const raw = statsByItemGroup?.[item]?.[group] || 0;
+        if (!percentMode) return raw;
+        const total = groups.reduce((sum, g) => sum + (statsByItemGroup?.[item]?.[g] || 0), 0);
+        return total > 0 ? Math.round((raw / total) * 1000) / 10 : 0;
+      }),
+      itemStyle: { color: getGroupColor(group) },
+      label: {
+        show: percentMode,
+        position: 'inside',
+        fontSize: 10,
+        formatter: (params) => (params.value > 0 ? `${params.value}%` : ''),
+      },
+    })),
+    // Total label
+    {
+      name: 'Total',
+      type: 'bar',
+      stack: 'total',
+      itemStyle: { color: 'transparent' },
+      label: {
+        show: true,
+        position: 'right',
+        fontSize: 11,
+        fontWeight: 'bold',
+        formatter: (params) => {
+          const item = items[params.dataIndex];
+          const total = groups.reduce((sum, g) => sum + (statsByItemGroup?.[item]?.[g] || 0), 0);
+          return percentMode ? '' : total;
+        },
+      },
+      data: items.map(() => 0),
+    },
+  ],
+});
+// ============ End shared chart-option factories ============
+
+/**
+ * Shared panel for the Ward/Site "Recruitment by X & Label" charts: item multi-select,
+ * hierarchical group/label multi-select, chart-type selector, percent-mode flip, and the
+ * chart itself. Ward and Site render one of these each with their own state (state
+ * topology is kept in the parent component - only rendering/option-building is shared).
+ */
+const DimensionChartPanel = ({
+  idPrefix, panelTitle, itemNounSingular,
+  allItems, itemStats,
+  selectedItems, setSelectedItems,
+  labelHierarchy, groupStats, labelStats,
+  selectedLabels, setSelectedLabels,
+  chartType, setChartType,
+  percentMode, setPercentMode,
+  filteredItems, filteredLabels,
+  pieOption, groupBarOption, labelBarOption,
+  barHeightPerItem,
+}) => (
+  <Grid item xs={12} md={6}>
+    <Paper elevation={2} sx={{ p: 2 }}>
+      <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
+        {panelTitle}
+      </Typography>
+      {/* Filter dropdowns */}
+      <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+        {/* Item (ward/site) selection dropdown */}
+        <FormControl size="small" sx={{ minWidth: 200 }}>
+          <InputLabel id={`${idPrefix}-item-select-label`}>Select {itemNounSingular === 'ward' ? 'Wards' : 'Sites'}</InputLabel>
+          <Select
+            labelId={`${idPrefix}-item-select-label`}
+            id={`${idPrefix}-item-select`}
+            multiple
+            value={selectedItems}
+            onChange={(e) => setSelectedItems(e.target.value)}
+            input={<OutlinedInput label={`Select ${itemNounSingular === 'ward' ? 'Wards' : 'Sites'}`} />}
+            renderValue={(selected) => `${selected.length} ${itemNounSingular}${selected.length !== 1 ? 's' : ''}`}
+            MenuProps={{ PaperProps: { sx: { maxHeight: 300, minWidth: 250 } } }}
+          >
+            {allItems.map((item) => (
+              <MenuItem key={item} value={item} sx={{ minWidth: 250 }}>
+                <Checkbox checked={selectedItems.includes(item)} size="small" />
+                <ListItemText
+                  primary={item}
+                  secondary={`${itemStats?.[item] || 0} subjects`}
+                  primaryTypographyProps={{ noWrap: false }}
+                />
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        {/* Hierarchical Group/Label selection dropdown */}
+        <FormControl size="small" sx={{ minWidth: 220 }}>
+          <InputLabel id={`${idPrefix}-label-select-label`}>Select Groups/Labels</InputLabel>
+          <Select
+            labelId={`${idPrefix}-label-select-label`}
+            id={`${idPrefix}-label-select`}
+            multiple
+            value={selectedLabels}
+            onChange={(e) => setSelectedLabels(e.target.value)}
+            input={<OutlinedInput label="Select Groups/Labels" />}
+            renderValue={(selected) => `${selected.length} label${selected.length !== 1 ? 's' : ''}`}
+            MenuProps={{ PaperProps: { sx: { maxHeight: 400, minWidth: 300 } } }}
+          >
+            {/* Render hierarchical structure: groups as parents, labels as children.
+                Object.keys(labelHierarchy) includes all groups from study definition. */}
+            {Object.keys(labelHierarchy).map((group) => {
+              const groupLabels = labelHierarchy[group] || [];
+              const allGroupLabelsSelected = groupLabels.length > 0 && groupLabels.every(l => selectedLabels.includes(l));
+              const someGroupLabelsSelected = groupLabels.some(l => selectedLabels.includes(l));
+              return (
+                <React.Fragment key={`${idPrefix}-group-fragment-${group}`}>
+                  {/* Parent group item (toggles all children) */}
+                  <MenuItem
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (allGroupLabelsSelected) {
+                        setSelectedLabels(prev => prev.filter(l => !groupLabels.includes(l)));
+                      } else {
+                        setSelectedLabels(prev => [...new Set([...prev, ...groupLabels])]);
+                      }
+                    }}
+                    sx={{ fontWeight: 'bold', bgcolor: 'action.hover' }}
+                  >
+                    <Checkbox
+                      checked={allGroupLabelsSelected}
+                      indeterminate={someGroupLabelsSelected && !allGroupLabelsSelected}
+                      size="small"
+                    />
+                    <ListItemText
+                      primary={group}
+                      secondary={`${groupLabels.length} labels • ${groupStats?.[group] || 0} subjects`}
+                    />
+                  </MenuItem>
+                  {/* Child label items (indented under their parent group) */}
+                  {groupLabels.map((label) => (
+                    <MenuItem
+                      key={`${idPrefix}-${group}-${label}`}
+                      value={label}
+                      sx={{ pl: 4 }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setSelectedLabels(prev =>
+                          prev.includes(label)
+                            ? prev.filter(l => l !== label)
+                            : [...prev, label]
+                        );
+                      }}
+                    >
+                      <Checkbox checked={selectedLabels.includes(label)} size="small" />
+                      <ListItemText
+                        primary={label}
+                        secondary={`${labelStats?.[label] || 0} subjects`}
+                      />
+                    </MenuItem>
+                  ))}
+                </React.Fragment>
+              );
+            })}
+          </Select>
+        </FormControl>
+        {/* Chart type selector */}
+        <FormControl size="small" sx={{ minWidth: 140 }}>
+          <InputLabel id={`${idPrefix}-type-label`}>Chart Type</InputLabel>
+          <Select
+            labelId={`${idPrefix}-type-label`}
+            id={`${idPrefix}-type`}
+            value={chartType}
+            onChange={(e) => setChartType(e.target.value)}
+            label="Chart Type"
+          >
+            <MenuItem value="bar">Stacked (Labels)</MenuItem>
+            <MenuItem value="group">Stacked (Groups)</MenuItem>
+            <MenuItem value="pie">Pie Chart</MenuItem>
+          </Select>
+        </FormControl>
+        {/* Flip to percentage-stacked view */}
+        <Tooltip title={chartType === 'pie' ? 'Not available for pie chart' : (percentMode ? 'Show subject counts' : 'Show as percentage')}>
+          <span>
+            <IconButton
+              size="small"
+              disabled={chartType === 'pie'}
+              onClick={() => setPercentMode((prev) => !prev)}
+              color={percentMode ? 'primary' : 'default'}
+            >
+              <FlipCameraAndroidIcon fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
+      </Box>
+      {/* Chart - uses label-based or group-based data depending on selection */}
+      {filteredItems.length > 0 && (chartType === 'group' || filteredLabels.length > 0) ? (
+        <ReactECharts
+          option={
+            chartType === 'pie' ? pieOption :
+              chartType === 'group' ? groupBarOption :
+                labelBarOption
+          }
+          style={{ height: chartType === 'pie' ? '350px' : `${Math.max(250, filteredItems.length * barHeightPerItem)}px`, width: '100%' }}
+          opts={{ renderer: 'canvas' }}
+          notMerge={true}
+        />
+      ) : (
+        <Box
+          sx={{
+            height: '200px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}
+        >
+          <Typography variant="body2" color="text.secondary">
+            Select {itemNounSingular === 'ward' ? 'wards' : 'sites'} and labels to display chart
+          </Typography>
+        </Box>
+      )}
+    </Paper>
+  </Grid>
+);
 
 /**
  * TrackingCurrentPage Component
@@ -1412,266 +1731,34 @@ const groupPieChartOption = {
   const filteredLabelsForWardChart = allLabelsFromHierarchy.filter(l => selectedLabelsForWardChart.includes(l));
   // ============ EDIT END: Filter wards and groups based on user selection ============
 
-  /**
-   * Horizontal Stacked Bar Chart - Ward Distribution by Label (Hierarchical)
-   * Shows recruitment count by hospital ward, stacked by individual labels
-   * Uses label-level data for more granular filtering
-   */
-  const wardBarChartByLabelOption = {
-    title: {
-      text: 'Recruitment by Ward & Label',
-      left: 'center',
-      textStyle: { fontSize: 16, fontWeight: 'bold' },
-    },
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' },
-      formatter: (params) => {
-        const ward = params[0]?.axisValue;
-        let tooltip = `<strong>${ward}</strong><br/>`;
-        let total = 0;
-        params.forEach(p => {
-          if (p.seriesName === 'Total') return;
-          const raw = filteredStats.recruitmentByWardLabel?.[ward]?.[p.seriesName] || 0;
-          if (raw > 0) {
-            const pctStr = wardChartPercentMode ? ` (${p.value}%)` : '';
-            tooltip += `${p.marker} ${p.seriesName}: ${raw}${pctStr}<br/>`;
-            total += raw;
-          }
-        });
-        tooltip += `<strong>Total: ${total}</strong>`;
-        return tooltip;
-      },
-    },
-    legend: {
-      data: filteredLabelsForWardChart,
-      bottom: '0%',
-      type: 'scroll',
-    },
-    grid: {
-      left: '3%',
-      right: '8%',
-      bottom: '15%',
-      top: '15%',
-      containLabel: true,
-    },
-    xAxis: {
-      type: 'value',
-      name: wardChartPercentMode ? '%' : 'Subjects',
-      max: wardChartPercentMode ? 100 : undefined,
-      axisLabel: wardChartPercentMode ? { formatter: '{value}%' } : undefined,
-    },
-    yAxis: {
-      type: 'category',
-      data: filteredWardsForChart,
-      axisLabel: { fontSize: 11 },
-    },
-    series: [
-      // One series per selected label (stacked)
-      ...filteredLabelsForWardChart.map((label, index) => ({
-        name: label,
-        type: 'bar',
-        stack: 'total',
-        emphasis: { focus: 'series' },
-        data: filteredWardsForChart.map(ward => {
-          const raw = filteredStats.recruitmentByWardLabel?.[ward]?.[label] || 0;
-          if (!wardChartPercentMode) return raw;
-          const total = filteredLabelsForWardChart.reduce(
-            (sum, l) => sum + (filteredStats.recruitmentByWardLabel?.[ward]?.[l] || 0), 0
-          );
-          return total > 0 ? Math.round((raw / total) * 1000) / 10 : 0;
-        }),
-        itemStyle: {
-          color: getPersistentLabelColor(label), // Consistent colors across all charts
-        },
-        label: {
-          show: wardChartPercentMode,
-          position: 'inside',
-          fontSize: 10,
-          formatter: (params) => (params.value > 0 ? `${params.value}%` : ''),
-        },
-      })),
-      // Total label
-      {
-        name: 'Total',
-        type: 'bar',
-        stack: 'total',
-        itemStyle: { color: 'transparent' },
-        label: {
-          show: true,
-          position: 'right',
-          fontSize: 11,
-          fontWeight: 'bold',
-          formatter: (params) => {
-            const ward = filteredWardsForChart[params.dataIndex];
-            const total = filteredLabelsForWardChart.reduce(
-              (sum, l) => sum + (filteredStats.recruitmentByWardLabel?.[ward]?.[l] || 0), 0
-            );
-            return wardChartPercentMode ? '' : total;
-          },
-        },
-        data: filteredWardsForChart.map(() => 0),
-      },
-    ],
-  };
+  // Ward dimension charts (bar-by-label, pie-by-label, bar-by-group) built via the
+  // shared factories above - see "Shared chart-option factories" near the top of this file.
+  const wardBarChartByLabelOption = buildDimensionBarByLabelOption({
+    title: 'Recruitment by Ward & Label',
+    items: filteredWardsForChart,
+    labels: filteredLabelsForWardChart,
+    statsByItemLabel: filteredStats.recruitmentByWardLabel,
+    percentMode: wardChartPercentMode,
+    getLabelColor: getPersistentLabelColor,
+  });
 
-  /**
-   * Pie Chart - Ward Distribution by Label
-   * Shows recruitment count by hospital ward as pie chart (using label-level data)
-   */
-  const wardPieChartOption = {
-    title: {
-      text: 'Recruitment by Ward & Label',
-      left: 'center',
-      textStyle: { fontSize: 16, fontWeight: 'bold' },
-    },
-    tooltip: {
-      trigger: 'item',
-      formatter: (params) => {
-        const { name, value, percent } = params;
-        // Show label breakdown for this ward in tooltip
-        const labelBreakdown = filteredLabelsForWardChart
-          .map(label => `${label}: ${filteredStats.recruitmentByWardLabel?.[name]?.[label] || 0}`)
-          .filter(item => !item.endsWith(': 0'))
-          .join('<br/>');
-        return `<strong>${name}</strong>: ${value} (${percent}%)<br/>${labelBreakdown || 'No data'}`;
-      },
-    },
-    legend: {
-      orient: 'horizontal',
-      bottom: '0%',
-      type: 'scroll',
-    },
-    series: [
-      {
-        name: 'Ward',
-        type: 'pie',
-        radius: ['30%', '60%'],
-        center: ['50%', '45%'],
-        avoidLabelOverlap: true,
-        itemStyle: {
-          borderRadius: 6,
-          borderColor: '#fff',
-          borderWidth: 2,
-        },
-        label: {
-          show: true,
-          formatter: '{b}: {c}',
-          fontSize: 11,
-        },
-        data: filteredWardsForChart.map((ward, index) => ({
-          value: filteredLabelsForWardChart.reduce(
-            (sum, label) => sum + (filteredStats.recruitmentByWardLabel?.[ward]?.[label] || 0), 0
-          ),
-          name: ward,
-          itemStyle: { color: getChartColor(index) },
-        })),
-      },
-    ],
-  };
+  const wardPieChartOption = buildDimensionPieOption({
+    title: 'Recruitment by Ward & Label',
+    seriesName: 'Ward',
+    items: filteredWardsForChart,
+    labels: filteredLabelsForWardChart,
+    statsByItemLabel: filteredStats.recruitmentByWardLabel,
+    getChartColor,
+  });
 
-  /**
-   * Horizontal Stacked Bar Chart - Ward Distribution by Group
-   * Shows recruitment count by hospital ward, stacked by groups (CAP, VAP, etc.)
-   * Less granular than label-based chart, shows only group-level breakdown
-   */
-  const wardBarChartByGroupOption = {
-    title: {
-      text: 'Recruitment by Ward & Group',
-      left: 'center',
-      textStyle: { fontSize: 16, fontWeight: 'bold' },
-    },
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' },
-      formatter: (params) => {
-        const ward = params[0]?.axisValue;
-        let tooltip = `<strong>${ward}</strong><br/>`;
-        let total = 0;
-        params.forEach(p => {
-          if (p.seriesName === 'Total') return;
-          const raw = filteredStats.recruitmentByWardGroup?.[ward]?.[p.seriesName] || 0;
-          if (raw > 0) {
-            const pctStr = wardChartPercentMode ? ` (${p.value}%)` : '';
-            tooltip += `${p.marker} ${p.seriesName}: ${raw}${pctStr}<br/>`;
-            total += raw;
-          }
-        });
-        tooltip += `<strong>Total: ${total}</strong>`;
-        return tooltip;
-      },
-    },
-    legend: {
-      data: allGroups,
-      bottom: '0%',
-      type: 'scroll',
-    },
-    grid: {
-      left: '3%',
-      right: '8%',
-      bottom: '12%',
-      top: '15%',
-      containLabel: true,
-    },
-    xAxis: {
-      type: 'value',
-      name: wardChartPercentMode ? '%' : 'Subjects',
-      max: wardChartPercentMode ? 100 : undefined,
-      axisLabel: wardChartPercentMode ? { formatter: '{value}%' } : undefined,
-    },
-    yAxis: {
-      type: 'category',
-      data: filteredWardsForChart,
-      axisLabel: { fontSize: 11 },
-    },
-    series: [
-      // One series per group (stacked)
-      ...allGroups.map((group) => ({
-        name: group,
-        type: 'bar',
-        stack: 'total',
-        emphasis: { focus: 'series' },
-        data: filteredWardsForChart.map(ward => {
-          const raw = filteredStats.recruitmentByWardGroup?.[ward]?.[group] || 0;
-          if (!wardChartPercentMode) return raw;
-          const total = allGroups.reduce(
-            (sum, g) => sum + (filteredStats.recruitmentByWardGroup?.[ward]?.[g] || 0), 0
-          );
-          return total > 0 ? Math.round((raw / total) * 1000) / 10 : 0;
-        }),
-        itemStyle: {
-          color: getPersistentGroupColor(group),
-        },
-        label: {
-          show: wardChartPercentMode,
-          position: 'inside',
-          fontSize: 10,
-          formatter: (params) => (params.value > 0 ? `${params.value}%` : ''),
-        },
-      })),
-      // Total label
-      {
-        name: 'Total',
-        type: 'bar',
-        stack: 'total',
-        itemStyle: { color: 'transparent' },
-        label: {
-          show: true,
-          position: 'right',
-          fontSize: 11,
-          fontWeight: 'bold',
-          formatter: (params) => {
-            const ward = filteredWardsForChart[params.dataIndex];
-            const total = allGroups.reduce(
-              (sum, g) => sum + (filteredStats.recruitmentByWardGroup?.[ward]?.[g] || 0), 0
-            );
-            return wardChartPercentMode ? '' : total;
-          },
-        },
-        data: filteredWardsForChart.map(() => 0),
-      },
-    ],
-  };
+  const wardBarChartByGroupOption = buildDimensionBarByGroupOption({
+    title: 'Recruitment by Ward & Group',
+    items: filteredWardsForChart,
+    groups: allGroups,
+    statsByItemGroup: filteredStats.recruitmentByWardGroup,
+    percentMode: wardChartPercentMode,
+    getGroupColor: getPersistentGroupColor,
+  });
   // ============ EDIT END: Stacked bar chart by ward and group ============
 
   // ============ EDIT START: Dynamic conditions from data (2026-01-28) ============
@@ -1699,266 +1786,36 @@ const groupPieChartOption = {
   // ============ EDIT END: Filter sites and groups based on user selection ============
   // ============ EDIT END: Dynamic groups from data ============
 
-  /**
-   * Horizontal Stacked Bar Chart - Site Distribution by Label (Hierarchical)
-   * Shows recruitment count by site, stacked by individual labels
-   * Uses label-level data for more granular filtering
-   */
-  const siteBarChartByLabelOption = {
-    title: {
-      text: 'Recruitment by Site & Label',
-      left: 'center',
-      textStyle: { fontSize: 16, fontWeight: 'bold' },
-    },
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' },
-      formatter: (params) => {
-        const site = params[0]?.axisValue;
-        let tooltip = `<strong>Site: ${site}</strong><br/>`;
-        let total = 0;
-        params.forEach(p => {
-          if (p.seriesName === 'Total') return;
-          const raw = filteredStats.recruitmentBySiteLabel?.[site]?.[p.seriesName] || 0;
-          if (raw > 0) {
-            const pctStr = siteChartPercentMode ? ` (${p.value}%)` : '';
-            tooltip += `${p.marker} ${p.seriesName}: ${raw}${pctStr}<br/>`;
-            total += raw;
-          }
-        });
-        tooltip += `<strong>Total: ${total}</strong>`;
-        return tooltip;
-      },
-    },
-    legend: {
-      data: filteredLabelsForSiteChart,
-      bottom: '0%',
-      type: 'scroll',
-    },
-    grid: {
-      left: '3%',
-      right: '8%',
-      bottom: '15%',
-      top: '15%',
-      containLabel: true,
-    },
-    xAxis: {
-      type: 'value',
-      name: siteChartPercentMode ? '%' : 'Subjects',
-      max: siteChartPercentMode ? 100 : undefined,
-      axisLabel: siteChartPercentMode ? { formatter: '{value}%' } : undefined,
-    },
-    yAxis: {
-      type: 'category',
-      data: filteredSitesForChart,
-      axisLabel: { fontSize: 11 },
-    },
-    series: [
-      // One series per selected label (stacked)
-      ...filteredLabelsForSiteChart.map((label, index) => ({
-        name: label,
-        type: 'bar',
-        stack: 'total',
-        emphasis: { focus: 'series' },
-        data: filteredSitesForChart.map(site => {
-          const raw = filteredStats.recruitmentBySiteLabel?.[site]?.[label] || 0;
-          if (!siteChartPercentMode) return raw;
-          const total = filteredLabelsForSiteChart.reduce(
-            (sum, l) => sum + (filteredStats.recruitmentBySiteLabel?.[site]?.[l] || 0), 0
-          );
-          return total > 0 ? Math.round((raw / total) * 1000) / 10 : 0;
-        }),
-        itemStyle: {
-          color: getPersistentLabelColor(label), // Consistent colors across all charts
-        },
-        label: {
-          show: siteChartPercentMode,
-          position: 'inside',
-          fontSize: 10,
-          formatter: (params) => (params.value > 0 ? `${params.value}%` : ''),
-        },
-      })),
-      // Total label
-      {
-        name: 'Total',
-        type: 'bar',
-        stack: 'total',
-        itemStyle: { color: 'transparent' },
-        label: {
-          show: true,
-          position: 'right',
-          fontSize: 11,
-          fontWeight: 'bold',
-          formatter: (params) => {
-            const site = filteredSitesForChart[params.dataIndex];
-            const total = filteredLabelsForSiteChart.reduce(
-              (sum, l) => sum + (filteredStats.recruitmentBySiteLabel?.[site]?.[l] || 0), 0
-            );
-            return siteChartPercentMode ? '' : total;
-          },
-        },
-        data: filteredSitesForChart.map(() => 0),
-      },
-    ],
-  };
+  // Site dimension charts (bar-by-label, pie-by-label, bar-by-group) built via the
+  // shared factories above - see "Shared chart-option factories" near the top of this file.
+  const siteBarChartByLabelOption = buildDimensionBarByLabelOption({
+    title: 'Recruitment by Site & Label',
+    items: filteredSitesForChart,
+    labels: filteredLabelsForSiteChart,
+    statsByItemLabel: filteredStats.recruitmentBySiteLabel,
+    percentMode: siteChartPercentMode,
+    getLabelColor: getPersistentLabelColor,
+    formatItemLabel: (site) => `Site: ${site}`,
+  });
 
-  /**
-   * Pie Chart - Site Distribution by Label
-   * Shows recruitment count by site as pie chart (using label-level data)
-   */
-  const sitePieChartOption = {
-    title: {
-      text: 'Recruitment by Site & Label',
-      left: 'center',
-      textStyle: { fontSize: 16, fontWeight: 'bold' },
-    },
-    tooltip: {
-      trigger: 'item',
-      formatter: (params) => {
-        const { name, value, percent } = params;
-        // Show label breakdown for this site in tooltip
-        const labelBreakdown = filteredLabelsForSiteChart
-          .map(label => `${label}: ${filteredStats.recruitmentBySiteLabel?.[name]?.[label] || 0}`)
-          .filter(item => !item.endsWith(': 0'))
-          .join('<br/>');
-        return `<strong>${name}</strong>: ${value} (${percent}%)<br/>${labelBreakdown || 'No data'}`;
-      },
-    },
-    legend: {
-      orient: 'horizontal',
-      bottom: '0%',
-      type: 'scroll',
-    },
-    series: [
-      {
-        name: 'Site',
-        type: 'pie',
-        radius: ['30%', '60%'],
-        center: ['50%', '45%'],
-        avoidLabelOverlap: true,
-        itemStyle: {
-          borderRadius: 6,
-          borderColor: '#fff',
-          borderWidth: 2,
-        },
-        label: {
-          show: true,
-          formatter: '{b}: {c}',
-          fontSize: 11,
-        },
-        data: filteredSitesForChart.map((site, index) => ({
-          value: filteredLabelsForSiteChart.reduce(
-            (sum, label) => sum + (filteredStats.recruitmentBySiteLabel?.[site]?.[label] || 0), 0
-          ),
-          name: site,
-          itemStyle: { color: getChartColor(index) },
-        })),
-      },
-    ],
-  };
+  const sitePieChartOption = buildDimensionPieOption({
+    title: 'Recruitment by Site & Label',
+    seriesName: 'Site',
+    items: filteredSitesForChart,
+    labels: filteredLabelsForSiteChart,
+    statsByItemLabel: filteredStats.recruitmentBySiteLabel,
+    getChartColor,
+  });
 
-  /**
-   * Horizontal Stacked Bar Chart - Site Distribution by Group
-   * Shows recruitment count by site, stacked by groups (CAP, VAP, etc.)
-   * Less granular than label-based chart, shows only group-level breakdown
-   */
-  const siteBarChartByGroupOption = {
-    title: {
-      text: 'Recruitment by Site & Group',
-      left: 'center',
-      textStyle: { fontSize: 16, fontWeight: 'bold' },
-    },
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' },
-      formatter: (params) => {
-        const site = params[0]?.axisValue;
-        let tooltip = `<strong>Site: ${site}</strong><br/>`;
-        let total = 0;
-        params.forEach(p => {
-          if (p.seriesName === 'Total') return;
-          const raw = filteredStats.recruitmentBySiteGroup?.[site]?.[p.seriesName] || 0;
-          if (raw > 0) {
-            const pctStr = siteChartPercentMode ? ` (${p.value}%)` : '';
-            tooltip += `${p.marker} ${p.seriesName}: ${raw}${pctStr}<br/>`;
-            total += raw;
-          }
-        });
-        tooltip += `<strong>Total: ${total}</strong>`;
-        return tooltip;
-      },
-    },
-    legend: {
-      data: allGroups,
-      bottom: '0%',
-      type: 'scroll',
-    },
-    grid: {
-      left: '3%',
-      right: '8%',
-      bottom: '12%',
-      top: '15%',
-      containLabel: true,
-    },
-    xAxis: {
-      type: 'value',
-      name: siteChartPercentMode ? '%' : 'Subjects',
-      max: siteChartPercentMode ? 100 : undefined,
-      axisLabel: siteChartPercentMode ? { formatter: '{value}%' } : undefined,
-    },
-    yAxis: {
-      type: 'category',
-      data: filteredSitesForChart,
-      axisLabel: { fontSize: 11 },
-    },
-    series: [
-      // One series per group (stacked)
-      ...allGroups.map((group) => ({
-        name: group,
-        type: 'bar',
-        stack: 'total',
-        emphasis: { focus: 'series' },
-        data: filteredSitesForChart.map(site => {
-          const raw = filteredStats.recruitmentBySiteGroup?.[site]?.[group] || 0;
-          if (!siteChartPercentMode) return raw;
-          const total = allGroups.reduce(
-            (sum, g) => sum + (filteredStats.recruitmentBySiteGroup?.[site]?.[g] || 0), 0
-          );
-          return total > 0 ? Math.round((raw / total) * 1000) / 10 : 0;
-        }),
-        itemStyle: {
-          color: getPersistentGroupColor(group),
-        },
-        label: {
-          show: siteChartPercentMode,
-          position: 'inside',
-          fontSize: 10,
-          formatter: (params) => (params.value > 0 ? `${params.value}%` : ''),
-        },
-      })),
-      // Total label
-      {
-        name: 'Total',
-        type: 'bar',
-        stack: 'total',
-        itemStyle: { color: 'transparent' },
-        label: {
-          show: true,
-          position: 'right',
-          fontSize: 11,
-          fontWeight: 'bold',
-          formatter: (params) => {
-            const site = filteredSitesForChart[params.dataIndex];
-            const total = allGroups.reduce(
-              (sum, g) => sum + (filteredStats.recruitmentBySiteGroup?.[site]?.[g] || 0), 0
-            );
-            return siteChartPercentMode ? '' : total;
-          },
-        },
-        data: filteredSitesForChart.map(() => 0),
-      },
-    ],
-  };
+  const siteBarChartByGroupOption = buildDimensionBarByGroupOption({
+    title: 'Recruitment by Site & Group',
+    items: filteredSitesForChart,
+    groups: allGroups,
+    statsByItemGroup: filteredStats.recruitmentBySiteGroup,
+    percentMode: siteChartPercentMode,
+    getGroupColor: getPersistentGroupColor,
+    formatItemLabel: (site) => `Site: ${site}`,
+  });
 
   /**
    * Radar Chart - Recruitment Overview
@@ -2751,333 +2608,59 @@ const groupPieChartOption = {
           </Paper>
         </Grid>
 
-        {/* ============ EDIT START: Ward Chart with Hierarchical Group/Label Selection (2026-02-04) ============ */}
-        {/* Ward Distribution Chart - with hierarchical group/label selection */}
-        <Grid item xs={12} md={6}>
-          <Paper elevation={2} sx={{ p: 2 }}>
-            <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
-              Recruitment by Ward & Label
-            </Typography>
-            {/* Filter dropdowns */}
-            <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-              {/* Ward selection dropdown */}
-              <FormControl size="small" sx={{ minWidth: 200 }}>
-                <InputLabel id="ward-chart-ward-select-label">Select Wards</InputLabel>
-                <Select
-                  labelId="ward-chart-ward-select-label"
-                  id="ward-chart-ward-select"
-                  multiple
-                  value={selectedWardsForChart}
-                  onChange={(e) => setSelectedWardsForChart(e.target.value)}
-                  input={<OutlinedInput label="Select Wards" />}
-                  renderValue={(selected) => `${selected.length} ward${selected.length !== 1 ? 's' : ''}`}
-                  MenuProps={{ PaperProps: { sx: { maxHeight: 300, minWidth: 250 } } }}
-                >
-                  {allWardsAvailable.map((ward) => (
-                    <MenuItem key={ward} value={ward}>
-                      <Checkbox checked={selectedWardsForChart.includes(ward)} size="small" />
-                      <ListItemText primary={ward} secondary={`${stats.byWard?.[ward] || 0} subjects`} />
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              {/* Hierarchical Group/Label selection dropdown */}
-              <FormControl size="small" sx={{ minWidth: 220 }}>
-                <InputLabel id="ward-chart-label-select-label">Select Groups/Labels</InputLabel>
-                <Select
-                  labelId="ward-chart-label-select-label"
-                  id="ward-chart-label-select"
-                  multiple
-                  value={selectedLabelsForWardChart}
-                  onChange={(e) => setSelectedLabelsForWardChart(e.target.value)}
-                  input={<OutlinedInput label="Select Groups/Labels" />}
-                  renderValue={(selected) => `${selected.length} label${selected.length !== 1 ? 's' : ''}`}
-                  MenuProps={{ PaperProps: { sx: { maxHeight: 400, minWidth: 300 } } }}
-                >
-                  {/* Render hierarchical structure: groups as parents, labels as children */}
-                  {/* Use Object.keys(labelHierarchy) to include all groups from study definition */}
-                  {Object.keys(labelHierarchy).map((group) => {
-                    const groupLabels = labelHierarchy[group] || [];
-                    const allGroupLabelsSelected = groupLabels.length > 0 && groupLabels.every(l => selectedLabelsForWardChart.includes(l));
-                    const someGroupLabelsSelected = groupLabels.some(l => selectedLabelsForWardChart.includes(l));
-                    return (
-                      <React.Fragment key={`group-fragment-${group}`}>
-                        {/* Parent group item (toggles all children) */}
-                        <MenuItem
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            if (allGroupLabelsSelected) {
-                              setSelectedLabelsForWardChart(prev => prev.filter(l => !groupLabels.includes(l)));
-                            } else {
-                              setSelectedLabelsForWardChart(prev => [...new Set([...prev, ...groupLabels])]);
-                            }
-                          }}
-                          sx={{ fontWeight: 'bold', bgcolor: 'action.hover' }}
-                        >
-                          <Checkbox
-                            checked={allGroupLabelsSelected}
-                            indeterminate={someGroupLabelsSelected && !allGroupLabelsSelected}
-                            size="small"
-                          />
-                          <ListItemText
-                            primary={group}
-                            secondary={`${groupLabels.length} labels • ${stats.byGroup?.[group] || 0} subjects`}
-                          />
-                        </MenuItem>
-                        {/* Child label items (indented under their parent group) */}
-                        {groupLabels.map((label) => (
-                          <MenuItem
-                            key={`${group}-${label}`}
-                            value={label}
-                            sx={{ pl: 4 }}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setSelectedLabelsForWardChart(prev =>
-                                prev.includes(label)
-                                  ? prev.filter(l => l !== label)
-                                  : [...prev, label]
-                              );
-                            }}
-                          >
-                            <Checkbox checked={selectedLabelsForWardChart.includes(label)} size="small" />
-                            <ListItemText
-                              primary={label}
-                              secondary={`${stats.byLabel?.[label] || 0} subjects`}
-                            />
-                          </MenuItem>
-                        ))}
-                      </React.Fragment>
-                    );
-                  })}
-                </Select>
-              </FormControl>
-              {/* Chart type selector */}
-              <FormControl size="small" sx={{ minWidth: 140 }}>
-                <InputLabel id="ward-chart-type-label">Chart Type</InputLabel>
-                <Select
-                  labelId="ward-chart-type-label"
-                  id="ward-chart-type"
-                  value={wardChartType}
-                  onChange={(e) => setWardChartType(e.target.value)}
-                  label="Chart Type"
-                >
-                  <MenuItem value="bar">Stacked (Labels)</MenuItem>
-                  <MenuItem value="group">Stacked (Groups)</MenuItem>
-                  <MenuItem value="pie">Pie Chart</MenuItem>
-                </Select>
-              </FormControl>
-              {/* Flip to percentage-stacked view */}
-              <Tooltip title={wardChartType === 'pie' ? 'Not available for pie chart' : (wardChartPercentMode ? 'Show subject counts' : 'Show as percentage')}>
-                <span>
-                  <IconButton
-                    size="small"
-                    disabled={wardChartType === 'pie'}
-                    onClick={() => setWardChartPercentMode((prev) => !prev)}
-                    color={wardChartPercentMode ? 'primary' : 'default'}
-                  >
-                    <FlipCameraAndroidIcon fontSize="small" />
-                  </IconButton>
-                </span>
-              </Tooltip>
-            </Box>
-            {/* Chart - uses label-based or group-based data depending on selection */}
-            {filteredWardsForChart.length > 0 && (wardChartType === 'group' || filteredLabelsForWardChart.length > 0) ? (
-              <ReactECharts
-                option={
-                  wardChartType === 'pie' ? wardPieChartOption :
-                    wardChartType === 'group' ? wardBarChartByGroupOption :
-                      wardBarChartByLabelOption
-                }
-                style={{ height: wardChartType === 'pie' ? '350px' : `${Math.max(250, filteredWardsForChart.length * 40)}px`, width: '100%' }}
-                opts={{ renderer: 'canvas' }}
-                notMerge={true}
-              />
-            ) : (
-              <Box
-                sx={{
-                  height: '200px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  alignItems: 'center'
-                }}
-              >
-                <Typography variant="body2" color="text.secondary">
-                  Select wards and labels to display chart
-                </Typography>
-              </Box>
-            )}
-          </Paper>
-        </Grid>
-        {/* ============ EDIT END: Ward Chart with Hierarchical Group/Label Selection ============ */}
+        {/* ============ Ward Chart with Hierarchical Group/Label Selection (2026-02-04) ============ */}
+        <DimensionChartPanel
+          idPrefix="ward-chart"
+          panelTitle="Recruitment by Ward & Label"
+          itemNounSingular="ward"
+          allItems={allWardsAvailable}
+          itemStats={stats.byWard}
+          selectedItems={selectedWardsForChart}
+          setSelectedItems={setSelectedWardsForChart}
+          labelHierarchy={labelHierarchy}
+          groupStats={stats.byGroup}
+          labelStats={stats.byLabel}
+          selectedLabels={selectedLabelsForWardChart}
+          setSelectedLabels={setSelectedLabelsForWardChart}
+          chartType={wardChartType}
+          setChartType={setWardChartType}
+          percentMode={wardChartPercentMode}
+          setPercentMode={setWardChartPercentMode}
+          filteredItems={filteredWardsForChart}
+          filteredLabels={filteredLabelsForWardChart}
+          pieOption={wardPieChartOption}
+          groupBarOption={wardBarChartByGroupOption}
+          labelBarOption={wardBarChartByLabelOption}
+          barHeightPerItem={40}
+        />
+        {/* ============ End Ward Chart ============ */}
 
-        {/* ============ EDIT START: Site Chart with Hierarchical Group/Label Selection (2026-02-04) ============ */}
-        {/* Recruitment by Site Chart - with hierarchical group/label selection */}
-        <Grid item xs={12} md={6}>
-          <Paper elevation={2} sx={{ p: 2 }}>
-            <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
-              Recruitment by Site & Label
-            </Typography>
-            {/* Filter dropdowns */}
-            <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-              {/* Site selection dropdown */}
-              <FormControl size="small" sx={{ minWidth: 200 }}>
-                <InputLabel id="site-chart-site-select-label">Select Sites</InputLabel>
-                <Select
-                  labelId="site-chart-site-select-label"
-                  id="site-chart-site-select"
-                  multiple
-                  value={selectedSitesForChart}
-                  onChange={(e) => setSelectedSitesForChart(e.target.value)}
-                  input={<OutlinedInput label="Select Sites" />}
-                  renderValue={(selected) => `${selected.length} site${selected.length !== 1 ? 's' : ''}`}
-                  MenuProps={{ PaperProps: { sx: { maxHeight: 300, minWidth: 280 } } }}
-                >
-                  {allSitesAvailable.map((site) => (
-                    <MenuItem key={site} value={site} sx={{ minWidth: 250 }}>
-                      <Checkbox checked={selectedSitesForChart.includes(site)} size="small" />
-                      <ListItemText
-                        primary={site}
-                        secondary={`${stats.bySite?.[site] || 0} subjects`}
-                        primaryTypographyProps={{ noWrap: false }}
-                      />
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              {/* Hierarchical Group/Label selection dropdown */}
-              <FormControl size="small" sx={{ minWidth: 220 }}>
-                <InputLabel id="site-chart-label-select-label">Select Groups/Labels</InputLabel>
-                <Select
-                  labelId="site-chart-label-select-label"
-                  id="site-chart-label-select"
-                  multiple
-                  value={selectedLabelsForSiteChart}
-                  onChange={(e) => setSelectedLabelsForSiteChart(e.target.value)}
-                  input={<OutlinedInput label="Select Groups/Labels" />}
-                  renderValue={(selected) => `${selected.length} label${selected.length !== 1 ? 's' : ''}`}
-                  MenuProps={{ PaperProps: { sx: { maxHeight: 400, minWidth: 300 } } }}
-                >
-                  {/* Render hierarchical structure: groups as parents, labels as children */}
-                  {/* Use Object.keys(labelHierarchy) to include all groups from study definition */}
-                  {Object.keys(labelHierarchy).map((group) => {
-                    const groupLabels = labelHierarchy[group] || [];
-                    const allGroupLabelsSelected = groupLabels.length > 0 && groupLabels.every(l => selectedLabelsForSiteChart.includes(l));
-                    const someGroupLabelsSelected = groupLabels.some(l => selectedLabelsForSiteChart.includes(l));
-                    return (
-                      <React.Fragment key={`site-group-fragment-${group}`}>
-                        {/* Parent group item (toggles all children) */}
-                        <MenuItem
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            if (allGroupLabelsSelected) {
-                              setSelectedLabelsForSiteChart(prev => prev.filter(l => !groupLabels.includes(l)));
-                            } else {
-                              setSelectedLabelsForSiteChart(prev => [...new Set([...prev, ...groupLabels])]);
-                            }
-                          }}
-                          sx={{ fontWeight: 'bold', bgcolor: 'action.hover' }}
-                        >
-                          <Checkbox
-                            checked={allGroupLabelsSelected}
-                            indeterminate={someGroupLabelsSelected && !allGroupLabelsSelected}
-                            size="small"
-                          />
-                          <ListItemText
-                            primary={group}
-                            secondary={`${groupLabels.length} labels • ${stats.byGroup?.[group] || 0} subjects`}
-                          />
-                        </MenuItem>
-                        {/* Child label items (indented under their parent group) */}
-                        {groupLabels.map((label) => (
-                          <MenuItem
-                            key={`site-${group}-${label}`}
-                            value={label}
-                            sx={{ pl: 4 }}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setSelectedLabelsForSiteChart(prev =>
-                                prev.includes(label)
-                                  ? prev.filter(l => l !== label)
-                                  : [...prev, label]
-                              );
-                            }}
-                          >
-                            <Checkbox checked={selectedLabelsForSiteChart.includes(label)} size="small" />
-                            <ListItemText
-                              primary={label}
-                              secondary={`${stats.byLabel?.[label] || 0} subjects`}
-                            />
-                          </MenuItem>
-                        ))}
-                      </React.Fragment>
-                    );
-                  })}
-                </Select>
-              </FormControl>
-              {/* Chart type selector */}
-              <FormControl size="small" sx={{ minWidth: 140 }}>
-                <InputLabel id="site-chart-type-label">Chart Type</InputLabel>
-                <Select
-                  labelId="site-chart-type-label"
-                  id="site-chart-type"
-                  value={siteChartType}
-                  onChange={(e) => setSiteChartType(e.target.value)}
-                  label="Chart Type"
-                >
-                  <MenuItem value="bar">Stacked (Labels)</MenuItem>
-                  <MenuItem value="group">Stacked (Groups)</MenuItem>
-                  <MenuItem value="pie">Pie Chart</MenuItem>
-                </Select>
-              </FormControl>
-              {/* Flip to percentage-stacked view */}
-              <Tooltip title={siteChartType === 'pie' ? 'Not available for pie chart' : (siteChartPercentMode ? 'Show subject counts' : 'Show as percentage')}>
-                <span>
-                  <IconButton
-                    size="small"
-                    disabled={siteChartType === 'pie'}
-                    onClick={() => setSiteChartPercentMode((prev) => !prev)}
-                    color={siteChartPercentMode ? 'primary' : 'default'}
-                  >
-                    <FlipCameraAndroidIcon fontSize="small" />
-                  </IconButton>
-                </span>
-              </Tooltip>
-            </Box>
-            {/* Chart - uses label-based or group-based data depending on selection */}
-            {filteredSitesForChart.length > 0 && (siteChartType === 'group' || filteredLabelsForSiteChart.length > 0) ? (
-              <ReactECharts
-                option={
-                  siteChartType === 'pie' ? sitePieChartOption :
-                    siteChartType === 'group' ? siteBarChartByGroupOption :
-                      siteBarChartByLabelOption
-                }
-                style={{ height: siteChartType === 'pie' ? '350px' : `${Math.max(250, filteredSitesForChart.length * 50)}px`, width: '100%' }}
-                opts={{ renderer: 'canvas' }}
-                notMerge={true}
-              />
-            ) : (
-              <Box
-                sx={{
-                  height: '200px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  alignItems: 'center'
-                }}
-              >
-                <Typography variant="body2" color="text.secondary">
-                  Select sites and labels to display chart
-                </Typography>
-              </Box>
-            )}
-          </Paper>
-        </Grid>
-        {/* ============ EDIT END: Site Chart with Hierarchical Group/Label Selection ============ */}
+        {/* ============ Site Chart with Hierarchical Group/Label Selection (2026-02-04) ============ */}
+        <DimensionChartPanel
+          idPrefix="site-chart"
+          panelTitle="Recruitment by Site & Label"
+          itemNounSingular="site"
+          allItems={allSitesAvailable}
+          itemStats={stats.bySite}
+          selectedItems={selectedSitesForChart}
+          setSelectedItems={setSelectedSitesForChart}
+          labelHierarchy={labelHierarchy}
+          groupStats={stats.byGroup}
+          labelStats={stats.byLabel}
+          selectedLabels={selectedLabelsForSiteChart}
+          setSelectedLabels={setSelectedLabelsForSiteChart}
+          chartType={siteChartType}
+          setChartType={setSiteChartType}
+          percentMode={siteChartPercentMode}
+          setPercentMode={setSiteChartPercentMode}
+          filteredItems={filteredSitesForChart}
+          filteredLabels={filteredLabelsForSiteChart}
+          pieOption={sitePieChartOption}
+          groupBarOption={siteBarChartByGroupOption}
+          labelBarOption={siteBarChartByLabelOption}
+          barHeightPerItem={50}
+        />
+        {/* ============ End Site Chart ============ */}
       </Grid>
 
       {/* Recruitment Details Table */}

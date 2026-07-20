@@ -89,8 +89,95 @@ import {
 // Shared chart color palette utilities
 import { STATUS_COLORS, heatColorForPercent } from '../../utils/colorPalette';
 
+// Shared ward/site organization-hierarchy helper
+import { wardCodeToSite } from '../../utils/orgHierarchy';
+
+// Shared CSV export utility
+import { downloadCsv } from '../../utils/csvExport';
+
 // Percentage a reason token's count represents of a row's total screened patients
 const reasonPercent = (count, screened) => (screened > 0 ? (count / screened) * 100 : 0);
+
+/**
+ * Renders a Type/Category screening breakdown table (with dynamic per-reason
+ * heat-mapped percentage columns) paired with its stacked-bar chart and a CSV
+ * download button. Shared between the Group/Site and Ward screening summary
+ * sections, which previously duplicated this ~80-line block.
+ */
+const ScreeningSummaryPanel = ({ title, chartSubtitle, rows, reasonHeaders, chartOption, chartHeight, onDownload }) => (
+  <Box sx={{ mt: 4 }}>
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+      <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
+        {title}
+      </Typography>
+      <Button size="small" startIcon={<DownloadIcon />} onClick={onDownload}>
+        Download CSV
+      </Button>
+    </Box>
+    <Grid container spacing={2}>
+      <Grid item xs={12} md={5}>
+        <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: chartHeight }}>
+          <Table size="small" stickyHeader>
+            <TableHead>
+              <TableRow>
+                <TableCell><strong>Type</strong></TableCell>
+                <TableCell><strong>Category</strong></TableCell>
+                <TableCell align="right"><strong>Screened</strong></TableCell>
+                <TableCell align="right"><strong>Enrolled</strong></TableCell>
+                <TableCell align="right"><strong>Ineligible</strong></TableCell>
+                <TableCell align="right"><strong>Declined</strong></TableCell>
+                <TableCell align="right"><strong>Other</strong></TableCell>
+                {reasonHeaders.map((reason) => (
+                  <TableCell align="right" key={reason}><strong>{reason}</strong></TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rows.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell>{row.type || '—'}</TableCell>
+                  <TableCell>{row.category}</TableCell>
+                  <TableCell align="right">{row.screened}</TableCell>
+                  <TableCell align="right">{row.enrolled}</TableCell>
+                  <TableCell align="right">{row.ineligible}</TableCell>
+                  <TableCell align="right">{row.declined}</TableCell>
+                  <TableCell align="right">{row.other}</TableCell>
+                  {reasonHeaders.map((reason) => {
+                    const count = row.reasons?.[reason] || 0;
+                    const percent = reasonPercent(count, row.screened);
+                    const heat = heatColorForPercent(percent);
+                    return (
+                      <TableCell
+                        align="right"
+                        key={reason}
+                        sx={{ backgroundColor: heat.color, color: heat.dark ? '#fff' : 'inherit' }}
+                      >
+                        {percent.toFixed(0)}%
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Grid>
+      <Grid item xs={12} md={7}>
+        <Paper elevation={2} sx={{ p: 2 }}>
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+            {chartSubtitle}
+          </Typography>
+          <ReactECharts
+            option={chartOption}
+            style={{ height: `${chartHeight}px`, width: '100%' }}
+            opts={{ renderer: 'canvas' }}
+            notMerge={true}
+          />
+        </Paper>
+      </Grid>
+    </Grid>
+  </Box>
+);
 
 const TrackingHistory = () => {
   // Redux state - Study/Site/Ward/Group are all owned by the shared StudySelection/
@@ -464,10 +551,7 @@ const TrackingHistory = () => {
     // Derive site from ward (e.g. WardHTDED → HTD, HTDED → HTD)
     const wardToSite = (ward) => {
       if (!ward || ward === 'Unknown') return 'Unknown';
-      // const code = String(ward).replace(/^Ward/i, '');
-      // const match = code.match(/^([A-Z]{3,4})/i);
-      const match = String(ward).match(/Ward(HTD|NHTD|TVH|NTTH)/);
-      return match ? match[1].toUpperCase() : (ward.slice(0, 4) || 'Unknown');
+      return wardCodeToSite(ward) || ward.slice(0, 4) || 'Unknown';
     };
 
     // Catch-all/non-informative reason tokens that shouldn't get their own breakdown column
@@ -605,10 +689,6 @@ const TrackingHistory = () => {
    */
   const downloadScreeningSummaryCsv = useCallback((rows, reasonHeaders, filename) => {
     const headers = ['Type', 'Category', 'Screened', 'Enrolled', 'Ineligible', 'Declined', 'Other', ...reasonHeaders];
-    const escapeCsv = (value) => {
-      const str = String(value ?? '');
-      return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
-    };
     const csvRows = rows.map(row => [
       row.type || '',
       row.category,
@@ -619,17 +699,7 @@ const TrackingHistory = () => {
       row.other,
       ...reasonHeaders.map(reason => row.reasons?.[reason] || 0),
     ]);
-    const csvContent = [headers, ...csvRows].map(r => r.map(escapeCsv).join(',')).join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadCsv(headers, csvRows, filename);
   }, []);
 
   /**
@@ -894,162 +964,28 @@ const TrackingHistory = () => {
 
       {/* Screening Summary: table by group / site + chart */}
       {filteredPatients.length > 0 && (
-        <Box sx={{ mt: 4 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-            <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
-              Screening Summary by Group / Site
-            </Typography>
-            <Button
-              size="small"
-              startIcon={<DownloadIcon />}
-              onClick={() => downloadScreeningSummaryCsv(screeningStats.rows, screeningStats.reasonHeaders, buildScreeningCsvFilename())}
-            >
-              Download CSV
-            </Button>
-          </Box>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={5}>
-              <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: screeningChartHeight }}>
-                <Table size="small" stickyHeader>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell><strong>Type</strong></TableCell>
-                      <TableCell><strong>Category</strong></TableCell>
-                      <TableCell align="right"><strong>Screened</strong></TableCell>
-                      <TableCell align="right"><strong>Enrolled</strong></TableCell>
-                      <TableCell align="right"><strong>Ineligible</strong></TableCell>
-                      <TableCell align="right"><strong>Declined</strong></TableCell>
-                      <TableCell align="right"><strong>Other</strong></TableCell>
-                      {screeningStats.reasonHeaders.map((reason) => (
-                        <TableCell align="right" key={reason}><strong>{reason}</strong></TableCell>
-                      ))}
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {screeningStats.rows.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell>{row.type || '—'}</TableCell>
-                        <TableCell>{row.category}</TableCell>
-                        <TableCell align="right">{row.screened}</TableCell>
-                        <TableCell align="right">{row.enrolled}</TableCell>
-                        <TableCell align="right">{row.ineligible}</TableCell>
-                        <TableCell align="right">{row.declined}</TableCell>
-                        <TableCell align="right">{row.other}</TableCell>
-                        {screeningStats.reasonHeaders.map((reason) => {
-                          const count = row.reasons?.[reason] || 0;
-                          const percent = reasonPercent(count, row.screened);
-                          const heat = heatColorForPercent(percent);
-                          return (
-                            <TableCell
-                              align="right"
-                              key={reason}
-                              sx={{ backgroundColor: heat.color, color: heat.dark ? '#fff' : 'inherit' }}
-                            >
-                              {percent.toFixed(0)}%
-                            </TableCell>
-                          );
-                        })}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Grid>
-            <Grid item xs={12} md={7}>
-              <Paper elevation={2} sx={{ p: 2 }}>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  Screening outcome by Group / Site
-                </Typography>
-                <ReactECharts
-                  option={screeningSummaryChartOption}
-                  style={{ height: `${screeningChartHeight}px`, width: '100%' }}
-                  opts={{ renderer: 'canvas' }}
-                  notMerge={true}
-                />
-              </Paper>
-            </Grid>
-          </Grid>
-        </Box>
+        <ScreeningSummaryPanel
+          title="Screening Summary by Group / Site"
+          chartSubtitle="Screening outcome by Group / Site"
+          rows={screeningStats.rows}
+          reasonHeaders={screeningStats.reasonHeaders}
+          chartOption={screeningSummaryChartOption}
+          chartHeight={screeningChartHeight}
+          onDownload={() => downloadScreeningSummaryCsv(screeningStats.rows, screeningStats.reasonHeaders, buildScreeningCsvFilename())}
+        />
       )}
 
       {/* Ward Screening Summary: table by ward + chart (split out from Group/Site summary above) */}
       {filteredPatients.length > 0 && (
-        <Box sx={{ mt: 4 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-            <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
-              Screening Summary by Ward
-            </Typography>
-            <Button
-              size="small"
-              startIcon={<DownloadIcon />}
-              onClick={() => downloadScreeningSummaryCsv(screeningStats.wardRows, screeningStats.reasonHeaders, buildScreeningCsvFilename())}
-            >
-              Download CSV
-            </Button>
-          </Box>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={5}>
-              <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: wardScreeningChartHeight }}>
-                <Table size="small" stickyHeader>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell><strong>Type</strong></TableCell>
-                      <TableCell><strong>Category</strong></TableCell>
-                      <TableCell align="right"><strong>Screened</strong></TableCell>
-                      <TableCell align="right"><strong>Enrolled</strong></TableCell>
-                      <TableCell align="right"><strong>Ineligible</strong></TableCell>
-                      <TableCell align="right"><strong>Declined</strong></TableCell>
-                      <TableCell align="right"><strong>Other</strong></TableCell>
-                      {screeningStats.reasonHeaders.map((reason) => (
-                        <TableCell align="right" key={reason}><strong>{reason}</strong></TableCell>
-                      ))}
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {screeningStats.wardRows.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell>{row.type || '—'}</TableCell>
-                        <TableCell>{row.category}</TableCell>
-                        <TableCell align="right">{row.screened}</TableCell>
-                        <TableCell align="right">{row.enrolled}</TableCell>
-                        <TableCell align="right">{row.ineligible}</TableCell>
-                        <TableCell align="right">{row.declined}</TableCell>
-                        <TableCell align="right">{row.other}</TableCell>
-                        {screeningStats.reasonHeaders.map((reason) => {
-                          const count = row.reasons?.[reason] || 0;
-                          const percent = reasonPercent(count, row.screened);
-                          const heat = heatColorForPercent(percent);
-                          return (
-                            <TableCell
-                              align="right"
-                              key={reason}
-                              sx={{ backgroundColor: heat.color, color: heat.dark ? '#fff' : 'inherit' }}
-                            >
-                              {percent.toFixed(0)}%
-                            </TableCell>
-                          );
-                        })}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Grid>
-            <Grid item xs={12} md={7}>
-              <Paper elevation={2} sx={{ p: 2 }}>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  Screening outcome by Ward
-                </Typography>
-                <ReactECharts
-                  option={wardScreeningChartOption}
-                  style={{ height: `${wardScreeningChartHeight}px`, width: '100%' }}
-                  opts={{ renderer: 'canvas' }}
-                  notMerge={true}
-                />
-              </Paper>
-            </Grid>
-          </Grid>
-        </Box>
+        <ScreeningSummaryPanel
+          title="Screening Summary by Ward"
+          chartSubtitle="Screening outcome by Ward"
+          rows={screeningStats.wardRows}
+          reasonHeaders={screeningStats.reasonHeaders}
+          chartOption={wardScreeningChartOption}
+          chartHeight={wardScreeningChartHeight}
+          onDownload={() => downloadScreeningSummaryCsv(screeningStats.wardRows, screeningStats.reasonHeaders, buildScreeningCsvFilename())}
+        />
       )}
 
       {/* Recruitment Details Table */}
