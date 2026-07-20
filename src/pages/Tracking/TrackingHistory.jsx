@@ -105,11 +105,21 @@ const TrackingHistory = () => {
   const alias = useSelector(selectAlias);
 
   // Study code derived from Redux (StudySelection owns fetching/persisting/dispatching it)
-  const selectedStudy = currentStudy?.studyCode || '';
+  const selectedStudy = currentStudy|| '';
 
   // Time period and date selection
   const [selectedTimepoint, setSelectedTimepoint] = useState('weekly');
+  const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(new Date());
+
+  // Default Start Date to the selected study's period start whenever the study changes,
+  // so the chart initially shows the study's full recruitment window rather than nothing.
+  // Keyed on the study's period.start string (not the study object, which may change
+  // identity every render) so it doesn't stomp a manual Start Date edit on unrelated re-renders.
+  const studyPeriodStart = selectedStudy?.period?.start || null;
+  useEffect(() => {
+    setStartDate(studyPeriodStart ? new Date(studyPeriodStart) : null);
+  }, [studyPeriodStart]);
 
   // Loading state (used for initial page load spinner)
   const [loading] = useState(false);
@@ -192,7 +202,7 @@ const TrackingHistory = () => {
       setPatientData(prev => ({ ...prev, loading: true }));
 
       const filters = {
-        studyCode: selectedStudy,
+        studyCode: selectedStudy?.studyCode || selectedStudy,
         siteCode: currentSite?.code,
         // Required by inferRecruitmentQuery's production-mode site filter, which only
         // scopes the query when BOTH siteCode and organization.id are present (see
@@ -227,11 +237,28 @@ const TrackingHistory = () => {
     }
 
     try {
-      const studyData = generateRecruitmentDetails(filteredPatients, selectedStudy, {
+      // selectedStudy.groups[].name + description -> {name: description}
+      const targetPerGroup = selectedStudy?.group?.reduce((acc, g) => {
+        acc[g.name] = parseInt(g.description) || 0;
+        return acc;
+      }, {'Total': selectedStudy?.recruitment?.targetNumber || 0}) || {'Total': selectedStudy?.recruitment?.targetNumber || 0};
+      let studyData = generateRecruitmentDetails(filteredPatients, selectedStudy, {
+
+        targetRecruitment: targetPerGroup[currentGroup?.name || 'Total'] || 0,
+        studyStartDate: selectedStudy?.period?.start ? new Date(selectedStudy.period.start) : null,
+        studyEndDate: selectedStudy?.period?.end ? new Date(selectedStudy.period.end) : null,
+        startDate,
         endDate,
-        limit: 12,
+        limit: null,
         timepoint: selectedTimepoint,
       });
+
+      // generateRecruitmentDetails still emits zero-filled periods from the study's calendar
+      // start (needed so cumulative sums stay correct), so truncate the chart's visible window
+      // here rather than passing startDate as studyStartDate, which would reset cumulative counts.
+      if (startDate) {
+        studyData = studyData.filter(row => !row.periodStart || new Date(row.periodStart) >= startDate);
+      }
 
       setRecruitmentData({
         studyData,
@@ -240,7 +267,7 @@ const TrackingHistory = () => {
     } catch (error) {
       console.error('[TrackingHistory] Error generating chart data:', error);
     }
-  }, [filteredPatients, selectedStudy, selectedTimepoint, endDate]);
+  }, [filteredPatients, selectedStudy, selectedTimepoint, startDate, endDate]);
 
   // Fetch patient data when study or site changes
   // (fetchPatientData changes identity when either changes, see its deps above;
@@ -254,10 +281,14 @@ const TrackingHistory = () => {
   // Aggregate studyData by period (sum across categories/groups)
   const chartData = useMemo(() => {
     console.log('[TrackingHistory] chartData input - studyData rows:', recruitmentData.studyData.length);
+    
+    console.log('[TrackingHistory] chartData input - raw:', recruitmentData);
+    
     const byPeriod = {};
     recruitmentData.studyData.forEach(row => {
+      console.log('date', row.date, byPeriod[row.date], row);
       if (!byPeriod[row.date]) {
-        byPeriod[row.date] = { recruited: 0, cumRecruited: 0, screened: 0, cumScreened: 0 };
+        byPeriod[row.date] = { recruited: 0, cumRecruited: 0, screened: 0, cumScreened: 0, periodIndex: row.period_index, periodStart: row.periodStart };
       }
       byPeriod[row.date].recruited += row.recruited_number || 0;
       byPeriod[row.date].screened += row.screened_number || 0;
@@ -268,22 +299,25 @@ const TrackingHistory = () => {
     const periods = Object.keys(byPeriod).sort();
 
     // Target calculations
-    const totalTarget = recruitmentData.studyData.find(r => r.target)?.target || 50;
+    const totalTarget = recruitmentData.studyData.find(r => r.target)?.target || 0;
     const totalPeriods = periods.length;
     const cumRecruited = periods.map(p => byPeriod[p].cumRecruited);
 
     // The visible window (periods) may only be the most recent slice of a longer study
-    // (see generateRecruitmentDetails' `limit` option). totalPeriodsCount/windowOffset let us
-    // position the target lines at their true place in the overall study instead of resetting
+    // (see generateRecruitmentDetails' `limit` option). totalPeriodsCount/absoluteIndex let us
+    // position the target lines at their true place in the overall study (based on real
+    // calendar time, via period_index from generateRecruitmentDetails) instead of resetting
     // them to "period 1" at the left edge of the chart.
     const totalPeriodsCount = recruitmentData.studyData.find(r => r.total_periods)?.total_periods || totalPeriods;
-    const windowOffset = Math.max(0, totalPeriodsCount - totalPeriods);
+    const absoluteIndices = periods.map((p, i) =>
+      byPeriod[p].periodIndex != null ? byPeriod[p].periodIndex : Math.max(0, totalPeriodsCount - totalPeriods) + i
+    );
 
     // Static target: linear distribution (total / overall periods, evenly spread)
     const cumTarget = periods.map((_, i) =>
-      Math.round(totalTarget * (windowOffset + i + 1) / totalPeriodsCount)
+      Math.round(totalTarget * (absoluteIndices[i] + 1) / totalPeriodsCount)
     );
-
+    console.log('[DEBUG TrackingHistory] static target for periods', periods, 'absoluteIndices', absoluteIndices, 'cumTarget', cumTarget);
     // Adaptive target: recalculates each period based on actual recruitment.
     // actualBeforeWindow is the true cumulative recruited immediately before the visible window
     // (derived from the already-cumulative cumRecruited data), so the adaptive line starts from
@@ -293,16 +327,17 @@ const TrackingHistory = () => {
       : 0;
     const adaptiveCumTarget = [];
     for (let i = 0; i < periods.length; i++) {
-      const absoluteIndex = windowOffset + i;
+      const absoluteIndex = absoluteIndices[i];
       const actualPrev = i === 0 ? actualBeforeWindow : cumRecruited[i - 1];
       const remaining = Math.max(0, totalTarget - actualPrev);
       const remainingPeriods = totalPeriodsCount - absoluteIndex;
       const needed = remainingPeriods > 0 ? Math.ceil(remaining / remainingPeriods) : remaining;
+      console.log(`[DEBUG TrackingHistory] adaptive target for period ${periods[i]} (absolute index ${absoluteIndex}): actualPrev=${actualPrev}, remaining=${remaining}, remainingPeriods=${remainingPeriods}, needed=${needed}`);
       adaptiveCumTarget.push(actualPrev + needed);
     }
 
-    console.log('[TrackingHistory] chartData output - periods:', periods.length, 'target:', totalTarget);
-    return {
+    console.log('[TrackingHistory] chartData output - periods:', periods, 'target:', totalTarget, 'obj', {
+      
       periods,
       recruited: periods.map(p => byPeriod[p].recruited),
       cumRecruited,
@@ -311,6 +346,22 @@ const TrackingHistory = () => {
       cumTarget,
       adaptiveCumTarget,
       totalTarget,
+    }
+    );
+    // Date-paired series for the cumulative charts, which use a real time axis so gaps
+    // between periods render as proportional visual space instead of an even category step.
+    const dateOf = p => byPeriod[p].periodStart || p;
+    const cumScreened = periods.map(p => byPeriod[p].cumScreened);
+
+    return {
+      periods,
+      recruited: periods.map(p => byPeriod[p].recruited),
+      screened: periods.map(p => byPeriod[p].screened),
+      totalTarget,
+      cumRecruitedByDate: periods.map((p, i) => [dateOf(p), cumRecruited[i]]),
+      cumScreenedByDate: periods.map((p, i) => [dateOf(p), cumScreened[i]]),
+      cumTargetByDate: periods.map((p, i) => [dateOf(p), cumTarget[i]]),
+      adaptiveCumTargetByDate: periods.map((p, i) => [dateOf(p), adaptiveCumTarget[i]]),
     };
   }, [recruitmentData.studyData]);
 
@@ -332,13 +383,13 @@ const TrackingHistory = () => {
   const cumulativeRecruitmentOption = useMemo(() => ({
     tooltip: { trigger: 'axis' },
     legend: { data: ['Cumulative Recruited', 'Planned Target', 'Adaptive Target'] },
-    xAxis: { type: 'category', data: chartData.periods, axisLabel: { rotate: 30 } },
+    xAxis: { type: 'time', axisLabel: { rotate: 30, formatter: '{yyyy}-{MM}-{dd}' } },
     yAxis: { type: 'value', name: 'Cumulative Recruited' },
     series: [
       {
         name: 'Cumulative Recruited',
         type: 'line',
-        data: chartData.cumRecruited,
+        data: chartData.cumRecruitedByDate,
         smooth: true,
         areaStyle: { opacity: 0.15 },
         itemStyle: { color: '#2e7d32' },
@@ -347,7 +398,7 @@ const TrackingHistory = () => {
       {
         name: 'Planned Target',
         type: 'line',
-        data: chartData.cumTarget,
+        data: chartData.cumTargetByDate,
         lineStyle: { width: 2, type: 'dashed' },
         itemStyle: { color: '#d32f2f' },
         symbol: 'none',
@@ -355,7 +406,7 @@ const TrackingHistory = () => {
       {
         name: 'Adaptive Target',
         type: 'line',
-        data: chartData.adaptiveCumTarget,
+        data: chartData.adaptiveCumTargetByDate,
         lineStyle: { width: 2, type: 'dotted' },
         itemStyle: { color: '#ed6c02' },
         symbol: 'diamond',
@@ -382,12 +433,12 @@ const TrackingHistory = () => {
 
   const cumulativeScreeningOption = useMemo(() => ({
     tooltip: { trigger: 'axis' },
-    xAxis: { type: 'category', data: chartData.periods, axisLabel: { rotate: 30 } },
+    xAxis: { type: 'time', axisLabel: { rotate: 30, formatter: '{yyyy}-{MM}-{dd}' } },
     yAxis: { type: 'value', name: 'Cumulative Screened' },
     series: [{
       name: 'Cumulative Screened',
       type: 'line',
-      data: chartData.cumScreened,
+      data: chartData.cumScreenedByDate,
       smooth: true,
       areaStyle: { opacity: 0.15 },
       itemStyle: { color: '#9c27b0' },
@@ -651,89 +702,6 @@ const TrackingHistory = () => {
   // Shared height for the Ward Screening Summary table + chart
   const wardScreeningChartHeight = Math.max(360, screeningStats.wardChartCategories.length * 32);
 
-  // ===== PATIENT DATAGRID COLUMNS =====
-
-  const patientColumns = useMemo(() => [
-    {
-      field: 'screeningId',
-      headerName: 'Screening ID',
-      width: 140,
-      description: 'Participant screening identifier',
-    },
-    {
-      field: 'name',
-      headerName: 'Name',
-      width: 130,
-      description: 'Participant name',
-    },
-    {
-      field: 'studyId',
-      headerName: 'Study ID',
-      width: 180,
-      description: 'Participant study identifier (enrolled patients)',
-    },
-    {
-      field: 'groups',
-      headerName: 'Group',
-      width: 130,
-      description: 'Participant group (e.g., CAP, VAP)',
-      renderCell: (params) => {
-        const groups = params.value || [];
-        return groups.length > 0 ? (
-          <Box display="flex" gap={0.5} flexWrap="wrap">
-            {groups.map((g) => (
-              <Chip key={g} label={g} size="small" color="primary" variant="outlined" />
-            ))}
-          </Box>
-        ) : null;
-      },
-    },
-    {
-      field: 'ward',
-      headerName: 'Ward',
-      width: 120,
-      description: 'Hospital ward',
-    },
-    {
-      field: 'statusText',
-      headerName: 'Status',
-      width: 120,
-      description: 'Recruitment status',
-      renderCell: (params) => params.value ? (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value === 'Enrolled' ? 'success' : params.value === 'Screening' ? 'info' : 'default'}
-          variant="outlined"
-        />
-      ) : null,
-    },
-    {
-      field: 'startDate',
-      headerName: 'Screening Date',
-      width: 130,
-      description: 'Date when patient was first screened',
-    },
-    {
-      field: 'lastUpdate',
-      headerName: 'Last Update',
-      width: 130,
-      description: 'Date of last status update',
-    },
-    {
-      field: 'reason',
-      headerName: 'Reason',
-      width: 150,
-      description: 'Reason for current status',
-    },
-    {
-      field: 'birthYear',
-      headerName: 'Birth Year',
-      width: 100,
-      description: 'Participant birth year',
-    },
-  ], []);
-
   // Loading state
   if (loading) {
     return (
@@ -750,8 +718,8 @@ const TrackingHistory = () => {
       </Typography>
       <Divider sx={{ mb: 3 }} />
 
-      {/* Filter Controls */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      {/* Filter Controls: Study/Site/Ward/Group */}
+      <Grid container spacing={2} sx={{ mb: 2 }}>
         {/* Study Selection (shared component - fetches list, persists, dispatches setStudy) */}
         <Grid item xs={12} md={3}>
           <StudySelection fullWidth />
@@ -759,7 +727,7 @@ const TrackingHistory = () => {
 
         {/* Site Selection (shared component - works correctly with alias matching) */}
         {selectedStudy && (
-          <Grid item xs={12} md={2}>
+          <Grid item xs={12} md={3}>
             <SiteSelection size="medium" fullWidth />
           </Grid>
         )}
@@ -767,49 +735,70 @@ const TrackingHistory = () => {
         {/* Ward Selection (shared component - Redux-integrated, alias matching,
             with local, patient-data-derived options as a fallback) */}
         {selectedStudy && (
-          <Grid item xs={12} md={2}>
+          <Grid item xs={12} md={3}>
             <WardSelection size="medium" fullWidth localWards={localWardOptions} />
           </Grid>
         )}
 
         {/* Group filter (shared component - dispatches to currentGroup, independent of Ward/Site) */}
         {selectedStudy && (
-          <Grid item xs={12} md={2}>
+          <Grid item xs={12} md={3}>
             <GroupFilter size="medium" showLabel sx={{ width: '100%' }} />
           </Grid>
         )}
-
-        {/* Timepoint Selection */}
-        <Grid item xs={12} md={2}>
-          <FormControl fullWidth>
-            <InputLabel>Timepoint</InputLabel>
-            <Select
-              value={selectedTimepoint}
-              onChange={(e) => setSelectedTimepoint(e.target.value)}
-              label="Timepoint"
-            >
-              <MenuItem value="daily">Daily</MenuItem>
-              <MenuItem value="weekly">Weekly</MenuItem>
-              <MenuItem value="monthly">Monthly</MenuItem>
-              <MenuItem value="quarterly">Quarterly</MenuItem>
-              <MenuItem value="yearly">Yearly</MenuItem>
-            </Select>
-          </FormControl>
-        </Grid>
-
-        {/* End Date Picker */}
-        <Grid item xs={12} md={3}>
-          <LocalizationProvider dateAdapter={AdapterDateFns}>
-            <DatePicker
-              label="End Date"
-              value={endDate}
-              onChange={(newDate) => setEndDate(newDate)}
-              slotProps={{ textField: { fullWidth: true } }}
-              maxDate={new Date()}
-            />
-          </LocalizationProvider>
-        </Grid>
       </Grid>
+
+      {/* Period Controls: Timepoint + Start/End Date, grouped together since they jointly
+          define the charts' visible window */}
+      <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+        <Grid container spacing={2}>
+          {/* Timepoint Selection */}
+          <Grid item xs={12} md={4}>
+            <FormControl fullWidth>
+              <InputLabel>Timepoint</InputLabel>
+              <Select
+                value={selectedTimepoint}
+                onChange={(e) => setSelectedTimepoint(e.target.value)}
+                label="Timepoint"
+              >
+                <MenuItem value="daily">Daily</MenuItem>
+                <MenuItem value="weekly">Weekly</MenuItem>
+                <MenuItem value="monthly">Monthly</MenuItem>
+                <MenuItem value="quarterly">Quarterly</MenuItem>
+                <MenuItem value="yearly">Yearly</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+
+          {/* Start Date Picker - truncates charts to periods on/after this date (cumulative
+              totals still reflect the full history, only the visible window is narrowed) */}
+          <Grid item xs={12} md={4}>
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <DatePicker
+                label="Start Date"
+                value={startDate}
+                onChange={(newDate) => setStartDate(newDate)}
+                slotProps={{ textField: { fullWidth: true }, field: { clearable: true } }}
+                maxDate={endDate || new Date()}
+              />
+            </LocalizationProvider>
+          </Grid>
+
+          {/* End Date Picker */}
+          <Grid item xs={12} md={4}>
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <DatePicker
+                label="End Date"
+                value={endDate}
+                onChange={(newDate) => setEndDate(newDate)}
+                slotProps={{ textField: { fullWidth: true } }}
+                maxDate={new Date()}
+                minDate={startDate || undefined}
+              />
+            </LocalizationProvider>
+          </Grid>
+        </Grid>
+      </Paper>
 
       {/* Real attained/total progress for the slow, per-patient reference-resolution loop
           in getRecruitmentDetail's production-mode path (see fhirService.js) */}

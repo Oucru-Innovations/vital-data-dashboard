@@ -29,7 +29,17 @@ import {
   endOfYear,
   // eslint-disable-next-line no-unused-vars
   getWeek,
-  parseISO
+  parseISO,
+  differenceInCalendarDays,
+  differenceInCalendarWeeks,
+  differenceInCalendarMonths,
+  differenceInCalendarQuarters,
+  differenceInCalendarYears,
+  addDays,
+  addWeeks,
+  addMonths,
+  addQuarters,
+  addYears
 } from 'date-fns';
 // eslint-disable-next-line no-unused-vars
 import { store } from '../store/store';
@@ -751,7 +761,7 @@ export const getRecruitmentDetail = async (filters, onProgress) => {
     // Logic adapted from fhirApi.js
 
     const queryString = await inferRecruitmentQuery(filters);
-    const url = `/ResearchSubject?${queryString}`;
+    const url = `/ResearchSubject?${queryString}&_sort=subject`;
     console.log('[FHIR Service] Fetching recruitment detail URL:', url);
 
     // Call API with reference resolution
@@ -1247,6 +1257,62 @@ const getPeriodDateRange = (dateStr, timepoint) => {
 };
 
 /**
+ * Get the number of whole periods elapsed between a study start date and a given date,
+ * bucketed the same way as formatDateByTimepoint/getPeriodDateRange (e.g. weekly periods
+ * measured from Monday-aligned week starts). Used to place a period at its true position
+ * within the study's calendar timeline, rather than its position among periods that
+ * happen to contain data.
+ *
+ * @param {Date} date - The date to measure
+ * @param {Date} startDate - The study's start date
+ * @param {string} timepoint - Aggregation period: daily, weekly, monthly, quarterly, yearly
+ * @returns {number} Whole periods elapsed (0 = same period as startDate)
+ */
+const getPeriodIndex = (date, startDate, timepoint) => {
+  switch (timepoint) {
+    case 'daily':
+      return differenceInCalendarDays(date, startDate);
+    case 'weekly':
+      return differenceInCalendarWeeks(date, startDate, { weekStartsOn: 1 });
+    case 'monthly':
+      return differenceInCalendarMonths(date, startDate);
+    case 'quarterly':
+      return differenceInCalendarQuarters(date, startDate);
+    case 'yearly':
+      return differenceInCalendarYears(date, startDate);
+    default:
+      return differenceInCalendarMonths(date, startDate);
+  }
+};
+
+/**
+ * Step a date forward by one period unit for the given timepoint granularity.
+ * Used to walk the full calendar range between a study's start and end/report dates
+ * so periods with no enrollment/screening activity still get a (zero-value) entry,
+ * instead of being silently skipped.
+ *
+ * @param {Date} date - The date to step forward from
+ * @param {string} timepoint - Aggregation period: daily, weekly, monthly, quarterly, yearly
+ * @returns {Date} The date one period later
+ */
+const addOnePeriod = (date, timepoint) => {
+  switch (timepoint) {
+    case 'daily':
+      return addDays(date, 1);
+    case 'weekly':
+      return addWeeks(date, 1);
+    case 'monthly':
+      return addMonths(date, 1);
+    case 'quarterly':
+      return addQuarters(date, 1);
+    case 'yearly':
+      return addYears(date, 1);
+    default:
+      return addMonths(date, 1);
+  }
+};
+
+/**
  * Generate Recruitment Details Data from Patient Array
  *
  * Creates recruitment tracking data in the format expected by RecruitmentTable component.
@@ -1280,10 +1346,11 @@ const getPeriodDateRange = (dateStr, timepoint) => {
  */
 export const generateRecruitmentDetails = (patients, study, options = {}) => {
   const {
-    targetRecruitment = null,
+    targetRecruitment ,
     startDate = null,
     endDate = null,
-    studyEndDate = null,
+    studyStartDate = study?.period?.start ? new Date(study.period.start) : null,
+    studyEndDate = study?.period?.end ? new Date(study.period.end) : null,
     limit = 12,
     timepoint = 'monthly',
     byCategory = false
@@ -1299,13 +1366,13 @@ export const generateRecruitmentDetails = (patients, study, options = {}) => {
   //   groups.push('Total');
   // }
 
-  console.log(`[generateRecruitmentDetails] Processing ${patients.length} patients for study ${studyCode}`);
-
+  // console.log(`[generateRecruitmentDetails] Processing ${patients.length} patients for study ${studyCode}`);
   const endDateStr = endDate ? endDate.toISOString().split('T')[0] : null;
   const startDateStr = startDate ? startDate.toISOString().split('T')[0] : null;
-
+  
   // Structure to store stats: periods[periodKey][group] = { enrolled, screened }
   const periods = {};
+// console.log(`DEBUG group target end date`, {study,  targetRecruitment, startDate, endDate, studyEndDate, limit, timepoint, byCategory });
 
   patients.forEach(patient => {
     // 1. Process Enrollment
@@ -1317,7 +1384,7 @@ export const generateRecruitmentDetails = (patients, study, options = {}) => {
     const screeningDate = patient.startDate;
 
     const patientGroups = patient.groups || [];
-
+    
     // Helper to add stats
     const addStats = (date, type, groups) => {
       if (!date) return;
@@ -1353,6 +1420,23 @@ export const generateRecruitmentDetails = (patients, study, options = {}) => {
     if (screeningDate) addStats(screeningDate, 'screened', patientGroups);
   });
 
+  // Fill in periods with no enrollment/screening activity so per-period charts (e.g. weekly
+  // "Recruited" bars) show an explicit zero instead of silently skipping the period. Capped
+  // at the report's "as of" date (endDate) rather than a future studyEndDate, so we don't
+  // generate a wall of empty future periods.
+  const rangeEnd = endDate && (!studyEndDate || endDate < studyEndDate) ? endDate : studyEndDate;
+  if (studyStartDate && rangeEnd && studyStartDate <= rangeEnd) {
+    let cursor = studyStartDate;
+    while (cursor <= rangeEnd) {
+      const periodKey = formatDateByTimepoint(cursor, timepoint);
+      if (!periods[periodKey]) {
+        const { start, end } = getPeriodDateRange(cursor, timepoint);
+        periods[periodKey] = { periodStart: start, periodEnd: end, stats: {} };
+      }
+      cursor = addOnePeriod(cursor, timepoint);
+    }
+  }
+
   const allPeriodKeys = Object.keys(periods).sort();
 
   if (allPeriodKeys.length === 0) {
@@ -1366,10 +1450,27 @@ export const generateRecruitmentDetails = (patients, study, options = {}) => {
     cumulatives[cat || 'Total'] = { enrolled: 0, screened: 0 };
   });
 
-  const results = [];
+  // Total study duration expressed in periods, and each period's position within that
+  // duration, based on the study's actual calendar start/end dates. This is what the
+  // recruitment target curve should be spread across - not the count of periods that
+  // happen to contain data (which shrinks whenever a period has zero enrollments).
+  const calendarTotalPeriods = (studyStartDate && studyEndDate)
+    ? getPeriodIndex(studyEndDate, studyStartDate, timepoint) + 1
+    : null;
+  if (!calendarTotalPeriods) {
+    console.warn('[generateRecruitmentDetails] Missing study start/end date; falling back to data-driven period count for target calculation');
+  }
 
-  allPeriodKeys.forEach(periodKey => {
+  const results = [];
+  // console.log("DEBUG generateRecruitmentDetails", { studyCode, allPeriodKeys, groups, targetRecruitment, studyStartDate, studyEndDate, calendarTotalPeriods });
+  // console.log("DEBUG periods", periods);
+
+  allPeriodKeys.forEach((periodKey, dataIndex) => {
     const periodData = periods[periodKey];
+    const periodIndex = calendarTotalPeriods
+      ? getPeriodIndex(new Date(periodData.periodStart), studyStartDate, timepoint)
+      : dataIndex;
+    const totalPeriods = calendarTotalPeriods || allPeriodKeys.length;
 
     // For each group we want to report on
     groups.forEach(group => {
@@ -1387,12 +1488,13 @@ export const generateRecruitmentDetails = (patients, study, options = {}) => {
         remainingDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         if (remainingDays < 0) remainingDays = 0;
       } else {
-        remainingDays = 180; // Fallback
+        remainingDays = 0; // Fallback
       }
 
       // Target recruitment (only for Total or if distributed?)
       // For now, use global target for Total, and null for others unless we have logic
-      const target = groupKey === 'Total' ? (targetRecruitment || 50) : null;
+      // console.log("DEBUG Targetting", targetRecruitment, "for group", groupKey);
+      const target = groupKey === 'Total' ? (targetRecruitment || 0) : null;
 
       results.push({
         study: studyCode,
@@ -1406,7 +1508,8 @@ export const generateRecruitmentDetails = (patients, study, options = {}) => {
         cumulative_screened: cumulatives[groupKey].screened,
         target: target,
         remaining_days: remainingDays,
-        total_periods: allPeriodKeys.length,
+        total_periods: totalPeriods,
+        period_index: periodIndex,
       });
     });
   });
