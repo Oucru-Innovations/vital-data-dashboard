@@ -250,6 +250,26 @@ const TrackingHistory = () => {
     return filtered;
   }, [patientData.patients, currentWard, currentGroup]);
 
+  // Screening summary's date-scoped patient set: filteredPatients further narrowed to the
+  // selected Start/End Date window, keyed on patient.startDate (screening date) the same way
+  // generateRecruitmentDetails' addStats() filters chart events - keeps the Screening Summary
+  // panels below in agreement with what the Recruitment/Screening Progress charts show, instead
+  // of always reflecting the full Study+Site dataset regardless of the date range picked above.
+  // Not applied to filteredPatients itself: generateRecruitmentDetails filters screening and
+  // enrollment events independently by date, so dropping a whole patient here would also hide
+  // enrollment events whose date is in-range even when their screening date isn't.
+  const screeningWindowPatients = useMemo(() => {
+    if (!startDate && !endDate) return filteredPatients;
+    const startDateStr = startDate ? startDate.toISOString().split('T')[0] : null;
+    const endDateStr = endDate ? endDate.toISOString().split('T')[0] : null;
+    return filteredPatients.filter(p => {
+      if (!p.startDate) return false;
+      if (startDateStr && p.startDate < startDateStr) return false;
+      if (endDateStr && p.startDate > endDateStr) return false;
+      return true;
+    });
+  }, [filteredPatients, startDate, endDate]);
+
   // Local fallback options for WardSelection/GroupFilter, derived from the already-loaded
   // (Study+Site-scoped) patient data - see LOCAL FALLBACK docs on those components. Sourced
   // from the unfiltered patientData.patients (not filteredPatients) so the dropdown keeps
@@ -580,7 +600,7 @@ const TrackingHistory = () => {
     // 2. Set of every unique reason token seen, used as the dynamic breakdown header
     const reasonSet = new Set();
 
-    filteredPatients.forEach(p => {
+    screeningWindowPatients.forEach(p => {
       // console.log('hehe',p);
       const status = classify(p);
       const reasonTokens = getReasonTokens(p);
@@ -682,7 +702,7 @@ const TrackingHistory = () => {
       wardRows, wardChartCategories, wardChartEnrolled, wardChartIneligible, wardChartDeclined, wardChartOther, wardTotal,
       reasonHeaders,
     };
-  }, [filteredPatients]);
+  }, [screeningWindowPatients]);
 
   /**
    * Export a screening summary table (rows + dynamic reason columns) as a CSV download
